@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Le智券</title>
+  <link rel="icon" href="logo.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="logo.ico" type="image/x-icon">
+  <link rel="stylesheet" href="jiemian/yangshi.css">
+</head>
+<body>
+  <div id="initOverlay" class="init-overlay">
+    <div class="init-spinner"></div>
+    <div class="init-text">正在初始化加载......</div>
+    <div class="init-subtext">首次加载可能需要几秒钟</div>
+  </div>
+
+  <div class="app-container">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <img src="logo.ico" alt="Logo" class="top-logo">
+        <span class="top-title">Le智券</span>
+      </div>
+      <div class="top-bar-right">
+        <span id="deviceIdDisplay" class="device-id">--</span>
+      </div>
+    </header>
+    <main id="msgArea" class="chat-viewport"></main>
+
+    <footer class="input-area">
+      <div id="attachmentTags" class="attachment-tags"></div>
+      <div id="selectedTags" class="selected-tags"></div>
+      <div class="input-panel" id="inputPanel">
+        <textarea id="inputText" placeholder="支持根据药店id、客户编码以及手机号赠送优惠券，以及日常对话和上传文件进行简单分析。" disabled></textarea>
+        <div class="action-bar">
+          <div class="action-left">
+            <button type="button" class="icon-btn" id="uploadBtn" title="上传文件">
+              <img src="svg/shangchuan.svg" alt="上传">
+            </button>
+          </div>
+          <button id="sendBtn" disabled>确认</button>
+        </div>
+      </div>
+      <input type="file" id="imageInput" accept="image/*" multiple style="display:none">
+      <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.csv,.json,.js,.py,.html,.css,.md,.xlsx,.xls,image/*" multiple style="display:none">
+    </footer>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-title">详细信息</span>
+        <span class="modal-close" onclick="closeDetail()">×</span>
+      </div>
+      <div id="detailBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="imageModal" class="modal-overlay" onclick="closeImagePreview()">
+    <img id="imagePreview" class="image-preview" onclick="event.stopPropagation()">
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script type="module" src="qidong.js"></script>
+</body>
+</html>
