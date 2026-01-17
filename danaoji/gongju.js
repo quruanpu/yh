@@ -1,5 +1,5 @@
 // AI工具注册表
-import { getAllToolDefinitions, executeToolCall } from '../yewu/_zhuce.js';
+import { getAllToolDefinitions, executeToolCall } from '../yewu/zhuce.js';
 
 let toolDefinitions = [];
 let toolContext = null;
