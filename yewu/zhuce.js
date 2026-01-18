@@ -3,10 +3,11 @@ import * as shujuku from './shujuku.js';
 import * as faquan from './faquan.js';
 import * as tupian from './tupian.js';
 import * as sousu from './sousu.js';
-import * as shendu from './shendu.js';  // 新增：深度思考模块
+import * as shendu from './shendu.js';
+import * as shenghuo from './shenghuo.js';  // 生活工具模块（天气、金价、汇率、油价等）
 
-// 业务模块列表（添加深度思考模块）
-const modules = { shujuku, faquan, tupian, sousu, shendu };
+// 业务模块列表
+const modules = { shujuku, faquan, tupian, sousu, shendu, shenghuo };
 
 // 汇总所有工具定义（转换为OpenAI格式）
 export function getAllToolDefinitions() {

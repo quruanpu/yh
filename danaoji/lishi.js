@@ -1,7 +1,9 @@
-// 对话历史管理
-const AI_HISTORY_VERSION = 34; // 更新版本号清除旧缓存
+// 对话历史管理 v2.0
+// 优化：减少历史数量，降低对发券场景的干扰
+
+const AI_HISTORY_VERSION = 50; // 更新版本号清除旧缓存
 const AI_HISTORY_KEY = 'le_ai_history_v' + AI_HISTORY_VERSION;
-const AI_MAX_HISTORY = 30;
+const AI_MAX_HISTORY = 16; // 减少最大历史数量
 
 let history = [];
 
@@ -34,7 +36,7 @@ export function removeLast() {
   save();
 }
 
-export function getRecent(count = 20) {
+export function getRecent(count = 8) {
   return history.slice(-count);
 }
 

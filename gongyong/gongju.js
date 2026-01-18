@@ -50,3 +50,24 @@ export async function initFingerprint() {
 
 // 获取当前时间字符串
 export const getTime = () => new Date().toLocaleTimeString('zh-CN', { hour12: false });
+
+// 获取用户IP和位置
+export async function getIPLocation() {
+  try {
+    const response = await fetch('http://ip-api.com/json?lang=zh-CN');
+    const data = await response.json();
+    if (data.status === 'success') {
+      return {
+        ip: data.query,
+        country: data.country,      // 国家
+        region: data.regionName,    // 省份
+        city: data.city,            // 城市
+        isp: data.isp               // 运营商
+      };
+    }
+    return null;
+  } catch (e) {
+    console.error('获取IP位置失败:', e);
+    return null;
+  }
+}

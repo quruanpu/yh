@@ -3,10 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Le智券</title>
+  <title>Yt小助手</title>
   <link rel="icon" href="logo.ico" type="image/x-icon">
   <link rel="shortcut icon" href="logo.ico" type="image/x-icon">
   <link rel="stylesheet" href="jiemian/yangshi.css">
+  <link rel="stylesheet" href="jiemian/jieguo.css">
 </head>
 <body>
   <div id="initOverlay" class="init-overlay">
@@ -19,10 +20,14 @@
     <header class="top-bar">
       <div class="top-bar-left">
         <img src="logo.ico" alt="Logo" class="top-logo">
-        <span class="top-title">Le智券</span>
+        <div class="top-bar-info">
+          <span class="top-title">Yt小助手</span>
+          <span class="top-subtitle">本系统仅供企业内部办公使用！用于便捷办公。</span>
+        </div>
       </div>
       <div class="top-bar-right">
         <span id="deviceIdDisplay" class="device-id">--</span>
+        <span id="locationDisplay" class="location-info">定位中...</span>
       </div>
     </header>
     <main id="msgArea" class="chat-viewport"></main>
@@ -31,7 +36,7 @@
       <div id="attachmentTags" class="attachment-tags"></div>
       <div id="selectedTags" class="selected-tags"></div>
       <div class="input-panel" id="inputPanel">
-        <textarea id="inputText" placeholder="支持根据药店id、客户编码以及手机号赠送优惠券，以及日常对话和上传文件进行简单分析。" disabled></textarea>
+        <textarea id="inputText" placeholder="支持药店id、客户编码以及手机号赠送优惠券，可日常对话。" disabled></textarea>
         <div class="action-bar">
           <div class="action-left">
             <button type="button" class="icon-btn" id="uploadBtn" title="上传文件">

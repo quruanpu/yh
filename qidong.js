@@ -1,12 +1,12 @@
 // 应用启动器
-import { initFingerprint, getDeviceId, extractIds } from './gongyong/gongju.js';
+import { initFingerprint, getDeviceId, getIPLocation, extractIds } from './gongyong/gongju.js';
 import * as ai from './danaoji/hexin.js';
 import * as gongju from './danaoji/gongju.js';
 import * as shujuku from './yewu/shujuku.js';
-import { executeSend } from './yewu/faquan.js';
 import { getCurrentImage, clearCurrentImage } from './yewu/tupian.js';
 import * as jiemian from './jiemian/jiaohui.js';
 import { renderReport, renderActivityList } from './jiemian/xuanran.js';
+import { extractCouponKeywords } from './yewu/faquan.js';
 
 // 状态
 let sessionPendingTasks = 0;
@@ -65,17 +65,18 @@ function getSendContext() {
   };
 }
 
-// 传统发券（调用核心函数）
-async function handleTraditionalDispatch(ids) {
-  const activities = jiemian.getSelectedActivities();
-  jiemian.clearSelectedActivities();
-
-  if (!activities.length || !ids.length) {
-    notify('⚠️ 缺少活动或ID');
-    return;
-  }
-
-  await executeSend(activities, ids, getSendContext());
+// 传统发券（走统一的发券逻辑）
+async function handleTraditionalDispatch(activities, content) {
+  // 提取选中活动的关键字
+  const keywords = activities.map(a => a.keyword.split(/[,，]/)[0].trim());
+  
+  // 调用统一的发券执行器
+  const result = await gongju.execute('send_coupons', {
+    keywords,
+    content
+  });
+  
+  return result;
 }
 
 // 设置运行状态
@@ -96,41 +97,66 @@ async function handleDispatch() {
   const content = jiemian.getInputText();
   const selectedActivities = jiemian.getSelectedActivities();
 
-  // 先检查是否有内容（不清空附件，后面根据情况处理）
+  // 先检查是否有内容
   const hasAttachments = document.getElementById('attachmentTags').children.length > 0;
   if (!content && !hasAttachments) return;
 
   jiemian.clearInput();
 
-  // 有活动标签 → 传统发券
+  // 获取附件
+  const attachments = jiemian.getAndClearAttachments();
+  const userImages = attachments.filter(a => a.type === 'image').map(a => a.data);
+  const userFiles = attachments.filter(a => a.type === 'file').map(a => a.name);
+
+  // ========================================
+  // 流程1：有活动标签 → 传统发券
+  // ========================================
   if (selectedActivities.length > 0) {
-    const attachments = jiemian.getAndClearAttachments();
-    const userImages = attachments.filter(a => a.type === 'image').map(a => a.data);
-    const userFiles = attachments.filter(a => a.type === 'file').map(a => a.name);
-
     notify(content.replace(/\n/g, '<br>') || '[附件]', 'user', { tags: selectedActivities, images: userImages, files: userFiles });
-
-    const ids = extractIds(content);
-    if (ids.length === 0) {
-      jiemian.clearSelectedActivities();
-      return notify('⚠️ 未识别到ID');
-    }
-    await handleTraditionalDispatch(ids);
+    jiemian.clearSelectedActivities();
+    await handleTraditionalDispatch(selectedActivities, content);
     return;
   }
 
-  // "活动"关键字
+  // ========================================
+  // 流程2：无活动标签 → 系统优先解析
+  // ========================================
+  
+  // "活动"关键字 → 显示活动列表
   if (content === '活动') {
-    jiemian.getAndClearAttachments(); // 清空附件
     notify(content, 'user');
     await showActivityCards();
     return;
   }
 
-  // AI模式 - 附件在handleAIChat中处理
-  const attachments = jiemian.getAndClearAttachments();
-  const userImages = attachments.filter(a => a.type === 'image').map(a => a.data);
-  const userFiles = attachments.filter(a => a.type === 'file').map(a => a.name);
+  // 系统解析：提取ID和优惠券关键字
+  const ids = extractIds(content);
+  const keywords = extractCouponKeywords(content);
+  
+  // 特殊标记（最低档、全套等）→ 交给AI
+  const specialMarkers = ['__LOWEST__', '__HIGHEST__', '__ALL__'];
+  const hasSpecialMarker = keywords.some(k => specialMarkers.includes(k));
+  
+  // 正常关键字（过滤掉特殊标记）
+  const normalKeywords = keywords.filter(k => !specialMarkers.includes(k));
+
+  // 有ID + 有正常关键字 + 无特殊标记 → 系统直接发券
+  if (ids.length > 0 && normalKeywords.length > 0 && !hasSpecialMarker) {
+    notify(content.replace(/\n/g, '<br>') || '[附件]', 'user', { images: userImages, files: userFiles });
+    
+    await gongju.execute('send_coupons', {
+      keywords: normalKeywords,
+      content: content
+    });
+    return;
+  }
+
+  // ========================================
+  // 流程3：其他情况 → 交给AI处理
+  // - 无ID
+  // - 有ID但无关键字
+  // - 有ID但有特殊标记（最低档、全套等）
+  // ========================================
   notify(content.replace(/\n/g, '<br>') || '[附件]', 'user', { images: userImages, files: userFiles });
 
   setRunning(true);
@@ -171,6 +197,11 @@ async function init() {
     const deviceId = await initFingerprint();
     jiemian.setDeviceId(deviceId);
 
+    // 获取IP位置（异步，不阻塞主流程）
+    getIPLocation().then(location => {
+      jiemian.setLocation(location);
+    });
+
     // 初始化AI
     await ai.init();
 
@@ -206,7 +237,7 @@ async function init() {
       }
     }
 
-    notify('👋 您好！我是小Le，有什么可以帮您的？');
+    notify('👋 您好！我是Yt小助手，有什么可以帮您的？');
     await showActivityCards();
     jiemian.updateSelectedTags(!!getCurrentImage());
 

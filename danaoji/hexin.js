@@ -156,10 +156,10 @@ function processAttachments(userMessage, attachments) {
 async function doChat(systemPrompt, callbacks) {
   const { onThinking, onContent, onToolCall, onDone } = callbacks;
 
-  // 构建消息
+  // 构建消息（限制历史数量，减少对发券场景的干扰）
   let messages = [
     { role: 'system', content: systemPrompt },
-    ...lishi.getRecent(20)
+    ...lishi.getRecent(8)
   ];
 
   let continueLoop = true;
@@ -264,27 +264,29 @@ async function doChat(systemPrompt, callbacks) {
         // 显示工具调用状态
         onToolCall(name);
 
-        // 特殊处理：深度思考工具需要传递回调
-        const toolContext = {
-          ...gongju.toolContext,
-          onThinkingUpdate: name === 'deep_think' ? onThinking : null
-        };
-
-        // 临时更新上下文
-        gongju.updateContext({ onThinkingUpdate: toolContext.onThinkingUpdate });
+        // 【修复】正确获取并更新上下文，传递深度思考回调
+        const isDeepThink = name === 'deep_think';
+        if (isDeepThink) {
+          gongju.updateContext({ onThinkingUpdate: onThinking });
+        }
 
         const result = await gongju.execute(name, args);
+
+        // 【修复】执行完毕后清除回调，避免污染其他工具
+        if (isDeepThink) {
+          gongju.updateContext({ onThinkingUpdate: null });
+          
+          // 如果有思考过程，确保显示
+          if (result.success && result.thinking_process) {
+            onThinking?.(result.thinking_process);
+          }
+        }
 
         messages.push({
           role: 'tool',
           tool_call_id: tc.id,
           content: JSON.stringify(result)
         });
-
-        // 如果是深度思考，显示思考过程
-        if (name === 'deep_think' && result.success && result.thinking_process) {
-          onThinking?.(result.thinking_process);
-        }
       }
 
       toolCalls = [];
