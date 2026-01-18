@@ -50,14 +50,27 @@ export function init(cbs) {
   // 事件绑定
   elements.sendBtn.onclick = () => callbacks.onSend?.();
   elements.inputText.oninput = autoResize;
-  elements.imageModal.onclick = () => { elements.imageModal.classList.remove('show'); };
+  
+  // 图片预览模态框 - 点击背景关闭，点击图片不关闭
+  elements.imageModal.onclick = e => {
+    if (e.target === elements.imageModal) {
+      elements.imageModal.classList.remove('show');
+    }
+  };
+  elements.imagePreview.onclick = e => e.stopPropagation();
+  
+  // 拖拽上传
   elements.inputPanel.ondragover = e => { e.preventDefault(); elements.inputPanel.classList.add('drag-over'); };
   elements.inputPanel.ondragleave = () => elements.inputPanel.classList.remove('drag-over');
   elements.inputPanel.ondrop = e => { e.preventDefault(); elements.inputPanel.classList.remove('drag-over'); handleFiles(e.dataTransfer.files); };
+  
+  // 粘贴上传
   elements.inputText.onpaste = async e => {
     const files = [...(e.clipboardData?.items || [])].filter(i => i.kind === 'file').map(i => i.getAsFile()).filter(Boolean);
     if (files.length) { e.preventDefault(); await handleFiles(files); }
   };
+  
+  // 文件选择
   elements.fileInput.onchange = e => handleFiles(e.target.files);
 
   // 全局方法

@@ -1,12 +1,37 @@
 // 生活工具模块 - 天气、位置
 
 // ============================================
-// API配置
+// API配置（全部使用HTTPS）
 // ============================================
 const API = {
-  location: 'http://ip-api.com/json?lang=zh-CN',
   weather: 'https://wttr.in'
 };
+
+// HTTPS位置API列表（按优先级排序）
+const LOCATION_APIS = [
+  {
+    url: 'https://ipwho.is/',
+    parse: data => data.success ? {
+      success: true,
+      country: data.country,
+      region: data.region,
+      city: data.city,
+      ip: data.ip,
+      isp: data.connection?.isp || data.connection?.org || ''
+    } : null
+  },
+  {
+    url: 'https://ipapi.co/json/',
+    parse: data => !data.error ? {
+      success: true,
+      country: data.country_name,
+      region: data.region,
+      city: data.city,
+      ip: data.ip,
+      isp: data.org || ''
+    } : null
+  }
+];
 
 // ============================================
 // AI工具定义
@@ -31,26 +56,19 @@ export const tools = [
 // 功能实现
 // ============================================
 
-// 获取位置
+// 获取位置（支持多API备用）
 async function getLocation() {
-  try {
-    const response = await fetch(API.location);
-    const data = await response.json();
-    
-    if (data.status === 'success') {
-      return {
-        success: true,
-        country: data.country,
-        region: data.regionName,
-        city: data.city,
-        ip: data.query,
-        isp: data.isp
-      };
+  for (const api of LOCATION_APIS) {
+    try {
+      const response = await fetch(api.url);
+      const data = await response.json();
+      const result = api.parse(data);
+      if (result) return result;
+    } catch (e) {
+      console.warn(`位置API失败(${api.url}):`, e.message);
     }
-    return { success: false, error: '定位失败' };
-  } catch (e) {
-    return { success: false, error: e.message };
   }
+  return { success: false, error: '定位失败，所有API均不可用' };
 }
 
 // 获取天气

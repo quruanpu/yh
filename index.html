@@ -46,7 +46,7 @@
           <button id="sendBtn" disabled>确认</button>
         </div>
       </div>
-      <input type="file" id="imageInput" accept="image/*" multiple style="display:none">
+      <!-- 统一文件上传入口，支持图片和文档 -->
       <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.csv,.json,.js,.py,.html,.css,.md,.xlsx,.xls,image/*" multiple style="display:none">
     </footer>
   </div>
@@ -63,8 +63,9 @@
     </div>
   </div>
 
-  <div id="imageModal" class="modal-overlay" onclick="closeImagePreview()">
-    <img id="imagePreview" class="image-preview" onclick="event.stopPropagation()">
+  <!-- 图片预览模态框，点击事件由JS统一处理 -->
+  <div id="imageModal" class="modal-overlay">
+    <img id="imagePreview" class="image-preview">
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>

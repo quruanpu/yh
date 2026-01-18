@@ -48,26 +48,46 @@ export async function initFingerprint() {
   return DEVICE_ID;
 }
 
-// 获取当前时间字符串
+// 获取当前时间字符串（HH:MM:SS格式，用于消息时间戳）
 export const getTime = () => new Date().toLocaleTimeString('zh-CN', { hour12: false });
 
-// 获取用户IP和位置
+// 获取用户IP和位置（使用HTTPS API）
 export async function getIPLocation() {
-  try {
-    const response = await fetch('http://ip-api.com/json?lang=zh-CN');
-    const data = await response.json();
-    if (data.status === 'success') {
-      return {
-        ip: data.query,
-        country: data.country,      // 国家
-        region: data.regionName,    // 省份
-        city: data.city,            // 城市
-        isp: data.isp               // 运营商
-      };
+  // 尝试多个HTTPS API，确保可用性
+  const apis = [
+    {
+      url: 'https://ipwho.is/',
+      parse: data => data.success ? {
+        ip: data.ip,
+        country: data.country,
+        region: data.region,
+        city: data.city,
+        isp: data.connection?.isp || data.connection?.org || ''
+      } : null
+    },
+    {
+      url: 'https://ipapi.co/json/',
+      parse: data => !data.error ? {
+        ip: data.ip,
+        country: data.country_name,
+        region: data.region,
+        city: data.city,
+        isp: data.org || ''
+      } : null
     }
-    return null;
-  } catch (e) {
-    console.error('获取IP位置失败:', e);
-    return null;
+  ];
+
+  for (const api of apis) {
+    try {
+      const response = await fetch(api.url);
+      const data = await response.json();
+      const result = api.parse(data);
+      if (result) return result;
+    } catch (e) {
+      console.warn(`IP定位API失败(${api.url}):`, e.message);
+    }
   }
+  
+  console.error('所有IP定位API均失败');
+  return null;
 }
