@@ -5,9 +5,10 @@ import * as tupian from './tupian.js';
 import * as sousu from './sousu.js';
 import * as shendu from './shendu.js';
 import * as shenghuo from './shenghuo.js';  // 生活工具模块（天气、金价、汇率、油价等）
+import * as shangpin from './shangpin.js';  // 商品查询模块
 
 // 业务模块列表
-const modules = { shujuku, faquan, tupian, sousu, shendu, shenghuo };
+const modules = { shujuku, faquan, tupian, sousu, shendu, shenghuo, shangpin };
 
 // 汇总所有工具定义（转换为OpenAI格式）
 export function getAllToolDefinitions() {

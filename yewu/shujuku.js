@@ -309,3 +309,53 @@ export async function execute(name, args, context) {
   
   return { success: false, error: '未知操作' };
 }
+
+// ============================================
+// 五、账户凭证获取
+// ============================================
+
+/**
+ * 获取最新的账户登录信息
+ * 从zhanghu节点获取time_update最新的账户
+ * @returns {Object|null} { token, cookies, providerIdM }
+ */
+export async function getLatestAuth() {
+  try {
+    const snap = await get(child(dbRef, 'zhanghu'));
+    if (!snap.exists()) return null;
+    
+    let latestAuth = null;
+    let latestTime = null;
+    
+    snap.forEach(node => {
+      const data = node.val();
+      const updateTime = data.time_update;
+      
+      // 比较时间，获取最新的
+      if (!latestTime || updateTime > latestTime) {
+        latestTime = updateTime;
+        
+        // 将cookies对象转换为字符串格式
+        let cookiesStr = '';
+        if (data.cookies && typeof data.cookies === 'object') {
+          cookiesStr = Object.entries(data.cookies)
+            .map(([key, value]) => `${key}=${value}`)
+            .join('; ');
+        } else if (typeof data.cookies === 'string') {
+          cookiesStr = data.cookies;
+        }
+        
+        latestAuth = {
+          token: data.token,
+          cookies: cookiesStr,
+          providerIdM: data.provider_id_m || ''
+        };
+      }
+    });
+    
+    return latestAuth;
+  } catch (e) {
+    console.error('获取账户凭证失败：', e);
+    return null;
+  }
+}

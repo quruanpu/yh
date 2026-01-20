@@ -4,6 +4,10 @@ import { TimeUtil, getTime } from '../gongyong/gongju.js';
 let detailCounter = 0;
 export const detailDataMap = new Map();
 
+// 商品详情数据存储
+let productDetailCounter = 0;
+export const productDetailDataMap = new Map();
+
 export const AVATAR_SYS = '<div class="avatar avatar-sys">💡</div>';
 export const AVATAR_USER = '<div class="avatar avatar-user">🎁</div>';
 
@@ -11,7 +15,6 @@ export const renderMsgTags = tags => tags.length ? `<div class="msg-tags">${tags
 
 /**
  * 渲染普通消息
- * 注意：结果卡片不再使用此函数包装，而是直接渲染
  */
 export function renderMessage(html, type, options = {}) {
   const { tags = [], images = [], files = [] } = options;
@@ -22,13 +25,7 @@ export function renderMessage(html, type, options = {}) {
 }
 
 /**
- * 渲染结果卡片 - 完全重构版
- * 
- * 设计原则：
- * 1. 不使用 .bubble 包装，直接作为 .msg-content 的子元素
- * 2. 使用 grid 布局，2列显示
- * 3. 没有固定行数，内容自适应
- * 4. 最多显示5个ID + "共N个"
+ * 渲染结果卡片
  */
 export function renderReport(name, data, activityInfo = {}) {
   const result = data.result || {};
@@ -37,40 +34,31 @@ export function renderReport(name, data, activityInfo = {}) {
   const totalFailed = Object.values(failed).reduce((sum, ids) => sum + ids.length, 0);
   const { zongshu = '?', yizengsong = 0, dandian = '?', yaodian_tongji = {} } = activityInfo;
 
-  // 存储详情数据
   const detailId = `detail_${++detailCounter}`;
   detailDataMap.set(detailId, { name, data, activityInfo });
 
-  // 合并所有ID（成功在前，失败在后）
   const allIds = [
     ...success.map(id => ({ id, ok: true })),
     ...Object.values(failed).flat().map(id => ({ id, ok: false }))
   ];
 
-  // 渲染单个ID药片
   const renderPill = (id, isSuccess) => {
     const count = yaodian_tongji[id] || 0;
     return `<span class="report-pill ${isSuccess ? 'success' : 'fail'}"><span class="pill-id">${id}</span><span class="pill-count">${count}/${dandian}</span></span>`;
   };
 
-  // 构建内容区域
-  // 规则：每行最多2个，最多6个
-  // 超过6个时：显示前5个 + "共N个..."
   let bodyContent = '';
-  const maxVisible = 6;  // 最多显示6个
+  const maxVisible = 6;
 
   if (allIds.length === 0) {
     bodyContent = '<span class="report-empty">暂无数据</span>';
   } else if (allIds.length <= maxVisible) {
-    // 6个及以下：全部显示
     bodyContent = allIds.map(({ id, ok }) => renderPill(id, ok)).join('');
   } else {
-    // 超过6个：显示前5个 + "共N个..."
     bodyContent = allIds.slice(0, 5).map(({ id, ok }) => renderPill(id, ok)).join('');
     bodyContent += `<span class="report-pill more">共${allIds.length}个...</span>`;
   }
 
-  // 返回完整卡片HTML（不包含.bubble包装）
   return `<div class="report-card">
 <div class="report-header"><span class="report-title">📄 ${name}</span><span class="report-stat success">✓${success.length}</span><span class="report-stat fail">✗${totalFailed}</span><button class="report-btn" onclick="showDetail('${detailId}')">详情</button></div>
 <div class="report-body">${bodyContent}</div>
@@ -135,4 +123,167 @@ export function renderActivityList(activities, selectedCids = []) {
     const remain = Math.max(0, (zongshu || 0) - (yizengsong || 0));
     return `<div class="activity-item ${selected}" data-cid="${cid}" onclick="toggleActivityTag('${name.replace(/'/g, "\\'")}', '${keyword}', '${cid}')"><div class="item-name">${name}</div><div class="item-meta"><span class="stock-num">${remain}</span>/${zongshu || '?'} · 限${dandian || '?'}次</div></div>`;
   }).join('')}</div>`;
+}
+
+// ============================================
+// 商品卡片渲染 - 修正版 (2026-01-20)
+// ============================================
+
+/**
+ * 格式化价格显示
+ */
+function formatPrice(price) {
+  if (price === null || price === undefined || price === 0) {
+    return '-';
+  }
+  return '¥' + Number(price).toFixed(2);
+}
+
+/**
+ * 渲染商品卡片
+ * 
+ * 布局：
+ * 1. 头部：商品ID、编码、详情按钮
+ * 2. 名称行：单行显示，加粗
+ * 3. 规格效期行：规格｜效期
+ * 4. 价格表格
+ * 5. 成本库存行
+ * 6. 厂家
+ */
+export function renderProductCard(product, allProducts = []) {
+  const detailId = `product_${++productDetailCounter}`;
+  productDetailDataMap.set(detailId, { product, allProducts });
+
+  const priceRows = [
+    { label: '单体价格', value: formatPrice(product.unitPrice) },
+    { label: '一环价', value: formatPrice(product.unitPrice1) },
+    { label: '省内价', value: formatPrice(product.unitPrice2) },
+    { label: '周边省份价', value: formatPrice(product.unitPrice3) },
+    { label: '连锁价格', value: formatPrice(product.chainPrice) }
+  ];
+
+  const priceTableHtml = priceRows.map(row => 
+    `<div class="product-price-row"><span class="price-label">${row.label}</span><span class="price-value">${row.value}</span></div>`
+  ).join('');
+
+  return `<div class="product-card">
+<div class="product-header">
+  <div class="product-ids">
+    <span class="product-drug-id">${product.drugId}</span>
+    <span class="product-code">${product.provDrugCode}</span>
+  </div>
+  <button class="product-detail-btn" onclick="showProductDetail('${detailId}')">详情</button>
+</div>
+<div class="product-name">${product.drugName}</div>
+<div class="product-spec">${product.pack || '-'}｜${product.validDate || '-'}</div>
+<div class="product-price-table">
+  ${priceTableHtml}
+</div>
+<div class="product-info-row">成本：${formatPrice(product.unitPrice9)} | 库存：${product.stockAvailable || 0}</div>
+<div class="product-factory">${product.factoryName || '-'}</div>
+</div>`;
+}
+
+/**
+ * 渲染商品详情弹窗内容
+ * 
+ * 修改：
+ * 1. 添加采购金额显示
+ * 2. 按采购金额、采购店数、采购数量降序排序
+ */
+export function renderProductDetailContent(detailId) {
+  const data = productDetailDataMap.get(detailId);
+  if (!data) return '<p>数据不存在</p>';
+
+  let { allProducts } = data;
+  
+  if (!allProducts || allProducts.length === 0) {
+    return '<p>暂无商品数据</p>';
+  }
+
+  // ✅ 排序：按采购金额、采购店数、采购数量降序
+  allProducts = [...allProducts].sort((a, b) => {
+    // 先按采购金额降序
+    const costDiff = (b.totalCost || 0) - (a.totalCost || 0);
+    if (costDiff !== 0) return costDiff;
+    
+    // 再按采购店数降序
+    const storeDiff = (b.storeNum || 0) - (a.storeNum || 0);
+    if (storeDiff !== 0) return storeDiff;
+    
+    // 最后按采购数量降序
+    return (b.buyNum || 0) - (a.buyNum || 0);
+  });
+
+  const productsHtml = allProducts.map((product, index) => {
+    const info = (label, value) => `<div class="product-detail-info"><span class="info-label">${label}</span><span class="info-value">${value || '-'}</span></div>`;
+    
+    return `<div class="product-detail-item${index > 0 ? ' with-border' : ''}">
+      <div class="product-detail-header">
+        <span class="detail-type-tag">${product.wholesaleTypeName || '未知类型'}</span>
+        <span class="detail-activity-id">活动ID: ${product.wholesaleId}</span>
+      </div>
+      
+      <div class="product-detail-section">
+        <div class="section-title">📦 基本信息</div>
+        <div class="product-detail-grid">
+          ${info('商品ID', product.drugId)}
+          ${info('商品编码', product.provDrugCode)}
+          ${info('批准文号', product.approval)}
+          ${info('商品名称', product.drugName)}
+          ${info('规格包装', product.pack)}
+          ${info('生产厂家', product.factoryName)}
+        </div>
+      </div>
+      
+      <div class="product-detail-section">
+        <div class="section-title">💰 价格信息</div>
+        <div class="product-detail-grid">
+          ${info('单体价格', formatPrice(product.unitPrice))}
+          ${info('一环价', formatPrice(product.unitPrice1))}
+          ${info('省内价', formatPrice(product.unitPrice2))}
+          ${info('周边省份价', formatPrice(product.unitPrice3))}
+          ${info('含税成本价', formatPrice(product.unitPrice9))}
+          ${info('连锁价格', formatPrice(product.chainPrice))}
+        </div>
+      </div>
+      
+      <div class="product-detail-section">
+        <div class="section-title">📊 库存信息</div>
+        <div class="product-detail-grid">
+          ${info('可用库存', product.stockAvailable)}
+          ${info('ERP库存', product.stockBalance)}
+          ${info('有效期', product.validDate)}
+        </div>
+      </div>
+      
+      <div class="product-detail-section">
+        <div class="section-title">🏷️ 活动信息</div>
+        <div class="product-detail-grid">
+          ${info('活动类型', product.wholesaleTypeName)}
+          ${info('商圈', product.groupName)}
+          ${info('供货对象', product.storetype)}
+          ${info('发货仓库', product.whName)}
+          ${info('起订量', product.minAmount)}
+          ${info('活动上限', product.maxAmount || '无限制')}
+          ${info('开始时间', product.beginDateStr)}
+          ${info('结束时间', product.endDateStr)}
+        </div>
+      </div>
+      
+      <div class="product-detail-section">
+        <div class="section-title">📈 销售统计</div>
+        <div class="product-detail-grid">
+          ${info('采购金额', formatPrice(product.totalCost))}
+          ${info('采购店数', product.storeNum)}
+          ${info('采购数量', product.buyNum)}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="product-detail-container">
+    <div class="product-detail-summary">共 ${allProducts.length} 条记录（按采购金额降序）</div>
+    ${productsHtml}
+  </div>`;
 }

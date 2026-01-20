@@ -1,6 +1,6 @@
 // 界面交互模块 - 完全重构版
 import { getTime } from '../gongyong/gongju.js';
-import { AVATAR_SYS, renderMessage, renderDetailContent, renderPendingResult } from './xuanran.js';
+import { AVATAR_SYS, renderMessage, renderDetailContent, renderPendingResult, renderProductCard, renderProductDetailContent } from './xuanran.js';
 import { readFileContent } from '../yewu/wenjian.js';
 
 const $ = id => document.getElementById(id);
@@ -50,6 +50,20 @@ export function init(cbs) {
   // 事件绑定
   elements.sendBtn.onclick = () => callbacks.onSend?.();
   elements.inputText.oninput = autoResize;
+
+  // 键盘事件：电脑端 Enter 发送，Shift+Enter 换行；手机端保持默认
+elements.inputText.onkeydown = e => {
+  // 检测移动设备，移动端不处理，保持默认行为
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  if (isMobile) return;
+  
+  // 电脑端：Enter 发送（非 Shift+Enter）
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();  // 阻止默认换行
+    callbacks.onSend?.();
+  }
+  // Shift+Enter 不阻止，允许换行
+};
   
   // 图片预览模态框 - 点击背景关闭，点击图片不关闭
   elements.imageModal.onclick = e => {
@@ -81,6 +95,12 @@ export function init(cbs) {
   window.removeAttachment = i => { attachments.splice(i, 1); updateAttachmentTags(); };
   window.clearCachedImage = () => { callbacks.onClearImage?.(); updateSelectedTags(); showToast('已清除缓存图片'); };
   window.triggerFileUpload = () => elements.fileInput.click();
+  
+  // 商品详情弹窗
+  window.showProductDetail = id => {
+    elements.detailBody.innerHTML = renderProductDetailContent(id);
+    elements.detailModal.classList.add('show');
+  };
   
   window.toggleActivityTag = (name, keyword, cid) => {
     const index = selectedActivities.findIndex(a => a.cid === cid);
@@ -199,11 +219,12 @@ export function addMessage(html, type, options = {}) {
   const row = document.createElement('div');
   row.className = `msg-row ${type === 'sys' ? 'msg-left' : 'msg-right'}`;
   
-  // 检测是否为结果卡片
+  // 检测是否为结果卡片或商品卡片
   const isReport = html.includes('report-card');
+  const isProduct = html.includes('product-card');
   
-  if (isReport) {
-    // 结果卡片：不使用bubble包装，直接渲染
+  if (isReport || isProduct) {
+    // 结果卡片/商品卡片：不使用bubble包装，直接渲染
     row.innerHTML = `${AVATAR_SYS}<div class="msg-content">${html}<div class="timestamp">${getTime()}</div></div>`;
   } else {
     // 普通消息：使用标准渲染
@@ -214,8 +235,18 @@ export function addMessage(html, type, options = {}) {
   
   requestAnimationFrame(() => {
     elements.msgArea.scrollTop = elements.msgArea.scrollHeight;
-    if (!isReport) checkActivityLayout();
+    if (!isReport && !isProduct) checkActivityLayout();
   });
+}
+
+/**
+ * 添加商品卡片消息
+ * @param {Object} product - 主要商品数据
+ * @param {Array} allProducts - 所有商品列表
+ */
+export function addProductCard(product, allProducts) {
+  const cardHtml = renderProductCard(product, allProducts);
+  addMessage(cardHtml, 'sys');
 }
 
 /**

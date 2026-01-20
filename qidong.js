@@ -51,6 +51,11 @@ function getContextInfo() {
   return `[时间：${now.toLocaleString('zh-CN')}]\n[设备：${getDeviceId()}]\n[已选活动：${jiemian.getSelectedActivities().length}]`;
 }
 
+// 渲染商品卡片的回调函数
+function renderProductCard(product, allProducts) {
+  jiemian.addProductCard(product, allProducts);
+}
+
 // 获取发券上下文（AI和传统发券共用）
 function getSendContext() {
   return {
@@ -60,6 +65,7 @@ function getSendContext() {
     showActivityCards,
     showPending: jiemian.showPendingResult,
     removePending: jiemian.removePendingResult,
+    renderProductCard,  // 添加商品卡片渲染回调
     get sessionPendingTasks() { return sessionPendingTasks; },
     set sessionPendingTasks(v) { sessionPendingTasks = v; }
   };
