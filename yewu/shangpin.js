@@ -1,9 +1,8 @@
-
-
-
 // 商品查询模块 - 药师帮SCM商品查询
 // 通过云函数查询商品上架信息
 // 支持多账户切换尝试
+// 
+// v2.1 修复 (2026-01-22): unitPrice3 → unitPrice7
 
 // ============================================
 // 导入数据库模块
@@ -188,6 +187,7 @@ export async function queryProducts(options = {}) {
 
 /**
  * 格式化商品数据（提取关键字段）
+ * ✅ v2.1 修复: unitPrice3 → unitPrice7 (周边省份价)
  */
 export function formatProduct(product) {
   return {
@@ -202,7 +202,7 @@ export function formatProduct(product) {
     unitPrice: product.unitPrice,
     unitPrice1: product.unitPrice1,
     unitPrice2: product.unitPrice2,
-    unitPrice3: product.unitPrice3,
+    unitPrice7: product.unitPrice7,  // ✅ 修复: 原 unitPrice3 → unitPrice7 (周边省份价)
     unitPrice9: product.unitPrice9,
     chainPrice: product.chainPrice,
     stockAvailable: product.stockAvailable,
@@ -223,6 +223,35 @@ export function formatProduct(product) {
     totalCost: product.totalCost,
     logo: product.logo
   };
+}
+
+/**
+ * 选择默认显示的商品卡片
+ * 规则：采购金额最高的"进行中"的"一口价"商品
+ * 如果没有符合条件的，则按采购金额降序返回第一个
+ * 
+ * @param {Array} products - 格式化后的商品列表
+ * @returns {Object} 默认显示的商品
+ */
+function selectDefaultProduct(products) {
+  if (!products || products.length === 0) {
+    return null;
+  }
+  
+  // 筛选：进行中(statusName) + 一口价(wholesaleType=1)
+  const filtered = products.filter(p => 
+    p.statusName === '进行中' && p.wholesaleType === 1
+  );
+  
+  if (filtered.length > 0) {
+    // 按采购金额降序排序，取第一个
+    filtered.sort((a, b) => (b.totalCost || 0) - (a.totalCost || 0));
+    return filtered[0];
+  }
+  
+  // 如果没有符合条件的，退而求其次：所有商品按采购金额降序，取第一个
+  const sorted = [...products].sort((a, b) => (b.totalCost || 0) - (a.totalCost || 0));
+  return sorted[0];
 }
 
 /**
@@ -296,11 +325,13 @@ export async function execute(name, args, context) {
 
   // 格式化商品数据
   const formattedProducts = products.map(formatProduct);
-  const firstProduct = formattedProducts[0];
+  
+  // ✅ 选择默认显示的卡片：采购金额最高的"进行中"的"一口价"商品
+  const defaultProduct = selectDefaultProduct(formattedProducts);
   
   // 渲染商品卡片
   if (renderProductCard) {
-    renderProductCard(firstProduct, formattedProducts);
+    renderProductCard(defaultProduct, formattedProducts);
   }
 
   return {
@@ -313,10 +344,10 @@ export async function execute(name, args, context) {
     fetchedCount: summary.fetchedCount,
     usedAccount: result.usedAccount,
     firstProduct: {
-      name: firstProduct.drugName,
-      code: firstProduct.provDrugCode,
-      price: firstProduct.unitPrice,
-      stock: firstProduct.stockAvailable
+      name: defaultProduct.drugName,
+      code: defaultProduct.provDrugCode,
+      price: defaultProduct.unitPrice,
+      stock: defaultProduct.stockAvailable
     },
     allProducts: formattedProducts
   };

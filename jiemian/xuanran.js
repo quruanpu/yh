@@ -1,4 +1,5 @@
 // 界面渲染模块 - 完全重构版
+// ✅ v2.1 修复 (2026-01-22): unitPrice3 → unitPrice7 (周边省份价)
 import { TimeUtil, getTime } from '../gongyong/gongju.js';
 
 let detailCounter = 0;
@@ -157,7 +158,8 @@ export function renderLoginCard(message = '登录已失效，请重新登录') {
 }
 
 // ============================================
-// 商品卡片渲染 - 修正版 (2026-01-20)
+// 商品卡片渲染 - v2.1 修正版 (2026-01-22)
+// ✅ 修复: unitPrice3 → unitPrice7 (周边省份价)
 // ============================================
 
 /**
@@ -180,16 +182,19 @@ function formatPrice(price) {
  * 4. 价格表格
  * 5. 成本库存行
  * 6. 厂家
+ * 
+ * ✅ v2.1 修复: unitPrice3 → unitPrice7 (周边省份价)
  */
 export function renderProductCard(product, allProducts = []) {
   const detailId = `product_${++productDetailCounter}`;
   productDetailDataMap.set(detailId, { product, allProducts });
 
+  // ✅ 修复: 周边省份价使用 unitPrice7 而不是 unitPrice3
   const priceRows = [
     { label: '单体价格', value: formatPrice(product.unitPrice) },
     { label: '一环价', value: formatPrice(product.unitPrice1) },
     { label: '省内价', value: formatPrice(product.unitPrice2) },
-    { label: '周边省份价', value: formatPrice(product.unitPrice3) },
+    { label: '周边省份价', value: formatPrice(product.unitPrice7) },  // ✅ 修复: unitPrice3 → unitPrice7
     { label: '连锁价格', value: formatPrice(product.chainPrice) }
   ];
 
@@ -218,9 +223,7 @@ export function renderProductCard(product, allProducts = []) {
 /**
  * 渲染商品详情弹窗内容
  * 
- * 修改：
- * 1. 添加采购金额显示
- * 2. 按采购金额、采购店数、采购数量降序排序
+ * ✅ v2.1 修复: unitPrice3 → unitPrice7 (周边省份价)
  */
 export function renderProductDetailContent(detailId) {
   const data = productDetailDataMap.get(detailId);
@@ -249,6 +252,7 @@ export function renderProductDetailContent(detailId) {
   const productsHtml = allProducts.map((product, index) => {
     const info = (label, value) => `<div class="product-detail-info"><span class="info-label">${label}</span><span class="info-value">${value || '-'}</span></div>`;
     
+    // ✅ 修复: 周边省份价使用 unitPrice7 而不是 unitPrice3
     return `<div class="product-detail-item${index > 0 ? ' with-border' : ''}">
       <div class="product-detail-header">
         <span class="detail-type-tag">${product.wholesaleTypeName || '未知类型'}</span>
@@ -273,7 +277,7 @@ export function renderProductDetailContent(detailId) {
           ${info('单体价格', formatPrice(product.unitPrice))}
           ${info('一环价', formatPrice(product.unitPrice1))}
           ${info('省内价', formatPrice(product.unitPrice2))}
-          ${info('周边省份价', formatPrice(product.unitPrice3))}
+          ${info('周边省份价', formatPrice(product.unitPrice7))}
           ${info('含税成本价', formatPrice(product.unitPrice9))}
           ${info('连锁价格', formatPrice(product.chainPrice))}
         </div>
