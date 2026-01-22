@@ -53,6 +53,7 @@
 
   <div id="toast" class="toast"></div>
 
+  <!-- 详情弹窗 -->
   <div id="detailModal" class="modal-overlay">
     <div class="modal-content">
       <div class="modal-header">
@@ -66,6 +67,19 @@
   <!-- 图片预览模态框，点击事件由JS统一处理 -->
   <div id="imageModal" class="modal-overlay">
     <img id="imagePreview" class="image-preview">
+  </div>
+
+  <!-- 登录弹窗 -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="login-modal-content">
+      <div class="login-modal-header">
+        <span class="login-modal-title">🏪 SCM系统登录</span>
+        <span class="login-modal-close" onclick="closeLoginModal()">×</span>
+      </div>
+      <div id="loginModalBody" class="login-modal-body">
+        <!-- 登录表单由JS动态渲染 -->
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>

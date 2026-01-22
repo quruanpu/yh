@@ -126,6 +126,37 @@ export function renderActivityList(activities, selectedCids = []) {
 }
 
 // ============================================
+// 登录卡片渲染
+// ============================================
+
+/**
+ * 渲染登录卡片
+ * @param {string} message - 提示消息
+ * @returns {string} HTML字符串
+ */
+export function renderLoginCard(message = '登录已失效，请重新登录') {
+  return `<div class="login-card">
+<div class="login-card-header">
+  <span class="login-card-icon">🔐</span>
+  <span class="login-card-title">需要登录</span>
+</div>
+<div class="login-card-body">
+  <p class="login-card-message">${message}</p>
+</div>
+<div class="login-card-buttons">
+  <button class="login-card-btn scm" onclick="openLoginModal('scm')">
+    <span class="btn-icon">🏪</span>
+    <span class="btn-text">SCM系统</span>
+  </button>
+  <button class="login-card-btn pms disabled" disabled title="暂未开放">
+    <span class="btn-icon">📦</span>
+    <span class="btn-text">PMS系统</span>
+  </button>
+</div>
+</div>`;
+}
+
+// ============================================
 // 商品卡片渲染 - 修正版 (2026-01-20)
 // ============================================
 

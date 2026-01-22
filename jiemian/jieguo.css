@@ -7,6 +7,8 @@
    3. 等待提示 (.pending-*)
    4. 商品卡片 (.product-card)
    5. 商品详情弹窗 (.product-detail-*)
+   6. 登录卡片 (.login-card)
+   7. 登录弹窗 (.login-modal-*)
    ================================================================ */
 
 /* ================================================================
@@ -473,4 +475,431 @@
   color: #333;
   font-weight: 500;
   word-break: break-all;
+}
+
+/* ================================================================
+   六、登录卡片
+   ================================================================ */
+.login-card {
+  width: 240px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e5ea;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.login-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #fff5f5, #fff);
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.login-card-icon {
+  font-size: 18px;
+}
+
+.login-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.login-card-body {
+  padding: 10px 14px;
+}
+
+.login-card-message {
+  font-size: 11px;
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.login-card-buttons {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+}
+
+.login-card-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.login-card-btn:hover:not(.disabled) {
+  border-color: #007aff;
+  background: #f0f7ff;
+}
+
+.login-card-btn.scm {
+  border-color: #007aff;
+  background: linear-gradient(135deg, #f0f7ff, #fff);
+}
+
+.login-card-btn.scm:hover {
+  background: linear-gradient(135deg, #e0efff, #f0f7ff);
+}
+
+.login-card-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f5f5f5;
+}
+
+.login-card-btn .btn-icon {
+  font-size: 20px;
+}
+
+.login-card-btn .btn-text {
+  font-size: 10px;
+  font-weight: 500;
+  color: #333;
+}
+
+.login-card-btn.scm .btn-text {
+  color: #007aff;
+}
+
+.login-card-btn.disabled .btn-text {
+  color: #999;
+}
+
+/* ================================================================
+   七、登录弹窗
+   ================================================================ */
+.login-modal-content {
+  width: 90%;
+  max-width: 360px;
+  max-height: 85vh;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  transform: scale(0.9);
+  transition: transform 0.3s;
+}
+
+.modal-overlay.show .login-modal-content {
+  transform: scale(1);
+}
+
+.login-modal-header {
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.login-modal-title {
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-modal-close {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: background 0.2s;
+}
+
+.login-modal-close:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.login-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(85vh - 60px);
+}
+
+/* 登录步骤指示器 */
+.login-steps {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.login-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #999;
+}
+
+.login-step.active {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.login-step.done {
+  color: #34c759;
+}
+
+.login-step-num {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #e5e5ea;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.login-step.active .login-step-num {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+.login-step.done .login-step-num {
+  background: #34c759;
+  color: #fff;
+}
+
+.login-step-arrow {
+  color: #ccc;
+  font-size: 10px;
+}
+
+/* 登录表单 */
+.login-form-group {
+  margin-bottom: 14px;
+}
+
+.login-form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.login-form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.login-form-input:focus {
+  border-color: #667eea;
+}
+
+.login-form-input::placeholder {
+  color: #bbb;
+}
+
+/* 验证码行 */
+.login-captcha-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.login-captcha-row .login-form-input {
+  flex: 1;
+}
+
+.login-captcha-img {
+  width: 100px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  object-fit: cover;
+  background: #f5f5f5;
+}
+
+.login-captcha-img:hover {
+  opacity: 0.8;
+}
+
+.login-captcha-loading {
+  width: 100px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #999;
+}
+
+/* 登录按钮 */
+.login-submit-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 6px;
+}
+
+.login-submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.login-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 二维码区域 */
+.login-qrcode-section {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.login-qrcode-tip {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.login-qrcode-container {
+  display: inline-block;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #e5e5ea;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.login-qrcode-img {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+}
+
+.login-qrcode-loading {
+  width: 180px;
+  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #f9f9fb;
+  border-radius: 8px;
+}
+
+.login-qrcode-loading .pending-spin {
+  width: 30px;
+  height: 30px;
+}
+
+.login-qrcode-status {
+  font-size: 12px;
+  color: #667eea;
+  font-weight: 500;
+}
+
+.login-qrcode-status.success {
+  color: #34c759;
+}
+
+.login-qrcode-status.error {
+  color: #ff3b30;
+}
+
+/* 刷新二维码按钮 */
+.login-qrcode-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.login-qrcode-refresh:hover {
+  background: #e8f4ff;
+  border-color: #007aff;
+  color: #007aff;
+}
+
+/* 登录错误提示 */
+.login-error {
+  padding: 10px 12px;
+  background: #fff5f5;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #ff3b30;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.login-error-icon {
+  font-size: 14px;
+}
+
+/* 登录成功提示 */
+.login-success {
+  text-align: center;
+  padding: 20px;
+}
+
+.login-success-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.login-success-text {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.login-success-subtext {
+  font-size: 11px;
+  color: #888;
 }

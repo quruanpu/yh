@@ -56,6 +56,11 @@ function renderProductCard(product, allProducts) {
   jiemian.addProductCard(product, allProducts);
 }
 
+// 渲染登录卡片的回调函数
+function renderLoginCard(message) {
+  jiemian.addLoginCard(message);
+}
+
 // 获取发券上下文（AI和传统发券共用）
 function getSendContext() {
   return {
@@ -65,7 +70,8 @@ function getSendContext() {
     showActivityCards,
     showPending: jiemian.showPendingResult,
     removePending: jiemian.removePendingResult,
-    renderProductCard,  // 添加商品卡片渲染回调
+    renderProductCard,    // 添加商品卡片渲染回调
+    renderLoginCard,      // 添加登录卡片渲染回调
     get sessionPendingTasks() { return sessionPendingTasks; },
     set sessionPendingTasks(v) { sessionPendingTasks = v; }
   };
