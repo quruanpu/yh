@@ -1,0 +1,220 @@
+/* 主框架公共样式 */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.main-wrapper {
+    margin: 0 auto;
+    background-color: #fcfcfc;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 统一滚动条样式 */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.4);
+    border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.6);
+}
+
+.custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+}
+
+/* 侧边栏遮罩 */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 998;
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 侧边栏 */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    background-color: #fcfcfc;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+.sidebar.active {
+    transform: translateX(0);
+}
+
+.sidebar-header {
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(209, 213, 219, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sidebar-title {
+    font-weight: 600;
+    color: #333;
+}
+
+.sidebar-close {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.sidebar-menu {
+    flex: 1;
+    padding: 8px 0;
+    overflow-y: auto;
+}
+
+/* 侧边栏底部 */
+.sidebar-footer {
+    padding: 8px 0;
+    border-top: 1px solid rgba(209, 213, 219, 0.5);
+    position: relative;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-item:hover {
+    background-color: #e8f0ff;
+    color: #3d6dff;
+}
+
+.sidebar-item.active {
+    background-color: #e8f0ff;
+    color: #3d6dff;
+}
+
+.sidebar-item i {
+    text-align: center;
+}
+
+.sidebar-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 登录账户子导航项容器 */
+.login-subnav {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background-color: #fcfcfc;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    z-index: 10;
+}
+
+.login-subnav.expanded {
+    max-height: 200px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 子导航项样式 - 与主导航项完全一致 */
+.sidebar-subitem {
+    display: flex;
+    align-items: center;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-subitem:hover {
+    background-color: #e8f0ff;
+    color: #3d6dff;
+}
+
+.sidebar-subitem i {
+    text-align: center;
+}
+
+/* 渐变分隔线 */
+.gradient-divider-bottom::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, transparent 10%, rgba(209, 213, 219, 0.8) 35%, rgba(209, 213, 219, 0.8) 65%, transparent 90%, transparent);
+}
+
+.gradient-divider-top::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, transparent 10%, rgba(209, 213, 219, 0.8) 35%, rgba(209, 213, 219, 0.8) 65%, transparent 90%, transparent);
+}
+
+/* 主题色 */
+.ds-blue { color: #3d6dff; }
+.ds-bg-blue { background-color: #3d6dff; }
+
+/* 开发中占位 */
+.dev-placeholder {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: #999;
+}
+
+.dev-placeholder.active {
+    display: flex;
+}
+
+.dev-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    color: #ddd;
+}

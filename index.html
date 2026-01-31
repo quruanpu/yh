@@ -1,90 +1,88 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Yt小助手</title>
-  <link rel="icon" href="logo.ico" type="image/x-icon">
-  <link rel="shortcut icon" href="logo.ico" type="image/x-icon">
-  <link rel="stylesheet" href="jiemian/yangshi.css">
-  <link rel="stylesheet" href="jiemian/jieguo.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小助理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="buju/sj.css" media="(max-width: 768px)">
+    <link rel="stylesheet" href="buju/zm.css" media="(min-width: 769px)">
+    <!-- 智聊模块样式 -->
+    <link rel="stylesheet" href="gongn/zhiliao/gg.css">
+    <link rel="stylesheet" href="gongn/zhiliao/buju/sj.css" media="(max-width: 768px)">
+    <link rel="stylesheet" href="gongn/zhiliao/buju/zm.css" media="(min-width: 769px)">
+    <!-- 优惠券模块样式 -->
+    <link rel="stylesheet" href="gongn/yhquan/gg.css">
+    <link rel="stylesheet" href="gongn/yhquan/buju/sj.css" media="(max-width: 768px)">
+    <link rel="stylesheet" href="gongn/yhquan/buju/zm.css" media="(min-width: 769px)">
+    <!-- 文件解析库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
-  <div id="initOverlay" class="init-overlay">
-    <div class="init-spinner"></div>
-    <div class="init-text">正在初始化加载......</div>
-    <div class="init-subtext">首次加载可能需要几秒钟</div>
-  </div>
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-  <div class="app-container">
-    <header class="top-bar">
-      <div class="top-bar-left">
-        <img src="logo.ico" alt="Logo" class="top-logo">
-        <div class="top-bar-info">
-          <span class="top-title">Yt小助手</span>
-          <span class="top-subtitle">仅供企业内部使用！</span>
-        </div>
-      </div>
-      <div class="top-bar-right">
-        <span id="deviceIdDisplay" class="device-id">--</span>
-        <span id="locationDisplay" class="location-info">定位中...</span>
-      </div>
-    </header>
-    <main id="msgArea" class="chat-viewport"></main>
-
-    <footer class="input-area">
-      <div id="attachmentTags" class="attachment-tags"></div>
-      <div id="selectedTags" class="selected-tags"></div>
-      <div class="input-panel" id="inputPanel">
-        <textarea id="inputText" placeholder="支持药店id、客户编码以及手机号赠送优惠券，可日常对话。" disabled></textarea>
-        <div class="action-bar">
-          <div class="action-left">
-            <button type="button" class="icon-btn" id="uploadBtn" title="上传文件">
-              <img src="svg/shangchuan.svg" alt="上传">
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">导航</span>
+            <button id="sidebar-close" class="sidebar-close">
+                <i class="fa-solid fa-xmark"></i>
             </button>
-          </div>
-          <button id="sendBtn" disabled>确认</button>
         </div>
-      </div>
-      <!-- 统一文件上传入口，支持图片和文档 -->
-      <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt,.csv,.json,.js,.py,.html,.css,.md,.xlsx,.xls,image/*" multiple style="display:none">
-    </footer>
-  </div>
-
-  <div id="toast" class="toast"></div>
-
-  <!-- 详情弹窗 -->
-  <div id="detailModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <span class="modal-title">详细信息</span>
-        <span class="modal-close" onclick="closeDetail()">×</span>
-      </div>
-      <div id="detailBody" class="modal-body"></div>
+        <div class="sidebar-menu custom-scrollbar" id="nav-menu">
+            <!-- 导航项由模块注册动态生成 -->
+        </div>
+        <div class="sidebar-footer">
+            <div class="sidebar-item" id="user-info">
+                <i class="fa-solid fa-user" id="user-icon"></i>
+                <span id="user-text">登录账户</span>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- 图片预览模态框，点击事件由JS统一处理 -->
-  <div id="imageModal" class="modal-overlay">
-    <img id="imagePreview" class="image-preview">
-  </div>
+    <div class="main-wrapper flex flex-col h-screen">
+        <header class="relative flex justify-between items-center pl-3 pr-4 py-2 gradient-divider-bottom flex-shrink-0">
+            <button id="menu-button" class="text-2xl text-gray-700">
+                <img src="logo/cd.svg" alt="菜单" class="w-8 h-8">
+            </button>
+            <div></div>
+            <div class="text-xs text-gray-600 text-right leading-tight">
+                <div id="location-weather" class="font-medium">加载中...</div>
+                <div id="current-date" class="text-gray-500 mt-0.5">--/--/--</div>
+            </div>
+        </header>
 
-  <!-- 登录弹窗 -->
-  <div id="loginModal" class="modal-overlay">
-    <div class="login-modal-content">
-      <div class="login-modal-header">
-        <span class="login-modal-title">🏪 SCM系统登录</span>
-        <span class="login-modal-close" onclick="closeLoginModal()">×</span>
-      </div>
-      <div id="loginModalBody" class="login-modal-body">
-        <!-- 登录表单由JS动态渲染 -->
-      </div>
+        <!-- 模块内容容器 -->
+        <main id="module-container" class="flex-grow flex flex-col overflow-hidden min-h-0">
+            <!-- 模块页面由动态加载 -->
+        </main>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script type="module" src="qidong.js"></script>
+    <script src="script.js"></script>
+    <!-- 智聊模块配置和工具 -->
+    <script src="gongn/zhiliao/config.js"></script>
+    <script src="gongn/zhiliao/gongj/utils.js"></script>
+    <!-- 优惠券模块配置 -->
+    <script src="gongn/yhquan/config.js"></script>
+    <!-- 文件解析模块 -->
+    <script src="gongn/zhiliao/gongj/db.js"></script>
+    <script src="gongn/zhiliao/gongj/jiex.js"></script>
+    <script src="gongn/zhiliao/gongj/tools.js"></script>
+    <script src="gongn/zhiliao/gongj/shend.js"></script>
+    <script src="gongn/zhiliao/gongj/web.js"></script>
+    <script src="gongn/zhiliao/gongj/fenx.js"></script>
+    <!-- 加载模块（模块会自动注册到框架） -->
+    <script src="gongn/zhiliao/app.js"></script>
+    <!-- 优惠券模块 -->
+    <script src="gongn/yhquan/app.js"></script>
+    <!-- 登录模块 -->
+    <link rel="stylesheet" href="denglu/gg.css">
+    <script src="denglu/fir.js"></script>
+    <script src="denglu/yw/scm.js"></script>
+    <script src="denglu/yw/pms.js"></script>
+    <script src="denglu/app.js"></script>
 </body>
 </html>
