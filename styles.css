@@ -9,7 +9,7 @@ body {
     margin: 0 auto;
     background-color: #fcfcfc;
     height: 100vh; /* 回退方案 */
-    height: 100dvh; /* 动态视口高度，适配移动浏览器 */
+    height: calc(var(--vh, 1vh) * 100); /* JS计算的精确视口高度 */
     position: relative;
     overflow: hidden;
 }

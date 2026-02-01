@@ -6,6 +6,9 @@ body {
 .main-wrapper {
     max-width: 100%;
     box-shadow: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    /* 使用JS计算的精确视口高度，兼容各种浏览器 */
+    height: calc(var(--vh, 1vh) * 100 - env(safe-area-inset-bottom, 0px));
 }
 
 /* 正常手机屏幕 - 1/3 */

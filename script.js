@@ -9,6 +9,33 @@ const AppFramework = {
         return window.matchMedia('(max-width: 768px)').matches;
     },
 
+    // 初始化视口高度（解决移动端浏览器菜单遮挡问题）
+    initViewportHeight() {
+        const setVH = () => {
+            // 优先使用 visualViewport（最准确）
+            const vh = window.visualViewport
+                ? window.visualViewport.height * 0.01
+                : window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        };
+
+        // 初始设置
+        setVH();
+
+        // 监听视口变化
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', setVH);
+            window.visualViewport.addEventListener('scroll', setVH);
+        } else {
+            window.addEventListener('resize', setVH);
+        }
+
+        // 监听屏幕方向变化
+        window.addEventListener('orientationchange', () => {
+            setTimeout(setVH, 100);
+        });
+    },
+
     // 注册模块
     register(config) {
         const { id, name, icon, path, order = 100 } = config;
@@ -388,6 +415,7 @@ const AppFramework = {
 
     // 初始化框架
     init() {
+        this.initViewportHeight(); // 优先初始化视口高度
         this.updateDate();
         this.initDeviceCode();
         this.initSidebar();
