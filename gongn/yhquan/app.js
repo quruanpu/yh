@@ -59,8 +59,8 @@ const YhquanModule = {
         try {
             if (!await this.waitForAPIModule()) return;
 
-            const loginInfo = await window.YhquanAPIModule.getLoginInfo();
-            if (!loginInfo) {
+            const credentials = await window.YhquanAPIModule.getCredentials();
+            if (!credentials) {
                 console.log('未登录，跳过预加载');
                 return;
             }
@@ -491,8 +491,8 @@ const YhquanModule = {
                 return;
             }
 
-            const loginInfo = await window.YhquanAPIModule.getLoginInfo();
-            if (!loginInfo) {
+            const credentials = await window.YhquanAPIModule.getCredentials();
+            if (!credentials) {
                 this.showLoginRequired();
                 this.updateSearchButton(false);
                 return;

@@ -161,7 +161,7 @@ const YhquanZsModule = {
     },
 
     async callGiveAllAPI(inputText, amount) {
-        const credentials = await this.getCredentials();
+        const credentials = await window.YhquanAPIModule?.getCredentials();
         if (!credentials) throw new Error('未找到登录凭证，请先登录');
 
         const couponTypeId = this.currentCoupon.id;
@@ -191,25 +191,6 @@ const YhquanZsModule = {
         const result = await response.json();
         console.log('赠送结果:', result);
         return result;
-    },
-
-    async getCredentials() {
-        try {
-            if (!window.FirebaseModule) return null;
-
-            const deviceLogins = await window.FirebaseModule.getDeviceLogins();
-            if (deviceLogins.scm?.length > 0) {
-                const latestScm = deviceLogins.scm.sort((a, b) =>
-                    new Date(b.login_time) - new Date(a.login_time)
-                )[0];
-                const fullInfo = await window.FirebaseModule.getScmLogin(latestScm.username);
-                return fullInfo?.credentials || null;
-            }
-            return null;
-        } catch (error) {
-            console.error('获取登录凭证失败:', error);
-            return null;
-        }
     },
 
     showResult(result) {
@@ -243,8 +224,9 @@ const YhquanZsModule = {
     showNotification(message, type = 'success') {
         const notification = document.createElement('div');
         notification.className = `yhquan-zs-notification yhquan-zs-notification-${type}`;
-        notification.style.top = '20px';
-        notification.style.right = '20px';
+        // 使用视觉视口确保在app环境中正确定位
+        const safeTop = window.visualViewport?.offsetTop || 0;
+        notification.style.top = `${20 + safeTop}px`;
 
         const icons = {
             success: '<i class="fa-solid fa-circle-check"></i>',
@@ -262,9 +244,11 @@ const YhquanZsModule = {
 
         requestAnimationFrame(() => {
             const newNotifHeight = notification.offsetHeight;
+            const safeTop = window.visualViewport?.offsetTop || 0;
             document.querySelectorAll('.yhquan-zs-notification').forEach(notif => {
                 if (notif !== notification) {
-                    notif.style.top = `${(parseInt(notif.style.top) || 20) + newNotifHeight + 10}px`;
+                    const currentTop = parseInt(notif.style.top) || (20 + safeTop);
+                    notif.style.top = `${currentTop + newNotifHeight + 10}px`;
                 }
             });
         });
@@ -284,7 +268,8 @@ const YhquanZsModule = {
     },
 
     reorderNotifications() {
-        let topPosition = 20;
+        const safeTop = window.visualViewport?.offsetTop || 0;
+        let topPosition = 20 + safeTop;
         document.querySelectorAll('.yhquan-zs-notification').forEach(notif => {
             notif.style.top = `${topPosition}px`;
             topPosition += notif.offsetHeight + 10;

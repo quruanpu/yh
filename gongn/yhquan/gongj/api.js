@@ -252,19 +252,6 @@ const YhquanAPIModule = {
     },
 
     /**
-     * 兼容旧接口 - 获取登录信息
-     */
-    async getLoginInfo() {
-        const credentials = await this.getCredentials();
-        if (!credentials) return null;
-        return {
-            username: credentials.username,
-            token: credentials.token,
-            sessionId: credentials.cms_token
-        };
-    },
-
-    /**
      * 搜索优惠券
      * @param {string} keyword - 搜索关键词（空字符串表示加载所有）
      * @returns {Promise<{success: boolean, data?: Array, error?: string}>}

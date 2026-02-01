@@ -268,29 +268,6 @@ const PmsLoginModule = {
     restart() {
         this.stopPolling();
         this.resetState();
-        this.state.currentStep = 'init';
-    },
-
-    // 验证Token是否有效
-    async validateToken(token) {
-        try {
-            const data = await this.apiRequest({ action: 'validate', token });
-            return data.code === '40001' && data.data.valid === true;
-        } catch (error) {
-            console.error('验证Token失败:', error);
-            return false;
-        }
-    },
-
-    // 激活会话
-    async activateSession(token) {
-        try {
-            const data = await this.apiRequest({ action: 'activate', token });
-            return data.code === '40001' && data.data.activated === true;
-        } catch (error) {
-            console.error('激活会话失败:', error);
-            return false;
-        }
     }
 };
 

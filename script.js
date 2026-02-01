@@ -290,13 +290,13 @@ const AppFramework = {
     // 获取位置和天气
     async initLocationWeather() {
         try {
-            const ipResponse = await fetch('http://ip-api.com/json/?lang=zh-CN');
+            const ipResponse = await fetch('https://ipapi.co/json/');
             const ipData = await ipResponse.json();
 
-            if (ipData.status === 'success') {
-                const city = ipData.city || '未知';
+            if (ipData.city) {
+                const city = ipData.city;
                 const weatherResponse = await fetch(
-                    `https://api.open-meteo.com/v1/forecast?latitude=${ipData.lat}&longitude=${ipData.lon}&current_weather=true`
+                    `https://api.open-meteo.com/v1/forecast?latitude=${ipData.latitude}&longitude=${ipData.longitude}&current_weather=true`
                 );
                 const weatherData = await weatherResponse.json();
                 const temp = Math.round(weatherData.current_weather.temperature);

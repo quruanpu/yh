@@ -338,17 +338,10 @@ const ScmLoginModule = {
         };
     },
 
-    // 取消登录
-    cancelLogin() {
-        this.stopPolling();
-        this.resetState();
-    },
-
     // 重新开始
     restart() {
         this.stopPolling();
         this.resetState();
-        this.state.currentStep = 'init';
     },
 
     // 验证输入

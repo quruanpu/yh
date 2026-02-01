@@ -19,7 +19,6 @@ const LoginModule = {
     // 初始化
     init() {
         this.createLoginDialog();
-        this.bindEvents();
     },
 
     // 创建登录弹窗
@@ -56,11 +55,6 @@ const LoginModule = {
         this.state.container = container;
         this.state.overlay = overlay;
         this.state.main = main;
-    },
-
-    // 绑定事件
-    bindEvents() {
-        // 不允许点击遮罩层关闭，只能通过关闭按钮关闭
     },
 
     // 打开登录弹窗
