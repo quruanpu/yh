@@ -296,15 +296,15 @@ const YhquanZsModule = {
     // 统一的优惠券状态检查方法
     getCouponStatus(coupon) {
         if (coupon.couponStatus === 0) {
-            return { text: '优惠券已作废', color: '#ef4444', valid: false };
+            return { text: '已作废', color: '#ef4444', valid: false };
         }
         if (coupon.endTime) {
             const endTime = new Date(coupon.endTime);
             if (!isNaN(endTime.getTime()) && new Date() > endTime) {
-                return { text: '优惠券失效', color: '#f59e0b', valid: false };
+                return { text: '已过期', color: '#f59e0b', valid: false };
             }
         }
-        return { text: '优惠券有效', color: '#10b981', valid: true };
+        return { text: '有效', color: '#10b981', valid: true };
     },
 
     isValidCoupon(coupon) {

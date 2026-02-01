@@ -28,8 +28,8 @@
     position: relative;
     background: white;
     border-radius: 8px;
-    width: 90%;
-    max-width: 390px;
+    width: 85%;
+    max-width: 320px;
     max-height: 90vh;
     display: flex;
     flex-direction: column;

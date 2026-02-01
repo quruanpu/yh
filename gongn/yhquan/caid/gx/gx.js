@@ -60,7 +60,7 @@ const YhquanGxModule = {
 
         const isSharing = this.shareData?.shifenggongxiang || false;
         const status = this.getCouponStatus(this.currentCoupon);
-        const isValid = status.text === '优惠券有效。';
+        const isValid = status.text === '有效';
 
         // 更新按钮样式和文本
         toggleBtn.className = `yhquan-gx-btn ${isSharing ? 'yhquan-gx-btn-danger' : 'yhquan-gx-btn-primary'}`;
@@ -343,16 +343,16 @@ const YhquanGxModule = {
 
     getCouponStatus(coupon) {
         if (coupon.couponStatus === 0) {
-            return { text: '优惠券已作废。', color: '#ef4444' };
+            return { text: '已作废', color: '#ef4444' };
         }
         if (coupon.endTime) {
             const now = new Date();
             const endTime = new Date(coupon.endTime);
             if (!isNaN(endTime.getTime()) && now > endTime) {
-                return { text: '优惠券已过期。', color: '#f59e0b' };
+                return { text: '已过期', color: '#f59e0b' };
             }
         }
-        return { text: '优惠券有效。', color: '#10b981' };
+        return { text: '有效', color: '#10b981' };
     },
 
     renderCouponInfo(coupon, status) {
@@ -421,7 +421,7 @@ const YhquanGxModule = {
         const coupon = this.currentCoupon;
         const status = this.getCouponStatus(coupon);
         const isSharing = this.shareData?.shifenggongxiang || false;
-        const isValid = status.text === '优惠券有效。';
+        const isValid = status.text === '有效';
 
         const toggleBtnClass = isSharing ? 'yhquan-gx-btn-danger' : 'yhquan-gx-btn-primary';
         const toggleBtnText = isSharing ? '关闭' : '开启';

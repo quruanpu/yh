@@ -830,7 +830,7 @@ const ZhiLiaoModule = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${this.config.apiKey}`
                 },
                 body: JSON.stringify(aiRequestBody)
             });
@@ -1715,6 +1715,16 @@ ${content}
         html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
             `<pre><code class="language-${lang}">${code.trim()}</code></pre>`);
         html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // 处理链接 [text](url) - 在新窗口打开，蓝色显示
+        html = html.replace(/\[([^\]]+)\]\(([^)]*)\)/g, (_, text, url) => {
+            if (!url || url.trim() === '') {
+                // URL为空，只显示文字
+                return text;
+            }
+            // 恢复URL中被转义的字符
+            const decodedUrl = url.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            return `<a href="${decodedUrl}" target="_blank" rel="noopener noreferrer" style="color: #3d6dff; text-decoration: underline;">${text}</a>`;
+        });
         html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
         html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
