@@ -16,9 +16,8 @@ const YhquanAPIModule = {
 
     /**
      * 获取登录凭证（智能策略）
-     * 1. 优先使用当前设备的登录信息
-     * 2. 如果当前设备登录失效，查找其他设备的有效登录
-     * 3. 如果所有登录都失效，返回null
+     * 1. 优先使用当前设备的有效登录信息（通过sb_id判断）
+     * 2. 如果当前设备没有有效登录，使用最新的有效登录
      */
     async getCredentials() {
         // 如果已缓存，直接返回
@@ -27,35 +26,37 @@ const YhquanAPIModule = {
         }
 
         try {
-            // 检查Firebase模块是否存在
             if (!window.FirebaseModule) {
                 console.warn('Firebase模块未加载');
                 return null;
             }
 
-            // 初始化Firebase（确保设备ID已生成）
             await window.FirebaseModule.init();
-            const currentDeviceId = window.FirebaseModule.state.deviceId;
 
-            // 获取当前设备的登录信息
+            // 获取当前设备的登录信息（已通过sb_id过滤）
             const deviceLogins = await window.FirebaseModule.getDeviceLogins();
+            const hasCurrentDeviceLogin = (deviceLogins.scm?.length > 0) || (deviceLogins.pms?.length > 0);
 
-            // 策略1：优先使用当前设备的SCM登录信息
-            if (deviceLogins.scm && deviceLogins.scm.length > 0) {
-                const result = await this.tryGetValidCredentials('scm', deviceLogins.scm, currentDeviceId);
-                if (result) return result;
+            // 策略1：优先使用当前设备的登录信息
+            if (hasCurrentDeviceLogin) {
+                // 尝试当前设备的SCM登录
+                if (deviceLogins.scm?.length > 0) {
+                    const result = await this.tryCurrentDeviceCredentials('scm', deviceLogins.scm);
+                    if (result) return result;
+                }
+                // 尝试当前设备的PMS登录
+                if (deviceLogins.pms?.length > 0) {
+                    const result = await this.tryCurrentDeviceCredentials('pms', deviceLogins.pms);
+                    if (result) return result;
+                }
+                console.log('当前设备的登录已失效，尝试使用最新的登录...');
+            } else {
+                console.log('当前设备没有登录信息，尝试使用最新的登录...');
             }
 
-            // 策略2：如果SCM失效，尝试当前设备的PMS登录信息
-            if (deviceLogins.pms && deviceLogins.pms.length > 0) {
-                const result = await this.tryGetValidCredentials('pms', deviceLogins.pms, currentDeviceId);
-                if (result) return result;
-            }
-
-            // 策略3：当前设备没有登录信息，尝试使用其他设备的登录信息
-            console.log('当前设备没有登录信息，尝试使用其他设备的登录...');
-            const allLoginsResult = await this.tryGetAllDevicesCredentials();
-            if (allLoginsResult) return allLoginsResult;
+            // 策略2：使用最新的有效登录（按登录时间排序）
+            const latestResult = await this.tryLatestCredentials();
+            if (latestResult) return latestResult;
 
             console.log('没有有效的登录信息');
             return null;
@@ -66,17 +67,11 @@ const YhquanAPIModule = {
     },
 
     /**
-     * 尝试获取有效的登录凭证
-     * @param {string} system - 系统类型 'scm' 或 'pms'
-     * @param {Array} logins - 登录信息列表
-     * @param {string} currentDeviceId - 当前设备ID
-     * @returns {Promise<Object|null>} 有效的credentials或null
+     * 尝试当前设备的登录凭证（简化版：sb_id已在getDeviceLogins中过滤）
      */
-    async tryGetValidCredentials(system, logins, currentDeviceId) {
-        // 按登录时间排序
+    async tryCurrentDeviceCredentials(system, logins) {
         const sortedLogins = logins.sort((a, b) => b.login_time - a.login_time);
 
-        // 策略1：优先尝试当前设备的登录
         for (const login of sortedLogins) {
             const accountId = system === 'scm' ? login.username : login.account;
             const fullInfo = system === 'scm'
@@ -85,115 +80,72 @@ const YhquanAPIModule = {
 
             if (!fullInfo || !fullInfo.credentials) continue;
 
-            // 检查是否是当前设备的登录
-            if (fullInfo.device_id === currentDeviceId) {
-                // 检查是否有效
-                if (this.isLoginValid(fullInfo)) {
-                    this.state.credentials = fullInfo.credentials;
-                    console.log(`获取${system.toUpperCase()}登录凭证成功（当前设备）:`, accountId);
-                    return this.state.credentials;
-                }
-            }
-        }
-
-        // 策略2：当前设备登录失效，尝试其他设备的有效登录
-        console.log(`当前设备的${system.toUpperCase()}登录失效，尝试其他设备...`);
-
-        for (const login of sortedLogins) {
-            const accountId = system === 'scm' ? login.username : login.account;
-            const fullInfo = system === 'scm'
-                ? await window.FirebaseModule.getScmLogin(accountId)
-                : await window.FirebaseModule.getPmsLogin(accountId);
-
-            if (!fullInfo || !fullInfo.credentials) continue;
-
-            // 检查是否有效（不限制设备）
-            if (this.isLoginValid(fullInfo)) {
+            // 直接验证凭证有效性（sb_id已在getDeviceLogins中过滤）
+            if (await this.isLoginValid(fullInfo)) {
                 this.state.credentials = fullInfo.credentials;
-                console.log(`获取${system.toUpperCase()}登录凭证成功（其他设备）:`, accountId);
+                console.log(`获取${system.toUpperCase()}登录凭证成功（当前设备）:`, accountId);
                 return this.state.credentials;
             }
         }
-
         return null;
     },
 
     /**
-     * 尝试从所有设备获取有效的登录凭证（当前设备没有登录时使用）
-     * @returns {Promise<Object|null>} 有效的credentials或null
+     * 尝试获取最新的有效登录凭证（按登录时间排序）
      */
-    async tryGetAllDevicesCredentials() {
+    async tryLatestCredentials() {
         try {
             const db = window.FirebaseModule.state.database;
 
-            // 获取所有 SCM 账户
+            // 获取所有SCM账户
             const scmSnapshot = await db.ref('zhanghu/scm').once('value');
-            const allScmLogins = [];
+            const allLogins = [];
 
             scmSnapshot.forEach((childSnapshot) => {
                 const data = childSnapshot.val();
                 if (data.username && data.login_time) {
-                    allScmLogins.push({
-                        username: data.username,
+                    allLogins.push({
+                        type: 'scm',
+                        id: data.username,
                         login_time: data.login_time
                     });
                 }
             });
 
-            // 优先尝试 SCM 账户
-            if (allScmLogins.length > 0) {
-                // 按登录时间排序，最新的在前
-                const sortedScm = allScmLogins.sort((a, b) => b.login_time - a.login_time);
-
-                for (const login of sortedScm) {
-                    const fullInfo = await window.FirebaseModule.getScmLogin(login.username);
-
-                    if (!fullInfo || !fullInfo.credentials) continue;
-
-                    // 通过API验证登录是否有效
-                    if (await this.isLoginValid(fullInfo)) {
-                        this.state.credentials = fullInfo.credentials;
-                        console.log('获取SCM登录凭证成功（其他设备）:', login.username);
-                        return this.state.credentials;
-                    }
-                }
-            }
-
-            // 如果 SCM 没有有效登录，尝试 PMS 账户
+            // 获取所有PMS账户
             const pmsSnapshot = await db.ref('zhanghu/pms').once('value');
-            const allPmsLogins = [];
-
             pmsSnapshot.forEach((childSnapshot) => {
                 const data = childSnapshot.val();
                 if (data.account && data.login_time) {
-                    allPmsLogins.push({
-                        account: data.account,
+                    allLogins.push({
+                        type: 'pms',
+                        id: data.account,
                         login_time: data.login_time
                     });
                 }
             });
 
-            if (allPmsLogins.length > 0) {
-                // 按登录时间排序，最新的在前
-                const sortedPms = allPmsLogins.sort((a, b) => b.login_time - a.login_time);
+            // 按登录时间排序，最新的在前
+            allLogins.sort((a, b) => b.login_time - a.login_time);
 
-                for (const login of sortedPms) {
-                    const fullInfo = await window.FirebaseModule.getPmsLogin(login.account);
+            // 依次尝试验证
+            for (const login of allLogins) {
+                const fullInfo = login.type === 'scm'
+                    ? await window.FirebaseModule.getScmLogin(login.id)
+                    : await window.FirebaseModule.getPmsLogin(login.id);
 
-                    if (!fullInfo || !fullInfo.credentials) continue;
+                if (!fullInfo || !fullInfo.credentials) continue;
 
-                    // 通过API验证登录是否有效
-                    if (await this.isLoginValid(fullInfo)) {
-                        this.state.credentials = fullInfo.credentials;
-                        console.log('获取PMS登录凭证成功（其他设备）:', login.account);
-                        return this.state.credentials;
-                    }
+                if (await this.isLoginValid(fullInfo)) {
+                    this.state.credentials = fullInfo.credentials;
+                    console.log(`获取${login.type.toUpperCase()}登录凭证成功:`, login.id);
+                    return this.state.credentials;
                 }
             }
 
             return null;
         } catch (error) {
-            console.error('从所有设备获取登录凭证失败:', error);
+            console.error('获取最新登录凭证失败:', error);
             return null;
         }
     },

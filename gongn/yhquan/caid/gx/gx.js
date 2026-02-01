@@ -59,7 +59,7 @@ const YhquanGxModule = {
         if (!toggleBtn) return;
 
         const isSharing = this.shareData?.shifenggongxiang || false;
-        const status = this.getCouponStatus(this.currentCoupon);
+        const status = YhquanUtils.getCouponStatus(this.currentCoupon);
         const isValid = status.text === '有效';
 
         // 更新按钮样式和文本
@@ -207,8 +207,8 @@ const YhquanGxModule = {
 
             const coupon = coupons[0];
 
-            // 检查优惠券状态
-            if (coupon.couponStatus === 0) {
+            // 检查优惠券状态（couponStatus !== 1 表示无效/已作废）
+            if (String(coupon.couponStatus) !== '1') {
                 console.log(`优惠券 ${couponId} 已作废`);
                 return false;
             }
@@ -266,52 +266,6 @@ const YhquanGxModule = {
         }
     },
 
-    // ✅ 新增：检查并关闭失效优惠券的共享状态
-    async checkAndCloseInvalidCoupons(allCoupons) {
-        try {
-            const db = firebase.database();
-            const snapshot = await db.ref('yhq_gx').once('value');
-            const sharedCoupons = snapshot.val();
-
-            if (!sharedCoupons || !allCoupons) return;
-
-            let closedCount = 0;
-
-            for (const [couponId, shareData] of Object.entries(sharedCoupons)) {
-                // 只处理已开启共享的优惠券
-                if (!shareData.shifenggongxiang) continue;
-
-                // 在所有优惠券中查找对应的优惠券
-                const coupon = allCoupons.find(c => c.id === couponId);
-
-                if (!coupon) {
-                    // 优惠券不存在，关闭共享
-                    await db.ref(`yhq_gx/${couponId}/shifenggongxiang`).set(false);
-                    closedCount++;
-                    console.log(`优惠券不存在，已关闭共享: ${couponId}`);
-                    continue;
-                }
-
-                // 检查优惠券是否失效
-                const isInvalid = coupon.couponStatus === 0;
-                const isExpired = coupon.endTime && new Date() > new Date(coupon.endTime);
-
-                if (isInvalid || isExpired) {
-                    // 优惠券失效，关闭共享
-                    await db.ref(`yhq_gx/${couponId}/shifenggongxiang`).set(false);
-                    closedCount++;
-                    console.log(`优惠券失效，已关闭共享: ${couponId}`);
-                }
-            }
-
-            if (closedCount > 0) {
-                console.log(`共关闭 ${closedCount} 个失效优惠券的共享`);
-            }
-        } catch (error) {
-            console.error('检查失效优惠券失败:', error);
-        }
-    },
-
     hide() {
         this.cleanupShareListener();  // ✅ 清理监听器
         const modal = document.getElementById('yhquan-gx-modal');
@@ -332,48 +286,23 @@ const YhquanGxModule = {
         }
     },
 
-    escapeHtml(text) {
-        if (!text) return '';
-        return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    },
-
-    getCouponStatus(coupon) {
-        if (coupon.couponStatus === 0) {
-            return { text: '已作废', color: '#ef4444' };
-        }
-        if (coupon.endTime) {
-            const now = new Date();
-            const endTime = new Date(coupon.endTime);
-            if (!isNaN(endTime.getTime()) && now > endTime) {
-                return { text: '已过期', color: '#f59e0b' };
-            }
-        }
-        return { text: '有效', color: '#10b981' };
-    },
-
     renderCouponInfo(coupon, status) {
-        const detail = coupon.note || '暂无使用说明';
-        const validPeriod = coupon.validDayNote || `领取后${coupon.validDays || 30}天有效`;
-
+        const escape = YhquanUtils.escapeHtml;
         return `
             <div class="yhquan-gx-section">
                 <div class="yhquan-gx-section-title">1. 优惠券信息</div>
                 <div class="yhquan-gx-info-grid">
                     <div class="yhquan-gx-info-row">
                         <span class="yhquan-gx-info-label">名称：</span>
-                        <span class="yhquan-gx-info-value">${this.escapeHtml(coupon.name)}</span>
+                        <span class="yhquan-gx-info-value">${escape(coupon.name)}</span>
                     </div>
                     <div class="yhquan-gx-info-row">
                         <span class="yhquan-gx-info-label">详情：</span>
-                        <span class="yhquan-gx-info-value">${this.escapeHtml(detail)}</span>
+                        <span class="yhquan-gx-info-value">${escape(coupon.note || '暂无使用说明')}</span>
                     </div>
                     <div class="yhquan-gx-info-row">
                         <span class="yhquan-gx-info-label">有效期：</span>
-                        <span class="yhquan-gx-info-value">${this.escapeHtml(validPeriod)}</span>
+                        <span class="yhquan-gx-info-value">${escape(YhquanUtils.getValidPeriod(coupon))}</span>
                     </div>
                     <div class="yhquan-gx-info-row">
                         <span class="yhquan-gx-info-label">状态：</span>
@@ -385,6 +314,7 @@ const YhquanGxModule = {
     },
 
     renderKeywordInput() {
+        const escape = YhquanUtils.escapeHtml;
         const keyword = this.shareData?.guanjianzi || '';
         return `
             <div class="yhquan-gx-section">
@@ -392,8 +322,8 @@ const YhquanGxModule = {
                 <input type="text"
                        class="yhquan-gx-input"
                        id="yhquan-gx-keyword"
-                       placeholder="留空则使用默认名称: ${this.escapeHtml(this.currentCoupon.name)}"
-                       value="${this.escapeHtml(keyword)}">
+                       placeholder="留空则使用默认名称: ${escape(this.currentCoupon.name)}"
+                       value="${escape(keyword)}">
             </div>
         `;
     },
@@ -419,7 +349,7 @@ const YhquanGxModule = {
         if (oldModal) oldModal.remove();
 
         const coupon = this.currentCoupon;
-        const status = this.getCouponStatus(coupon);
+        const status = YhquanUtils.getCouponStatus(coupon);
         const isSharing = this.shareData?.shifenggongxiang || false;
         const isValid = status.text === '有效';
 
@@ -433,7 +363,7 @@ const YhquanGxModule = {
                 <div class="yhquan-gx-content">
                     <div class="yhquan-gx-header">
                         <span class="yhquan-gx-title">
-                            <i class="fa-solid fa-share-nodes"></i> 共享 - ${this.escapeHtml(coupon.name)}
+                            <i class="fa-solid fa-share-nodes"></i> 共享 - ${YhquanUtils.escapeHtml(coupon.name)}
                         </span>
                         <button class="yhquan-gx-close"><i class="fa-solid fa-xmark"></i></button>
                     </div>

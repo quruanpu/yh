@@ -205,42 +205,30 @@ const FirebaseModule = {
         };
     },
 
-    // 存储SCM登录信息
+    // 存储SCM登录信息（简化版：只用sb_id管理设备）
     async saveScmLogin(username, credentials, providerInfo) {
         await this.init();
 
         const timestamp = Date.now();
-        const loginData = {
-            username: username,
-            credentials: credentials,
-            provider_info: providerInfo,
-            login_time: timestamp,
-            device_id: this.state.deviceId,
-            device_info: this.state.deviceInfo, // 新增：设备信息
-            expire_time: credentials.expire_time || new Date(timestamp + 24 * 60 * 60 * 1000).toISOString()
-        };
 
         try {
-            // 获取现有账户数据
             const accountRef = this.state.database.ref(`zhanghu/scm/${username}`);
             const snapshot = await accountRef.once('value');
             const existingData = snapshot.val() || {};
 
-            // 更新设备ID列表
+            // 更新设备ID列表（追加当前设备）
             let deviceIds = existingData.sb_id || [];
             if (!deviceIds.includes(this.state.deviceId)) {
                 deviceIds.push(this.state.deviceId);
             }
 
-            // 更新设备信息映射
-            let deviceInfoMap = existingData.sb_info || {};
-            deviceInfoMap[this.state.deviceId] = this.state.deviceInfo;
-
             // 更新账户数据
             await accountRef.update({
-                ...loginData,
+                username: username,
+                credentials: credentials,
+                provider_info: providerInfo,
+                login_time: timestamp,
                 sb_id: deviceIds,
-                sb_info: deviceInfoMap, // 新增：设备信息映射
                 last_update: timestamp
             });
 
@@ -252,42 +240,31 @@ const FirebaseModule = {
         }
     },
 
-    // 存储PMS登录信息
+    // 存储PMS登录信息（简化版：只用sb_id管理设备）
     async savePmsLogin(account, credentials, userInfo) {
         await this.init();
 
         const timestamp = Date.now();
-        const loginData = {
-            account: account,
-            credentials: credentials,
-            user_info: userInfo,
-            login_time: timestamp,
-            device_id: this.state.deviceId,
-            device_info: this.state.deviceInfo, // 新增：设备信息
-            pms_token: credentials.pms_token || credentials.token
-        };
 
         try {
-            // 获取现有账户数据
             const accountRef = this.state.database.ref(`zhanghu/pms/${account}`);
             const snapshot = await accountRef.once('value');
             const existingData = snapshot.val() || {};
 
-            // 更新设备ID列表
+            // 更新设备ID列表（追加当前设备）
             let deviceIds = existingData.sb_id || [];
             if (!deviceIds.includes(this.state.deviceId)) {
                 deviceIds.push(this.state.deviceId);
             }
 
-            // 更新设备信息映射
-            let deviceInfoMap = existingData.sb_info || {};
-            deviceInfoMap[this.state.deviceId] = this.state.deviceInfo;
-
             // 更新账户数据
             await accountRef.update({
-                ...loginData,
+                account: account,
+                credentials: credentials,
+                user_info: userInfo,
+                login_time: timestamp,
                 sb_id: deviceIds,
-                sb_info: deviceInfoMap, // 新增：设备信息映射
+                pms_token: credentials.pms_token || credentials.token,
                 last_update: timestamp
             });
 

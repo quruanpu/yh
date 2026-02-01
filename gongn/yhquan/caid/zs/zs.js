@@ -37,7 +37,7 @@ const YhquanZsModule = {
                 <div class="yhquan-zs-content">
                     <div class="yhquan-zs-header">
                         <span class="yhquan-zs-title">
-                            <i class="fa-solid fa-gift"></i> 赠送 - ${this.escapeHtml(coupon.name)}
+                            <i class="fa-solid fa-gift"></i> 赠送 - ${YhquanUtils.escapeHtml(coupon.name)}
                         </span>
                         <button class="yhquan-zs-close"><i class="fa-solid fa-xmark"></i></button>
                     </div>
@@ -56,22 +56,23 @@ const YhquanZsModule = {
     },
 
     renderCouponInfo(coupon) {
-        const status = this.getCouponStatus(coupon);
+        const status = YhquanUtils.getCouponStatus(coupon);
+        const escape = YhquanUtils.escapeHtml;
         return `
             <div class="yhquan-zs-section">
                 <div class="yhquan-zs-section-title">1.基本信息</div>
                 <div class="yhquan-zs-info-grid">
                     <div class="yhquan-zs-info-row">
                         <span class="yhquan-zs-info-label">名称：</span>
-                        <span class="yhquan-zs-info-value">${this.escapeHtml(coupon.name)}</span>
+                        <span class="yhquan-zs-info-value">${escape(coupon.name)}</span>
                     </div>
                     <div class="yhquan-zs-info-row">
                         <span class="yhquan-zs-info-label">详情：</span>
-                        <span class="yhquan-zs-info-value">${this.getCouponDetail(coupon)}</span>
+                        <span class="yhquan-zs-info-value">${YhquanUtils.getCouponDetail(coupon)}</span>
                     </div>
                     <div class="yhquan-zs-info-row">
                         <span class="yhquan-zs-info-label">有效期：</span>
-                        <span class="yhquan-zs-info-value">${this.getValidPeriod(coupon)}</span>
+                        <span class="yhquan-zs-info-value">${YhquanUtils.getValidPeriod(coupon)}</span>
                     </div>
                     <div class="yhquan-zs-info-row">
                         <span class="yhquan-zs-info-label">状态：</span>
@@ -236,7 +237,7 @@ const YhquanZsModule = {
 
         notification.innerHTML = `
             <div class="yhquan-zs-notification-icon">${icons[type] || ''}</div>
-            <div class="yhquan-zs-notification-content">${this.escapeHtml(message).replace(/\n/g, '<br>')}</div>
+            <div class="yhquan-zs-notification-content">${YhquanUtils.escapeHtml(message).replace(/\n/g, '<br>')}</div>
             <button class="yhquan-zs-notification-close"><i class="fa-solid fa-xmark"></i></button>
         `;
 
@@ -276,49 +277,8 @@ const YhquanZsModule = {
         });
     },
 
-    getCouponDetail(coupon) {
-        const parts = [];
-        if (coupon.minPay) parts.push(`满${coupon.minPay}可用`);
-        if (coupon.typeDesc) parts.push(coupon.typeDesc);
-        if (coupon.price) parts.push(coupon.price);
-        return parts.join(' | ') || '无详情';
-    },
-
-    getValidPeriod(coupon) {
-        if (coupon.validDayNote) return coupon.validDayNote;
-        if (coupon.validDays > 0) return `领取后${coupon.validDays}天有效`;
-        if (coupon.beginTime && coupon.endTime) {
-            return `${coupon.beginTime.split(' ')[0]} 至 ${coupon.endTime.split(' ')[0]}`;
-        }
-        return '永久有效';
-    },
-
-    // 统一的优惠券状态检查方法
-    getCouponStatus(coupon) {
-        if (coupon.couponStatus === 0) {
-            return { text: '已作废', color: '#ef4444', valid: false };
-        }
-        if (coupon.endTime) {
-            const endTime = new Date(coupon.endTime);
-            if (!isNaN(endTime.getTime()) && new Date() > endTime) {
-                return { text: '已过期', color: '#f59e0b', valid: false };
-            }
-        }
-        return { text: '有效', color: '#10b981', valid: true };
-    },
-
     isValidCoupon(coupon) {
-        return this.getCouponStatus(coupon).valid;
-    },
-
-    escapeHtml(text) {
-        if (!text) return '';
-        return String(text)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
+        return YhquanUtils.getCouponStatus(coupon).valid;
     }
 };
 

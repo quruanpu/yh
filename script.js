@@ -291,7 +291,7 @@ const AppFramework = {
         }
     },
 
-    // 自动登录检查
+    // 自动登录检查（仅检查当前设备的登录，通过API验证有效性）
     async checkAutoLogin() {
         try {
             // 等待Firebase模块加载
@@ -317,9 +317,8 @@ const AppFramework = {
                 const loginInfo = await window.FirebaseModule.getScmLogin(latestScm.username);
 
                 if (loginInfo && loginInfo.credentials) {
-                    // 检查是否过期
-                    if (this.isLoginValid(loginInfo)) {
-                        // 使用与登录成功相同的字段优先级
+                    // 通过API验证是否有效
+                    if (await this.validateLoginViaAPI(loginInfo.credentials)) {
                         const displayName = loginInfo.provider_info?.username ||
                                           loginInfo.credentials?.username ||
                                           loginInfo.username || '';
@@ -330,7 +329,7 @@ const AppFramework = {
                 }
             }
 
-            // 如果没有SCM或SCM已过期，尝试PMS
+            // 如果没有SCM或SCM无效，尝试PMS
             if (deviceLogins.pms && deviceLogins.pms.length > 0) {
                 // 按登录时间排序，获取最近的
                 const latestPms = deviceLogins.pms.sort((a, b) =>
@@ -341,9 +340,8 @@ const AppFramework = {
                 const loginInfo = await window.FirebaseModule.getPmsLogin(latestPms.account);
 
                 if (loginInfo && loginInfo.credentials) {
-                    // 检查是否过期
-                    if (this.isLoginValid(loginInfo)) {
-                        // 使用与登录成功相同的字段
+                    // 通过API验证是否有效
+                    if (await this.validateLoginViaAPI(loginInfo.credentials)) {
                         const displayName = loginInfo.user_info?.account || loginInfo.account || '';
                         this.setLoginUsername(displayName);
                         console.log('自动登录成功 (PMS):', displayName);
@@ -352,38 +350,63 @@ const AppFramework = {
                 }
             }
 
-            console.log('没有有效的登录信息');
+            console.log('当前设备没有有效的登录信息');
         } catch (error) {
             console.error('自动登录检查失败:', error);
         }
     },
 
-    // 检查登录信息是否有效
-    isLoginValid(loginInfo) {
-        // 检查是否有过期时间
-        if (loginInfo.expire_time) {
-            const expireTime = new Date(loginInfo.expire_time);
-            const now = new Date();
-
-            if (now > expireTime) {
-                console.log('登录信息已过期');
+    // 通过API验证登录凭证是否有效
+    async validateLoginViaAPI(credentials) {
+        try {
+            // 等待配置加载
+            const apiUrl = window.YhquanConfig?.api?.url;
+            if (!apiUrl) {
+                console.log('API配置未加载，跳过验证');
                 return false;
             }
-        }
 
-        // 检查登录时间是否超过7天
-        if (loginInfo.login_time) {
-            const loginTime = new Date(loginInfo.login_time);
-            const now = new Date();
-            const daysDiff = (now - loginTime) / (1000 * 60 * 60 * 24);
+            const requestBody = {
+                credentials: credentials,
+                action: 'list',
+                pageNo: 1,
+                pageSize: 1,
+                name: '',
+                id: '',
+                type: '',
+                is_valid: '',
+                valid_type: '',
+                ctime: '',
+                chooseDay: ''
+            };
 
-            if (daysDiff > 7) {
-                console.log('登录时间超过7天');
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'Accept': 'application/json; charset=UTF-8'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                console.log('API验证失败（HTTP错误）:', response.status);
                 return false;
             }
-        }
 
-        return true;
+            const result = await response.json();
+
+            if (result.success === false) {
+                console.log('登录凭证无效:', result.message);
+                return false;
+            }
+
+            console.log('登录凭证有效（API验证成功）');
+            return true;
+        } catch (error) {
+            console.error('API验证出错:', error);
+            return false;
+        }
     },
 
     // 初始化框架

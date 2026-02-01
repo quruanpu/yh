@@ -124,7 +124,7 @@ const YhquanModule = {
             );
 
             // ✅ 设置共享状态实时监听
-            this.setupSharingListener();
+            await this.setupSharingListener();
 
             this.state.displayedCount = 0;
 
@@ -145,12 +145,17 @@ const YhquanModule = {
     },
 
     // ✅ 设置共享状态实时监听
-    setupSharingListener() {
+    async setupSharingListener() {
         try {
             // 先清理旧的监听器
             this.cleanupSharingListener();
 
-            const db = firebase.database();
+            // 确保 Firebase 已初始化
+            if (!window.FirebaseModule) return;
+            await window.FirebaseModule.init();
+
+            const db = window.FirebaseModule.state.database;
+            if (!db) return;
 
             // 使用on('value')实时监听
             this.state.sharingListener = db.ref('yhq_gx').on('value', (snapshot) => {
@@ -186,8 +191,10 @@ const YhquanModule = {
     cleanupSharingListener() {
         if (this.state.sharingListener) {
             try {
-                const db = firebase.database();
-                db.ref('yhq_gx').off('value', this.state.sharingListener);
+                const db = window.FirebaseModule?.state?.database;
+                if (db) {
+                    db.ref('yhq_gx').off('value', this.state.sharingListener);
+                }
                 this.state.sharingListener = null;
                 console.log('共享状态监听器已清理');
             } catch (error) {
@@ -206,7 +213,7 @@ const YhquanModule = {
 
         // 加载其他模块
         const basePath = 'gongn/yhquan/gongj/';
-        ['api.js', 'card.js'].forEach(mod => {
+        ['utils.js', 'api.js', 'card.js'].forEach(mod => {
             if (!document.querySelector(`script[src="${basePath}${mod}"]`)) {
                 const script = document.createElement('script');
                 script.src = basePath + mod;
@@ -239,6 +246,20 @@ const YhquanModule = {
         if (!document.querySelector(`script[src="${gxBasePath}gx.js"]`)) {
             const script = document.createElement('script');
             script.src = gxBasePath + 'gx.js';
+            document.head.appendChild(script);
+        }
+
+        // 加载效期模块
+        const xqBasePath = 'gongn/yhquan/caid/xq/';
+        if (!document.querySelector(`link[href="${xqBasePath}xq.css"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = xqBasePath + 'xq.css';
+            document.head.appendChild(link);
+        }
+        if (!document.querySelector(`script[src="${xqBasePath}xq.js"]`)) {
+            const script = document.createElement('script');
+            script.src = xqBasePath + 'xq.js';
             document.head.appendChild(script);
         }
     },
@@ -458,7 +479,13 @@ const YhquanModule = {
             } else {
                 console.error('共享模块未加载');
             }
-        } else if (['validity', 'invalid'].includes(action)) {
+        } else if (action === 'validity') {
+            if (window.YhquanXqModule) {
+                window.YhquanXqModule.show(coupon);
+            } else {
+                console.error('效期模块未加载');
+            }
+        } else if (action === 'invalid') {
             window.YhquanZsModule?.showNotification('功能正在开发中......', 'warning');
         } else {
             console.warn('未知操作:', action);
@@ -477,7 +504,7 @@ const YhquanModule = {
                 console.log('使用预加载的缓存数据，立即显示');
                 this.state.displayedCount = 0;
                 this.displayCoupons();
-                this.setupSharingListener();  // ✅ 设置实时监听
+                await this.setupSharingListener();
                 this.updateSearchButton(false);
                 return;
             }
@@ -498,7 +525,30 @@ const YhquanModule = {
                 return;
             }
 
+            // 如果预加载正在进行，等待完成
+            if (window.YhquanAPIModule.isSearching()) {
+                console.log('预加载正在进行，等待完成...');
+                await this.waitForPreload();
+
+                // 预加载完成后，检查是否有数据
+                if (this.state.isPreloaded && this.state.allCoupons.length > 0) {
+                    console.log('预加载完成，显示数据');
+                    this.displayCoupons();
+                    this.setupSharingListener();
+                    this.updateSearchButton(false);
+                    return;
+                }
+            }
+
             await this.loadCoupons('');
+        }
+    },
+
+    // 等待预加载完成
+    async waitForPreload(maxWait = 15000) {
+        const startTime = Date.now();
+        while (window.YhquanAPIModule.isSearching() && Date.now() - startTime < maxWait) {
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
     },
 
