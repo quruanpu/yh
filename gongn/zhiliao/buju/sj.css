@@ -2,7 +2,7 @@
 
 /* 字体变量 */
 :root {
-    --font-size-main: 0.875rem;
+    --font-size-main: 0.84375rem;
     --font-size-small: 0.75rem;
     --font-size-thinking: 0.625rem;
 }
@@ -91,8 +91,8 @@ footer .bg-gray-100 {
 
 /* 底部按钮统一高度 */
 .footer-btn {
-    height: 32px;
-    font-size: 0.875rem !important;
+    height: 28px;
+    font-size: 0.78125rem !important;
     gap: 4px;
 }
 
@@ -102,11 +102,11 @@ footer .bg-gray-100 {
 }
 
 #upload-button {
-    width: 32px;
+    width: 28px;
 }
 
 #send-button {
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.78125rem;
 }
