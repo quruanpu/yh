@@ -1,20 +1,13 @@
 /* 主框架手机端样式 */
 body {
     background-color: #fcfcfc;
-    /* 使用flex布局实现垂直居中 */
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .main-wrapper {
     max-width: 100%;
+    width: 100%;
     box-shadow: none;
-    /* 设置为屏幕高度的90%，避免被浏览器UI遮挡 */
-    height: 90vh;
-    height: 90dvh;
-    /* 四周淡灰色边框 */
-    border: 1px solid rgba(200, 200, 200, 0.5);
+    height: 100%;
 }
 
 /* 正常手机屏幕 - 1/3 */
