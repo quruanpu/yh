@@ -1,0 +1,134 @@
+/* 智聊指令系统样式 - 简化版 */
+
+/* ========== 指令菜单 ========== */
+.zhiliao-command-menu {
+    position: fixed;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    overflow: hidden;
+    padding: 4px 0;
+    width: auto;
+}
+
+.zhiliao-command-menu-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.zhiliao-command-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #374151;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.zhiliao-command-item:hover,
+.zhiliao-command-item.selected {
+    background: #f3f4f6;
+    color: #3d6dff;
+}
+
+.zhiliao-command-empty {
+    padding: 12px 16px;
+    color: #9ca3af;
+    font-size: 13px;
+}
+
+/* ========== 优惠券卡片 ========== */
+.zhiliao-hd-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.zhiliao-hd-card {
+    flex: 0 0 auto;
+    max-width: 10em;
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.zhiliao-hd-card:hover {
+    background: #f0f4ff;
+}
+
+.zhiliao-hd-card-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.zhiliao-hd-card-info {
+    font-size: 11px;
+    color: #9ca3af;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 卡片选中状态 */
+.zhiliao-hd-card.selected {
+    background: #e0e7ff;
+    border: 1px solid #6366f1;
+}
+
+/* ========== 选中标签容器 ========== */
+.zhiliao-hd-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.zhiliao-hd-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    background: #e0e7ff;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #4f46e5;
+}
+
+.zhiliao-hd-tag-remove {
+    cursor: pointer;
+    font-size: 10px;
+    color: #6366f1;
+}
+
+.zhiliao-hd-tag-remove:hover {
+    color: #ef4444;
+}
+
+/* ========== 用户消息中的优惠券标签 ========== */
+.zhiliao-hd-msg-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+    padding-right: 12px;
+    margin-top: -4px;
+    margin-bottom: 8px;
+}
+
+.zhiliao-hd-msg-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #e0e7ff;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #4f46e5;
+}

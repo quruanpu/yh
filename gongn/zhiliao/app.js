@@ -91,6 +91,13 @@ const ZhiLiaoModule = {
         // 生成会话ID（简化版：不需要持久化会话）
         this.state.sessionId = 'session-' + Date.now();
 
+        // 初始化指令系统
+        setTimeout(() => {
+            if (window.ZhiLiaoCaidanModule) {
+                ZhiLiaoCaidanModule.init();
+            }
+        }, 500);
+
         AppFramework.setModuleInstance('zhiliao', this);
     },
 
@@ -104,6 +111,24 @@ const ZhiLiaoModule = {
             if (!document.querySelector(`script[src="${basePath}${mod}"]`)) {
                 const script = document.createElement('script');
                 script.src = basePath + mod;
+                document.head.appendChild(script);
+            }
+        });
+
+        // 加载指令系统
+        const caidanPath = 'gongn/zhiliao/gongj/caidan/';
+        // CSS
+        if (!document.querySelector(`link[href="${caidanPath}caidan.css"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = caidanPath + 'caidan.css';
+            document.head.appendChild(link);
+        }
+        // JS模块
+        ['app.js', 'hd.js'].forEach(mod => {
+            if (!document.querySelector(`script[src="${caidanPath}${mod}"]`)) {
+                const script = document.createElement('script');
+                script.src = caidanPath + mod;
                 document.head.appendChild(script);
             }
         });
@@ -165,6 +190,10 @@ const ZhiLiaoModule = {
         textarea?.addEventListener('input', () => this.autoResizeTextarea(textarea));
         textarea?.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !this.isMobile && !e.shiftKey) {
+                // 如果指令菜单可见，让指令系统处理回车
+                if (window.ZhiLiaoCaidanModule?.state?.isMenuVisible) {
+                    return;
+                }
                 e.preventDefault();
                 this.sendMessage();
             }
@@ -425,6 +454,21 @@ const ZhiLiaoModule = {
                 textarea.value = '';
                 textarea.style.height = 'auto';
             }
+            return;
+        }
+
+        // 检查是否有选中的优惠券（优先处理）
+        if (message && window.ZhiLiaoHdCommand?.state?.selectedCoupons?.length > 0) {
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            await ZhiLiaoHdCommand.sendSelectedCoupons(message);
+            return;
+        }
+
+        // 检查是否为指令（以 @ 开头）
+        if (message && window.ZhiLiaoCaidanModule?.checkAndExecuteCommand(message)) {
+            textarea.value = '';
+            textarea.style.height = 'auto';
             return;
         }
 
