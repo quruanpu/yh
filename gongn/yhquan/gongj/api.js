@@ -52,6 +52,11 @@ const YhquanAPIModule = {
                 if (result) return result;
             }
 
+            // 策略3：当前设备没有登录信息，尝试使用其他设备的登录信息
+            console.log('当前设备没有登录信息，尝试使用其他设备的登录...');
+            const allLoginsResult = await this.tryGetAllDevicesCredentials();
+            if (allLoginsResult) return allLoginsResult;
+
             console.log('没有有效的登录信息');
             return null;
         } catch (error) {
@@ -111,6 +116,86 @@ const YhquanAPIModule = {
         }
 
         return null;
+    },
+
+    /**
+     * 尝试从所有设备获取有效的登录凭证（当前设备没有登录时使用）
+     * @returns {Promise<Object|null>} 有效的credentials或null
+     */
+    async tryGetAllDevicesCredentials() {
+        try {
+            const db = window.FirebaseModule.state.database;
+
+            // 获取所有 SCM 账户
+            const scmSnapshot = await db.ref('zhanghu/scm').once('value');
+            const allScmLogins = [];
+
+            scmSnapshot.forEach((childSnapshot) => {
+                const data = childSnapshot.val();
+                if (data.username && data.login_time) {
+                    allScmLogins.push({
+                        username: data.username,
+                        login_time: data.login_time
+                    });
+                }
+            });
+
+            // 优先尝试 SCM 账户
+            if (allScmLogins.length > 0) {
+                // 按登录时间排序，最新的在前
+                const sortedScm = allScmLogins.sort((a, b) => b.login_time - a.login_time);
+
+                for (const login of sortedScm) {
+                    const fullInfo = await window.FirebaseModule.getScmLogin(login.username);
+
+                    if (!fullInfo || !fullInfo.credentials) continue;
+
+                    // 通过API验证登录是否有效
+                    if (await this.isLoginValid(fullInfo)) {
+                        this.state.credentials = fullInfo.credentials;
+                        console.log('获取SCM登录凭证成功（其他设备）:', login.username);
+                        return this.state.credentials;
+                    }
+                }
+            }
+
+            // 如果 SCM 没有有效登录，尝试 PMS 账户
+            const pmsSnapshot = await db.ref('zhanghu/pms').once('value');
+            const allPmsLogins = [];
+
+            pmsSnapshot.forEach((childSnapshot) => {
+                const data = childSnapshot.val();
+                if (data.account && data.login_time) {
+                    allPmsLogins.push({
+                        account: data.account,
+                        login_time: data.login_time
+                    });
+                }
+            });
+
+            if (allPmsLogins.length > 0) {
+                // 按登录时间排序，最新的在前
+                const sortedPms = allPmsLogins.sort((a, b) => b.login_time - a.login_time);
+
+                for (const login of sortedPms) {
+                    const fullInfo = await window.FirebaseModule.getPmsLogin(login.account);
+
+                    if (!fullInfo || !fullInfo.credentials) continue;
+
+                    // 通过API验证登录是否有效
+                    if (await this.isLoginValid(fullInfo)) {
+                        this.state.credentials = fullInfo.credentials;
+                        console.log('获取PMS登录凭证成功（其他设备）:', login.account);
+                        return this.state.credentials;
+                    }
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('从所有设备获取登录凭证失败:', error);
+            return null;
+        }
     },
 
     /**

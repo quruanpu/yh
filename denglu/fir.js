@@ -27,8 +27,17 @@ const FirebaseModule = {
             // 动态加载Firebase SDK
             await this.loadFirebaseSDK();
 
-            // 初始化Firebase
-            this.state.app = firebase.initializeApp(this.config);
+            // 检查是否已经有Firebase应用被初始化
+            if (firebase.apps.length > 0) {
+                // 使用已存在的应用
+                this.state.app = firebase.app();
+                console.log('使用已存在的Firebase应用');
+            } else {
+                // 初始化新的Firebase应用
+                this.state.app = firebase.initializeApp(this.config);
+                console.log('初始化新的Firebase应用');
+            }
+
             this.state.database = firebase.database();
 
             // 生成设备ID（异步）
@@ -44,11 +53,23 @@ const FirebaseModule = {
     // 加载Firebase SDK
     async loadFirebaseSDK() {
         return new Promise((resolve, reject) => {
-            if (window.firebase) {
+            // 检查 firebase 和 database 模块是否都已加载
+            if (window.firebase && window.firebase.database) {
                 resolve();
                 return;
             }
 
+            // 如果 firebase 存在但 database 不存在，只加载 database 模块
+            if (window.firebase && !window.firebase.database) {
+                const script = document.createElement('script');
+                script.src = 'https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+                return;
+            }
+
+            // 都不存在，依次加载
             const script = document.createElement('script');
             script.src = 'https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js';
             script.onload = () => {

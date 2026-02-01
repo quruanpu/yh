@@ -2,8 +2,8 @@
 
 /* 字体变量 */
 :root {
-    --font-size-main: 0.78125rem;
-    --font-size-small: 0.7rem;
+    --font-size-main: 0.875rem;
+    --font-size-small: 0.75rem;
     --font-size-thinking: 0.625rem;
 }
 
@@ -91,22 +91,22 @@ footer .bg-gray-100 {
 
 /* 底部按钮统一高度 */
 .footer-btn {
-    height: 26px;
-    font-size: var(--font-size-main) !important;
+    height: 32px;
+    font-size: 0.875rem !important;
     gap: 4px;
 }
 
 #think-button,
 #network-button {
-    padding: 0 10px;
+    padding: 0 12px;
 }
 
 #upload-button {
-    width: 26px;
+    width: 32px;
 }
 
 #send-button {
-    width: 26px;
-    height: 26px;
-    font-size: 0.875rem;
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
 }
