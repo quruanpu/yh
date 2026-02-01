@@ -10,12 +10,24 @@ body {
     height: 100%;
 }
 
+/* 安全区域支持 */
+@supports (padding-top: env(safe-area-inset-top)) {
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
 .main-wrapper {
     margin: 0 auto;
     background-color: #fcfcfc;
     height: 100%;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 /* 统一滚动条样式 */
