@@ -162,28 +162,42 @@ const YhquanModule = {
                 const sharingData = snapshot.val() || {};
                 console.log('🔔 监听器触发，共享数据:', sharingData);
 
-                // 更新所有优惠券的共享状态
-                let updatedCount = 0;
+                // 更新所有优惠券的共享状态，并记录变更的优惠券
+                const changedCoupons = [];
                 this.state.allCoupons.forEach(coupon => {
                     const shareInfo = sharingData[coupon.id];
                     const oldStatus = coupon.isSharing;
                     coupon.isSharing = shareInfo?.shifenggongxiang || false;
 
                     if (oldStatus !== coupon.isSharing) {
-                        updatedCount++;
+                        changedCoupons.push({ id: coupon.id, isSharing: coupon.isSharing });
                         console.log(`📝 优惠券 ${coupon.id} 状态变更: ${oldStatus} → ${coupon.isSharing}`);
                     }
                 });
 
-                console.log(`✅ 共享状态已更新（${updatedCount} 个优惠券状态变更）`);
+                console.log(`✅ 共享状态已更新（${changedCoupons.length} 个优惠券状态变更）`);
 
-                // 重新渲染卡片
-                this.displayCoupons();
+                // 只更新变更的卡片状态图标，而不是重新渲染所有卡片
+                changedCoupons.forEach(({ id, isSharing }) => {
+                    this.updateCardStatusIcon(id, isSharing);
+                });
             });
 
             console.log('共享状态监听器已设置');
         } catch (error) {
             console.error('设置共享状态监听失败:', error);
+        }
+    },
+
+    // ✅ 更新单个卡片的状态图标（供监听器使用）
+    updateCardStatusIcon(couponId, isSharing) {
+        const card = document.querySelector(`.yhquan-card[data-id="${couponId}"]`);
+        if (card) {
+            const statusIcon = card.querySelector('.yhquan-status-icon');
+            if (statusIcon) {
+                statusIcon.textContent = isSharing ? '🌎️' : '💡';
+                console.log(`卡片状态图标已更新: ${couponId} → ${isSharing ? '🌎️' : '💡'}`);
+            }
         }
     },
 
@@ -260,6 +274,20 @@ const YhquanModule = {
         if (!document.querySelector(`script[src="${xqBasePath}xq.js"]`)) {
             const script = document.createElement('script');
             script.src = xqBasePath + 'xq.js';
+            document.head.appendChild(script);
+        }
+
+        // 加载作废模块
+        const zfBasePath = 'gongn/yhquan/caid/zf/';
+        if (!document.querySelector(`link[href="${zfBasePath}zf.css"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = zfBasePath + 'zf.css';
+            document.head.appendChild(link);
+        }
+        if (!document.querySelector(`script[src="${zfBasePath}zf.js"]`)) {
+            const script = document.createElement('script');
+            script.src = zfBasePath + 'zf.js';
             document.head.appendChild(script);
         }
     },
@@ -356,6 +384,15 @@ const YhquanModule = {
                     actionBtn.getAttribute('data-action'),
                     actionBtn.getAttribute('data-id')
                 );
+            }
+        });
+
+        // GMV小眼睛点击事件
+        contentArea?.addEventListener('click', (e) => {
+            const gmvEye = e.target.closest('.yhquan-gmv-eye');
+            if (gmvEye) {
+                e.stopPropagation();
+                this.handleGmvClick(gmvEye.getAttribute('data-id'));
             }
         });
     },
@@ -486,9 +523,37 @@ const YhquanModule = {
                 console.error('效期模块未加载');
             }
         } else if (action === 'invalid') {
-            window.YhquanZsModule?.showNotification('功能正在开发中......', 'warning');
+            if (window.YhquanZfModule) {
+                window.YhquanZfModule.show(coupon);
+            } else {
+                console.error('作废模块未加载');
+            }
         } else {
             console.warn('未知操作:', action);
+        }
+    },
+
+    /**
+     * 处理GMV小眼睛点击事件
+     */
+    async handleGmvClick(couponId) {
+        const gmvValue = document.querySelector(`.yhquan-gmv-value[data-id="${couponId}"]`);
+        const gmvEye = document.querySelector(`.yhquan-gmv-eye[data-id="${couponId}"]`);
+
+        if (!gmvValue || !gmvEye) return;
+
+        // 显示加载状态
+        gmvEye.className = 'fa-solid fa-spinner fa-spin yhquan-gmv-eye';
+
+        try {
+            const salesAmount = await window.YhquanAPIModule?.getSalesVolume(couponId);
+            gmvValue.textContent = salesAmount || '-';
+            // 隐藏眼睛图标
+            gmvEye.style.display = 'none';
+        } catch (error) {
+            console.error('获取GMV失败:', error);
+            gmvValue.textContent = '-';
+            gmvEye.style.display = 'none';
         }
     },
 

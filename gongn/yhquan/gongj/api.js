@@ -303,6 +303,46 @@ const YhquanAPIModule = {
      */
     isSearching() {
         return this.state.isSearching;
+    },
+
+    /**
+     * 获取单个优惠券的GMV（销售金额）
+     * @param {string|number} couponId - 优惠券ID
+     * @returns {Promise<string>} 销售金额或'-'
+     */
+    async getSalesVolume(couponId) {
+        try {
+            const credentials = await this.getCredentials();
+            if (!credentials) {
+                return '-';
+            }
+
+            const response = await fetch(this.config.apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json; charset=UTF-8',
+                    'Accept': 'application/json; charset=UTF-8'
+                },
+                body: JSON.stringify({
+                    credentials: credentials,
+                    action: 'getSalesVolume',
+                    couponTypeId: String(couponId)
+                })
+            });
+
+            if (!response.ok) {
+                return '-';
+            }
+
+            const result = await response.json();
+            if (result.success && result.data?.salesAmount) {
+                return result.data.salesAmount;
+            }
+            return '-';
+        } catch (error) {
+            console.error('获取GMV失败:', error);
+            return '-';
+        }
     }
 };
 

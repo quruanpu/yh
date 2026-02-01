@@ -327,7 +327,50 @@
     margin: 0 2px;
 }
 
-/* 第六行：使用说明 */
+/* 第六行：使用/领取 + GMV */
+.yhquan-card-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #6b7280;
+}
+
+.yhquan-card-stats i {
+    font-size: 10px;
+}
+
+.yhquan-stats-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.yhquan-gmv-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+}
+
+.yhquan-gmv-value {
+    color: #059669;
+    font-weight: 500;
+}
+
+.yhquan-gmv-eye {
+    cursor: pointer;
+    color: #9ca3af;
+    transition: color 0.2s;
+    font-size: 10px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.yhquan-gmv-eye:hover {
+    color: var(--yhquan-primary);
+}
+
+/* 第七行：使用说明 */
 .yhquan-card-desc {
     font-size: 10px;
     color: #6b7280;

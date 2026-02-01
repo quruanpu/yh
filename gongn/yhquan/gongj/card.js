@@ -52,14 +52,25 @@ const YhquanCardModule = {
                     ${this.generateTags(coupon)}
                 </div>
                 <div class="yhquan-card-row yhquan-card-valid">
-                    <i class="fa-regular fa-clock"></i>
+                    <span>🕐</span>
                     <span>${escape(YhquanUtils.getValidPeriod(coupon))}</span>
                 </div>
                 <div class="yhquan-card-row yhquan-card-meta">
-                    <i class="fa-regular fa-user"></i>
+                    <span>😊</span>
                     <span>${escape(coupon.account || coupon.createMan || '未知')}</span>
                     <span class="yhquan-card-separator">|</span>
                     <span>${coupon.ctime || ''}</span>
+                </div>
+                <div class="yhquan-card-row yhquan-card-stats">
+                    <span class="yhquan-stats-item">
+                        <span>📊</span>
+                        使用/领取：${coupon.usedCount || 0}/${coupon.issuedCount || 0}
+                    </span>
+                    <span class="yhquan-card-separator">|</span>
+                    <span class="yhquan-stats-item yhquan-gmv-item">
+                        GMV：<span class="yhquan-gmv-value" data-id="${coupon.id}"></span>
+                        <i class="fa-regular fa-eye yhquan-gmv-eye" data-id="${coupon.id}" title="点击查看GMV"></i>
+                    </span>
                 </div>
                 <div class="yhquan-card-row yhquan-card-desc"
                      data-id="${coupon.id}"

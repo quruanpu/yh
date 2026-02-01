@@ -28,12 +28,14 @@
     position: relative;
     background: white;
     border-radius: 8px;
-    width: 85%;
-    max-width: 320px;
-    max-height: 90vh;
+    width: 90%;
+    height: 90vh;
+    max-width: 600px;
+    max-height: 700px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
 }
 
 /* 弹窗头部 */
@@ -83,17 +85,25 @@
 /* 弹窗主体 */
 .yhquan-zs-body {
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 12px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 /* 区块 */
 .yhquan-zs-section {
     margin-bottom: 12px;
+    flex-shrink: 0;
 }
 
 .yhquan-zs-section:last-child {
     margin-bottom: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .yhquan-zs-section-title {
@@ -156,9 +166,8 @@
 /* 目标输入 */
 .yhquan-zs-textarea {
     width: 100%;
-    height: auto;
+    flex: 1;
     min-height: 70px;
-    max-height: 70px;
     padding: 8px 10px;
     border: 1px solid #d1d5db;
     border-radius: 6px;

@@ -53,6 +53,32 @@ const YhquanGxModule = {
         }
     },
 
+    // ✅ 强制更新卡片状态图标（不依赖监听器）
+    updateCardStatusIcon(couponId, isSharing) {
+        try {
+            // 1. 更新 YhquanModule 中的优惠券数据
+            if (window.YhquanModule?.state?.allCoupons) {
+                const coupon = window.YhquanModule.state.allCoupons.find(c => String(c.id) === String(couponId));
+                if (coupon) {
+                    coupon.isSharing = isSharing;
+                }
+            }
+
+            // 2. 直接更新 DOM 中的状态图标
+            const card = document.querySelector(`.yhquan-card[data-id="${couponId}"]`);
+            if (card) {
+                const statusIcon = card.querySelector('.yhquan-status-icon');
+                if (statusIcon) {
+                    // 根据共享状态更新图标
+                    statusIcon.textContent = isSharing ? '🌎️' : '💡';
+                    console.log(`卡片状态图标已更新: ${couponId} → ${isSharing ? '🌎️' : '💡'}`);
+                }
+            }
+        } catch (error) {
+            console.error('更新卡片状态图标失败:', error);
+        }
+    },
+
     // ✅ 更新按钮状态（不完全重新渲染）
     updateButtonState() {
         const toggleBtn = document.getElementById('yhquan-gx-toggle');
@@ -409,7 +435,8 @@ const YhquanGxModule = {
                 yifafangzongshu: this.shareData?.yifafangzongshu || 0
             });
 
-            // ✅ 实时监听器会自动更新UI，无需手动重新加载和渲染
+            // 强制更新卡片状态图标
+            this.updateCardStatusIcon(this.currentCoupon.id, true);
             this.showNotification('共享已开启', 'success');
         } catch (error) {
             console.error('开启共享失败:', error);
@@ -433,7 +460,8 @@ const YhquanGxModule = {
             const db = firebase.database();
             await db.ref(`yhq_gx/${this.currentCoupon.id}/shifenggongxiang`).set(false);
 
-            // ✅ 实时监听器会自动更新UI，无需手动重新加载和渲染
+            // 强制更新卡片状态图标
+            this.updateCardStatusIcon(this.currentCoupon.id, false);
             this.showNotification('共享已关闭', 'success');
         } catch (error) {
             console.error('关闭共享失败:', error);
