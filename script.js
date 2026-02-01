@@ -272,42 +272,22 @@ const AppFramework = {
         document.getElementById('current-date').textContent = `${year}/${month}/${day} ${weekday}`;
     },
 
-    // 天气代码转换
-    getWeatherDescription(weatherCode) {
-        const weatherMap = {
-            0: '晴天', 1: '晴', 2: '多云', 3: '阴天',
-            45: '雾', 48: '雾',
-            51: '小雨', 53: '小雨', 55: '中雨',
-            61: '雨', 63: '中雨', 65: '大雨',
-            71: '小雪', 73: '雪', 75: '大雪', 77: '雪',
-            80: '阵雨', 81: '阵雨', 82: '大阵雨',
-            85: '阵雪', 86: '阵雪',
-            95: '雷暴', 96: '雷暴', 99: '雷暴'
-        };
-        return weatherMap[weatherCode] || '未知';
-    },
-
-    // 获取位置和天气
-    async initLocationWeather() {
+    // 显示设备码后6位
+    async initDeviceCode() {
         try {
-            const ipResponse = await fetch('https://ipapi.co/json/');
-            const ipData = await ipResponse.json();
-
-            if (ipData.city) {
-                const city = ipData.city;
-                const weatherResponse = await fetch(
-                    `https://api.open-meteo.com/v1/forecast?latitude=${ipData.latitude}&longitude=${ipData.longitude}&current_weather=true`
-                );
-                const weatherData = await weatherResponse.json();
-                const temp = Math.round(weatherData.current_weather.temperature);
-                const weatherDesc = this.getWeatherDescription(weatherData.current_weather.weathercode);
-                document.getElementById('location-weather').textContent = `${city} ${temp}°C ${weatherDesc}`;
-            } else {
-                document.getElementById('location-weather').textContent = '位置获取失败';
+            // 等待Firebase模块加载并初始化
+            if (!window.FirebaseModule) {
+                document.getElementById('device-code').textContent = '------';
+                return;
             }
+            await window.FirebaseModule.init();
+            const deviceId = window.FirebaseModule.state.deviceId || '';
+            // 取后6位
+            const shortCode = deviceId.slice(-6).toUpperCase();
+            document.getElementById('device-code').textContent = shortCode || '------';
         } catch (error) {
-            console.error('获取位置天气失败:', error);
-            document.getElementById('location-weather').textContent = '加载失败';
+            console.error('获取设备码失败:', error);
+            document.getElementById('device-code').textContent = '------';
         }
     },
 
@@ -409,7 +389,7 @@ const AppFramework = {
     // 初始化框架
     init() {
         this.updateDate();
-        this.initLocationWeather();
+        this.initDeviceCode();
         this.initSidebar();
         this.loadDefaultModule();
         // 电脑端默认展开侧边栏
