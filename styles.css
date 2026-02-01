@@ -78,7 +78,7 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
+    bottom: 0;
     background-color: #fcfcfc;
     box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
     transform: translateX(-100%);
@@ -87,6 +87,14 @@ body {
     display: flex;
     flex-direction: column;
     overflow: visible;
+}
+
+/* 侧边栏安全区域支持 */
+@supports (padding-top: env(safe-area-inset-top)) {
+    .sidebar {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+    }
 }
 
 .sidebar.active {
