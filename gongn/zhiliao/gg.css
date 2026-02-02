@@ -191,10 +191,13 @@
     transition: all 0.2s;
 }
 
-.footer-btn:hover {
-    background-color: #eff6ff;
-    border-color: #dbeafe;
-    color: #3d6dff;
+/* 仅在支持hover的设备上显示悬浮效果（排除触摸屏） */
+@media (hover: hover) {
+    .footer-btn:hover {
+        background-color: #eff6ff;
+        border-color: #dbeafe;
+        color: #3d6dff;
+    }
 }
 
 .footer-btn.active {
