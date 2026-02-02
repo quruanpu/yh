@@ -2,20 +2,20 @@
 
 /* 搜索区域 */
 .yhquan-search-container {
-    padding: 20px 24px;
+    padding: 14px 24px;
 }
 
 .yhquan-search-box {
-    max-width: 640px;
+    max-width: 700px;
 }
 
 .yhquan-search-input {
-    height: 46px;
+    height: 38px;
 }
 
 .yhquan-search-btn {
-    height: 46px;
-    padding: 0 28px;
+    height: 38px;
+    padding: 0 24px;
 }
 
 /* 内容区域 */

@@ -52,7 +52,7 @@ const YhquanCardModule = {
                     ${this.generateTags(coupon)}
                 </div>
                 <div class="yhquan-card-row yhquan-card-valid">
-                    <span>🕐</span>
+                    <span>⌛️</span>
                     <span>${escape(YhquanUtils.getValidPeriod(coupon))}</span>
                 </div>
                 <div class="yhquan-card-row yhquan-card-meta">

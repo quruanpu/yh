@@ -14,9 +14,7 @@ const YhquanModule = {
         displayedCount: 0,
         currentKeyword: '',
         hasAutoSearched: false,
-        isPreloaded: false,
-        preloadError: null,
-        sharingListener: null  // ✅ 新增：共享状态监听器
+        sharingListener: null
     },
 
     async init() {
@@ -25,13 +23,12 @@ const YhquanModule = {
         this.render();
         this.bindEvents();
         AppFramework.setModuleInstance('yhquan', this);
-        setTimeout(() => this.preloadData(), 0);
+        // 后台清理过期优惠券
         setTimeout(() => {
             if (window.YhquanGxModule) {
                 window.YhquanGxModule.cleanExpiredCoupons();
             }
         }, 1000);
-        // ✅ 后台异步清理：通过API验证优惠券有效性
         setTimeout(() => {
             if (window.YhquanGxModule) {
                 window.YhquanGxModule.backgroundCleanup();
@@ -42,45 +39,11 @@ const YhquanModule = {
     async waitForAPIModule(maxRetries = 20, delayMs = 100) {
         for (let i = 0; i < maxRetries; i++) {
             if (window.YhquanAPIModule?.searchCoupons) {
-                console.log(`API模块已加载 (尝试 ${i + 1}/${maxRetries})`);
                 return true;
             }
             await new Promise(resolve => setTimeout(resolve, delayMs));
         }
-        console.error('API模块加载超时');
         return false;
-    },
-
-    async preloadData() {
-        if (this.state.isPreloaded || this.state.isSearching) return;
-
-        console.log('开始后台预加载优惠券数据...');
-
-        try {
-            if (!await this.waitForAPIModule()) return;
-
-            const credentials = await window.YhquanAPIModule.getCredentials();
-            if (!credentials) {
-                console.log('未登录，跳过预加载');
-                return;
-            }
-
-            const result = await window.YhquanAPIModule.searchCoupons('');
-            if (result.success && result.data) {
-                this.state.allCoupons = result.data;
-                this.state.isPreloaded = true;
-                console.log(`后台预加载成功：${result.data.length} 条优惠券`);
-            } else if (result.error === 'SEARCHING') {
-                // 检测到重复搜索，静默忽略（说明已有搜索在进行）
-                console.log('检测到搜索正在进行，跳过预加载');
-            } else {
-                this.state.preloadError = result.error;
-                console.warn('后台预加载失败:', result.error);
-            }
-        } catch (error) {
-            this.state.preloadError = error.message;
-            console.error('后台预加载出错:', error);
-        }
     },
 
     showLoginRequired() {
@@ -572,55 +535,13 @@ const YhquanModule = {
         if (!this.state.hasAutoSearched) {
             this.state.hasAutoSearched = true;
 
-            if (this.state.isPreloaded && this.state.allCoupons.length > 0) {
-                console.log('使用预加载的缓存数据，立即显示');
-                this.state.displayedCount = 0;
-                this.displayCoupons();
-                await this.setupSharingListener();
-                this.updateSearchButton(false);
-                return;
-            }
-
-            this.showLoadingWithText('正在加载中......');
-            this.updateSearchButton(true);
-
             if (!await this.waitForAPIModule()) {
                 this.showEmpty('系统初始化失败，请刷新页面');
-                this.updateSearchButton(false);
                 return;
             }
 
-            const credentials = await window.YhquanAPIModule.getCredentials();
-            if (!credentials) {
-                this.showLoginRequired();
-                this.updateSearchButton(false);
-                return;
-            }
-
-            // 如果预加载正在进行，等待完成
-            if (window.YhquanAPIModule.isSearching()) {
-                console.log('预加载正在进行，等待完成...');
-                await this.waitForPreload();
-
-                // 预加载完成后，检查是否有数据
-                if (this.state.isPreloaded && this.state.allCoupons.length > 0) {
-                    console.log('预加载完成，显示数据');
-                    this.displayCoupons();
-                    this.setupSharingListener();
-                    this.updateSearchButton(false);
-                    return;
-                }
-            }
-
-            await this.loadCoupons('');
-        }
-    },
-
-    // 等待预加载完成
-    async waitForPreload(maxWait = 15000) {
-        const startTime = Date.now();
-        while (window.YhquanAPIModule.isSearching() && Date.now() - startTime < maxWait) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // 首次进入自动搜索
+            this.handleSearch();
         }
     },
 

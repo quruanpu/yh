@@ -2,16 +2,22 @@
 
 /* 搜索区域 */
 .yhquan-search-container {
-    padding: 12px 16px;
+    padding: 10px 12px;
 }
 
 .yhquan-search-box {
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+.yhquan-search-input-wrapper {
+    flex: 1;
+    min-width: 0;
 }
 
 .yhquan-search-input {
     height: 34px;
-    padding: 0 36px 0 10px;
+    padding: 0 30px 0 10px;
     font-size: 13px;
 }
 
@@ -27,8 +33,9 @@
 
 .yhquan-search-btn {
     height: 34px;
-    padding: 0 14px;
+    padding: 0 12px;
     font-size: 12px;
+    flex-shrink: 0;
 }
 
 /* 统计栏 */

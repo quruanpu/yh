@@ -150,7 +150,7 @@ const ZhiLiaoModule = {
             <footer id="chat-footer" class="relative gradient-divider-top flex-shrink-0">
                 <div id="file-tags-container" class="file-tags-container" style="display: none;"></div>
                 <div class="relative bg-gray-100 rounded-2xl py-2 px-3 flex items-center shadow-sm">
-                    <textarea id="message-input" rows="1" placeholder="给运小助发送消息~"
+                    <textarea id="message-input" rows="1" placeholder="输入 / 查看命令，或询问小助..."
                         class="custom-scrollbar bg-transparent flex-grow outline-none text-sm text-gray-700 placeholder-gray-400 resize-none overflow-y-auto"
                         style="max-height: 144px; line-height: 1.5;"></textarea>
                 </div>

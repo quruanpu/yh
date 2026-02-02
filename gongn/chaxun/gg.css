@@ -1,0 +1,481 @@
+/* 商品查询模块样式 */
+
+/* ========== CSS变量定义 ========== */
+:root {
+    --chaxun-primary: #3d6dff;
+    --chaxun-primary-light: #e8f0ff;
+    --chaxun-bg: #fcfcfc;
+    --chaxun-card-bg: #ffffff;
+    --chaxun-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========== 页面容器 ========== */
+.chaxun-page {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.chaxun-page.active {
+    display: flex;
+}
+
+/* ========== 搜索区域 ========== */
+.chaxun-search-container {
+    flex-shrink: 0;
+    padding: 12px 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #fcfcfc 100%);
+    border-bottom: 1px solid rgba(209, 213, 219, 0.5);
+}
+
+.chaxun-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.chaxun-search-input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.chaxun-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 40px 0 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: var(--chaxun-transition);
+    box-sizing: border-box;
+    outline: none;
+}
+
+.chaxun-search-input::placeholder {
+    color: #9ca3af;
+}
+
+.chaxun-search-input:focus {
+    border-color: var(--chaxun-primary);
+    box-shadow: 0 4px 16px rgba(61, 109, 255, 0.15);
+}
+
+/* 清除按钮 */
+.chaxun-search-clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: var(--chaxun-transition);
+    padding: 0;
+    outline: none;
+}
+
+.chaxun-search-clear:hover {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* 类型选择器 */
+.chaxun-status-select {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 12px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    background: #ffffff;
+    cursor: pointer;
+    outline: none;
+    min-width: 80px;
+}
+
+/* 搜索按钮 */
+.chaxun-search-btn {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 20px;
+    background: var(--chaxun-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(61, 109, 255, 0.3);
+    transition: var(--chaxun-transition);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chaxun-search-btn:hover {
+    background: #2d5ce6;
+    transform: translateY(-1px);
+}
+
+.chaxun-search-btn:disabled {
+    background: #9ca3af;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 类型下拉切换按钮 */
+.chaxun-type-toggle {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--chaxun-transition);
+}
+
+.chaxun-type-toggle:hover {
+    border-color: var(--chaxun-primary);
+    color: var(--chaxun-primary);
+    background: var(--chaxun-primary-light);
+}
+
+/* ========== 类型复选框区域 ========== */
+.chaxun-type-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 12px;
+    max-width: 700px;
+    margin: 10px auto 0;
+    padding-top: 10px;
+    border-top: 1px dashed #e5e7eb;
+}
+
+.chaxun-type-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.chaxun-type-checkbox input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--chaxun-primary);
+}
+
+.chaxun-checkbox-label {
+    font-size: 12px;
+    color: #4b5563;
+    white-space: nowrap;
+}
+
+.chaxun-type-checkbox:hover .chaxun-checkbox-label {
+    color: var(--chaxun-primary);
+}
+
+/* ========== 内容区域 ========== */
+.chaxun-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: #f9fafb;
+}
+
+.chaxun-cards-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px;
+}
+
+/* ========== 商品卡片 ========== */
+.chaxun-card {
+    background: white;
+    border-radius: 8px;
+    padding: 8px 12px 10px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.chaxun-card-row {
+    margin-bottom: 6px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.chaxun-card-row:last-child {
+    margin-bottom: 0;
+}
+
+/* 第一行：序号和ID */
+.chaxun-card-header {
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.chaxun-card-index {
+    font-size: 10px;
+    color: #3b82f6;
+    word-break: break-word;
+}
+
+/* 第二行：商品名称 */
+.chaxun-card-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.4;
+    margin-top: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+/* 第三行：标签 */
+.chaxun-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.chaxun-tag {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.chaxun-tag-pack {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.chaxun-tag-date {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* 含税成本价 */
+.chaxun-card-cost {
+    font-size: 10px;
+    color: #6b7280;
+}
+
+/* 价格表格 */
+.chaxun-price-table {
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+
+.chaxun-price-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    text-align: center;
+}
+
+.chaxun-price-header {
+    font-size: 10px;
+    color: #6b7280;
+    padding: 4px 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.chaxun-price-values {
+    font-size: 10px;
+    font-weight: 600;
+    color: #059669;
+    padding: 4px 0;
+}
+
+/* 第七行：厂家 */
+.chaxun-card-factory {
+    font-size: 10px;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ========== 空状态 ========== */
+.chaxun-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+    grid-column: 1 / -1;
+}
+
+.chaxun-empty i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: #d1d5db;
+}
+
+.chaxun-empty-text {
+    font-size: 14px;
+}
+
+/* ========== 登录提示 ========== */
+.chaxun-login-required {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 200px);
+    text-align: center;
+    color: #9ca3af;
+    grid-column: 1 / -1;
+}
+
+.chaxun-login-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.chaxun-login-icon i {
+    font-size: 36px;
+    color: #f59e0b;
+}
+
+.chaxun-login-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.chaxun-login-hint {
+    font-size: 13px;
+    color: #9ca3af;
+}
+
+/* ========== 加载状态 ========== */
+.chaxun-loading-full {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 200px);
+    grid-column: 1 / -1;
+}
+
+.chaxun-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(61, 109, 255, 0.15);
+    border-top-color: var(--chaxun-primary);
+    border-radius: 50%;
+    animation: chaxun-spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+.chaxun-loading-text {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+@keyframes chaxun-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ========== 状态筛选浮动按钮 ========== */
+.chaxun-status-fab {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--chaxun-primary);
+    color: white;
+    border: none;
+    box-shadow: 0 2px 8px rgba(61, 109, 255, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.chaxun-status-fab i {
+    font-size: 14px;
+}
+
+/* 状态选择遮罩层 */
+.chaxun-status-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 101;
+}
+
+/* 状态选择弹窗 */
+.chaxun-status-popup {
+    position: absolute;
+    bottom: 52px;
+    right: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 102;
+    min-width: 100px;
+    overflow: hidden;
+}
+
+.chaxun-status-item {
+    padding: 6px 12px;
+    font-size: 11px;
+    color: #4b5563;
+    cursor: pointer;
+}
+
+.chaxun-status-item:hover {
+    background: #f3f4f6;
+}
+
+.chaxun-status-item.active {
+    background: var(--chaxun-primary-light);
+    color: var(--chaxun-primary);
+    font-weight: 500;
+}
