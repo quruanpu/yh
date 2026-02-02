@@ -393,17 +393,19 @@ const ZhiLiaoHdCommand = {
         tagsContainer.innerHTML = this.state.selectedCoupons.map(coupon => `
             <div class="zhiliao-hd-tag" data-id="${coupon.id}">
                 <span>${this.escapeHtml(coupon.name)}</span>
-                <span class="zhiliao-hd-tag-remove" onclick="ZhiLiaoHdCommand.removeSelectedCoupon('${coupon.id}')">✕</span>
+                <span class="zhiliao-hd-tag-remove" onclick="event.stopPropagation(); ZhiLiaoHdCommand.removeSelectedCoupon('${coupon.id}')">✕</span>
             </div>
         `).join('');
     },
 
     // 移除选中的优惠券
     removeSelectedCoupon(couponId) {
-        const index = this.state.selectedCoupons.findIndex(c => c.id === couponId);
+        // 确保 couponId 是字符串类型
+        const id = String(couponId);
+        const index = this.state.selectedCoupons.findIndex(c => String(c.id) === id);
         if (index >= 0) {
             this.state.selectedCoupons.splice(index, 1);
-            const card = document.querySelector(`.zhiliao-hd-card[data-id="${couponId}"]`);
+            const card = document.querySelector(`.zhiliao-hd-card[data-id="${id}"]`);
             if (card) card.classList.remove('selected');
             this.updateSelectedTags();
         }
