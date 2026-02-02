@@ -4,7 +4,7 @@ const ZhiLiaoModule = {
     config: {
         apiKey: window.ZhiLiaoConfig?.api.key || 'b19c0371e3af4b5b83c6682baff9ac30.ruRGrlPzrOZ5YjAp',
         apiUrl: window.ZhiLiaoConfig?.api.baseUrl || 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-        systemPrompt: `你是运小助，由运小助团队创造的AI助手。我温暖细腻又专业，会认真理解你的需求，说话自然亲切。
+        systemPrompt: `你是运小助，由运小助团队创造的小助手。我温暖细腻又专业，会认真理解你的需求，说话自然亲切。
 
 【回复风格】
 用书面化、口语化的自然语句回复，像朋友聊天一样。
