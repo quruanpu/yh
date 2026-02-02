@@ -18,7 +18,11 @@ const ZhiLiaoHdJiexiModule = {
         '一百': 100, '两百': 200, '二百': 200, '三百': 300, '五百': 500,
         '一千': 1000, '两千': 2000, '二千': 2000, '三千': 3000,
         '四千': 4000, '四千五': 4500, '五千': 5000,
-        '一万': 10000, '两万': 20000, '三万': 30000, '五万': 50000, '十万': 100000
+        '一万': 10000, '两万': 20000, '三万': 30000, '五万': 50000, '十万': 100000,
+        // 混合格式：阿拉伯数字+中文单位
+        '1百': 100, '2百': 200, '3百': 300, '5百': 500,
+        '1千': 1000, '2千': 2000, '3千': 3000, '4千': 4000, '5千': 5000,
+        '1万': 10000, '2万': 20000, '3万': 30000, '5万': 50000, '10万': 100000
     },
 
     // 主入口：匹配关键字
@@ -109,7 +113,8 @@ const ZhiLiaoHdJiexiModule = {
         // 按长度降序排列，避免"四千五"被"四千"先匹配
         const sorted = Object.entries(this.chineseMap).sort((a, b) => b[0].length - a[0].length);
         for (const [cn, num] of sorted) {
-            result = result.replace(new RegExp(cn, 'g'), String(num));
+            // 替换时在数字后加空格，避免和后面的数字连在一起（如"3千98"变成"3000 98"而不是"300098"）
+            result = result.replace(new RegExp(cn, 'g'), String(num) + ' ');
         }
         return result;
     },
@@ -146,6 +151,18 @@ const ZhiLiaoHdJiexiModule = {
                 keys.add(`${tier}/${deduct}`);
                 keys.add(`${tier}-${deduct}`);
                 keys.add(`${tier}减${deduct}`);
+                usedTiers.add(tier);
+            }
+        }
+
+        // 格式4: 3000 98 或 3000  99（空格分隔的档位+折扣）
+        // 匹配：档位(3-6位) + 空格 + 折扣(2位，90-99范围)
+        const p4 = /(\d{3,6})\s+(\d{2})(?!\d)/g;
+        while ((m = p4.exec(content)) !== null) {
+            const tier = m[1], val = m[2];
+            // 确保是有效档位且折扣在90-99范围内
+            if (this.isTier(tier) && this.isDiscount(parseInt(val)) && !usedTiers.has(tier)) {
+                keys.add(`${tier}/${val}折`);
                 usedTiers.add(tier);
             }
         }
