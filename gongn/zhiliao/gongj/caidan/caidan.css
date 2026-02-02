@@ -57,10 +57,23 @@
     transition: background 0.15s, border-color 0.15s;
 }
 
-.zhiliao-hd-card:hover,
 .zhiliao-hd-card.selected {
     background: #e0e7ff;
     border-color: #a5b4fc;
+}
+
+/* 仅在支持hover的设备上显示悬浮效果（排除触摸屏） */
+@media (hover: hover) {
+    .zhiliao-hd-card:hover {
+        background: #e0e7ff;
+        border-color: #a5b4fc;
+    }
+    .zhiliao-hd-card:hover .zhiliao-hd-card-name {
+        color: #4f46e5;
+    }
+    .zhiliao-hd-card:hover .zhiliao-hd-card-info {
+        color: #6b7280;
+    }
 }
 
 .zhiliao-hd-card-name {
@@ -79,12 +92,10 @@
     line-height: 1.3;
 }
 
-.zhiliao-hd-card:hover .zhiliao-hd-card-name,
 .zhiliao-hd-card.selected .zhiliao-hd-card-name {
     color: #4f46e5;
 }
 
-.zhiliao-hd-card:hover .zhiliao-hd-card-info,
 .zhiliao-hd-card.selected .zhiliao-hd-card-info {
     color: #6b7280;
 }
