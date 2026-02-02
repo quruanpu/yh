@@ -230,10 +230,12 @@ const YhquanXqModule = {
         // 更新状态图标（如果从过期变为有效）
         const statusIcon = card.querySelector('.yhquan-status-icon');
         if (statusIcon) {
-            const newEndDateTime = new Date(newEndDate + ' 23:59:59');
-            if (newEndDateTime > new Date() && String(this.currentCoupon.couponStatus) === '1') {
-                statusIcon.textContent = '💡';
-            }
+            // 临时更新 endTime 用于判断状态
+            const oldEndTime = this.currentCoupon.endTime;
+            this.currentCoupon.endTime = newEndDate + ' 23:59:59';
+            statusIcon.textContent = YhquanUtils.getStatusIcon(this.currentCoupon);
+            // 恢复原值（实际数据由 API 返回）
+            this.currentCoupon.endTime = oldEndTime;
         }
     }
 };

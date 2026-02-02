@@ -195,8 +195,15 @@ const YhquanModule = {
         if (card) {
             const statusIcon = card.querySelector('.yhquan-status-icon');
             if (statusIcon) {
-                statusIcon.textContent = isSharing ? '🌎️' : '💡';
-                console.log(`卡片状态图标已更新: ${couponId} → ${isSharing ? '🌎️' : '💡'}`);
+                // 先检查优惠券的实际状态（作废/过期优先级更高）
+                const coupon = this.state.allCoupons.find(c => String(c.id) === String(couponId));
+                if (coupon) {
+                    coupon.isSharing = isSharing;
+                    statusIcon.textContent = YhquanUtils.getStatusIcon(coupon);
+                } else {
+                    statusIcon.textContent = isSharing ? '🌎️' : '💡';
+                }
+                console.log(`卡片状态图标已更新: ${couponId} → ${statusIcon.textContent}`);
             }
         }
     },

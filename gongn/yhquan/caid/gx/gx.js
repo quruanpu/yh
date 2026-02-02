@@ -68,10 +68,10 @@ const YhquanGxModule = {
             const card = document.querySelector(`.yhquan-card[data-id="${couponId}"]`);
             if (card) {
                 const statusIcon = card.querySelector('.yhquan-status-icon');
-                if (statusIcon) {
-                    // 根据共享状态更新图标
-                    statusIcon.textContent = isSharing ? '🌎️' : '💡';
-                    console.log(`卡片状态图标已更新: ${couponId} → ${isSharing ? '🌎️' : '💡'}`);
+                if (statusIcon && coupon) {
+                    // 使用 getStatusIcon 正确判断状态（作废/过期优先级更高）
+                    statusIcon.textContent = YhquanUtils.getStatusIcon(coupon);
+                    console.log(`卡片状态图标已更新: ${couponId} → ${statusIcon.textContent}`);
                 }
             }
         } catch (error) {

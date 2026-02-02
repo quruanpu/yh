@@ -125,7 +125,7 @@ const ZhiLiaoModule = {
             document.head.appendChild(link);
         }
         // JS模块
-        ['app.js', 'hd.js'].forEach(mod => {
+        ['app.js', 'huodong/jx.js', 'huodong/hd.js'].forEach(mod => {
             if (!document.querySelector(`script[src="${caidanPath}${mod}"]`)) {
                 const script = document.createElement('script');
                 script.src = caidanPath + mod;
