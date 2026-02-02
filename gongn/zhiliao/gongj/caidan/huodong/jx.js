@@ -166,6 +166,16 @@ const ZhiLiaoHdJiexiModule = {
                 usedTiers.add(tier);
             }
         }
+
+        // 格式5: 2000的99（档位+"的"+折扣）
+        const p5 = /(\d{3,6})的(\d{2})(?!\d)/g;
+        while ((m = p5.exec(content)) !== null) {
+            const tier = m[1], val = m[2];
+            if (this.isTier(tier) && this.isDiscount(parseInt(val)) && !usedTiers.has(tier)) {
+                keys.add(`${tier}/${val}折`);
+                usedTiers.add(tier);
+            }
+        }
     },
 
     // 提取纯档位
