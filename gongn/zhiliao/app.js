@@ -449,6 +449,15 @@ const ZhiLiaoModule = {
         const message = textarea?.value.trim();
         const hasFiles = this.state.uploadedFiles.length > 0;
 
+        // 如果指令菜单可见且有匹配项，选择指令而不是发送消息（修复手机端回车问题）
+        if (window.ZhiLiaoCaidanModule?.state?.isMenuVisible) {
+            const { filteredCommands, selectedIndex } = ZhiLiaoCaidanModule.state;
+            if (filteredCommands.length > 0) {
+                ZhiLiaoCaidanModule.selectCommand(filteredCommands[selectedIndex]);
+                return;
+            }
+        }
+
         if ((!message && !hasFiles) || this.state.isWaitingResponse) {
             if (!message && !hasFiles) {
                 textarea.value = '';
