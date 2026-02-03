@@ -1,0 +1,240 @@
+/* 共享弹窗样式 - 完全参照赠送模块 */
+
+/* 模态框 */
+.yhquan-gx-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 遮罩层 */
+.yhquan-gx-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* 弹窗内容 */
+.yhquan-gx-content {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    width: 80%;
+    max-width: 400px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* 弹窗头部 */
+.yhquan-gx-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.yhquan-gx-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.yhquan-gx-title i {
+    color: #3b82f6;
+}
+
+.yhquan-gx-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #f3f4f6;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.yhquan-gx-close:hover {
+    background: #e5e7eb;
+}
+
+.yhquan-gx-close i {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* 弹窗主体 */
+.yhquan-gx-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+/* 区块 */
+.yhquan-gx-section {
+    margin-bottom: 12px;
+}
+
+.yhquan-gx-section:last-child {
+    margin-bottom: 0;
+}
+
+.yhquan-gx-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+/* 优惠券信息 */
+.yhquan-gx-info-grid {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.yhquan-gx-info-row {
+    display: flex;
+    margin-bottom: 5px;
+    font-size: 11px;
+}
+
+.yhquan-gx-info-row:last-child {
+    margin-bottom: 0;
+}
+
+.yhquan-gx-info-label {
+    color: #6b7280;
+    min-width: 50px;
+    flex-shrink: 0;
+}
+
+.yhquan-gx-info-value {
+    color: #111827;
+    flex: 1;
+}
+
+/* 输入框 */
+.yhquan-gx-input {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+    transition: all 0.2s;
+    background: white;
+    box-sizing: border-box;
+}
+
+.yhquan-gx-input:focus {
+    border-color: #3b82f6;
+}
+
+.yhquan-gx-input:hover {
+    border-color: #9ca3af;
+}
+
+/* 弹窗底部 */
+.yhquan-gx-footer {
+    padding: 10px 14px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.yhquan-gx-btn {
+    height: 28px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.yhquan-gx-btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.yhquan-gx-btn-primary:hover {
+    background: #2563eb;
+}
+
+.yhquan-gx-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.yhquan-gx-btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+.yhquan-gx-btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.yhquan-gx-btn-danger:hover {
+    background: #dc2626;
+}
+
+.yhquan-gx-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.yhquan-gx-btn.loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.yhquan-gx-btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    top: 50%;
+    left: 50%;
+    margin-left: -6px;
+    margin-top: -6px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 手机端适配 */
+@media (max-width: 768px) {
+    .yhquan-gx-content {
+        width: 95%;
+        max-height: 85vh;
+    }
+}

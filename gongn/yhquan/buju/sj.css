@@ -1,0 +1,84 @@
+/* 优惠券模块 - 手机端布局 (max-width: 768px) */
+
+/* 搜索区域 */
+.yhquan-search-container {
+    padding: 10px 12px;
+}
+
+.yhquan-search-box {
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+.yhquan-search-input-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.yhquan-search-input {
+    height: 34px;
+    padding: 0 30px 0 10px;
+    font-size: 13px;
+}
+
+.yhquan-search-clear {
+    right: 8px;
+    width: 22px;
+    height: 22px;
+}
+
+.yhquan-search-clear i {
+    font-size: 13px;
+}
+
+.yhquan-search-btn {
+    height: 34px;
+    padding: 0 12px;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+/* 统计栏 */
+.yhquan-stats-bar {
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+/* 内容区域 */
+.yhquan-content {
+    padding: 12px;
+    /* 隐藏滚动条但保持滚动功能 */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* 隐藏滚动条 - Webkit浏览器 (Chrome, Safari, Opera) */
+.yhquan-content::-webkit-scrollbar {
+    display: none;
+}
+
+/* 卡片容器 - 单列 */
+.yhquan-cards-container {
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+/* 卡片 - 保持原样 */
+.yhquan-card {
+    padding: 12px;
+}
+
+.yhquan-card-tags {
+    flex-wrap: wrap;
+}
+
+.yhquan-card-row {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.yhquan-card-index,
+.yhquan-card-desc {
+    word-break: break-word;
+    overflow-wrap: break-word;
+}

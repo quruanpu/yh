@@ -1,0 +1,62 @@
+/* 商品查询模块桌面端样式 */
+
+/* 字体变量 */
+:root {
+    --chaxun-font-main: 0.875rem;
+    --chaxun-font-small: 0.8125rem;
+}
+
+/* 搜索区域 */
+.chaxun-search-container {
+    padding: 14px 24px;
+}
+
+.chaxun-search-input {
+    height: 38px;
+    font-size: var(--chaxun-font-main);
+}
+
+.chaxun-search-btn {
+    height: 38px;
+    padding: 0 24px;
+    font-size: var(--chaxun-font-small);
+}
+
+/* 类型下拉按钮 - 桌面端 */
+.chaxun-type-toggle {
+    width: 38px;
+    height: 38px;
+    font-size: 14px;
+}
+
+/* 类型复选框 */
+.chaxun-type-checkboxes {
+    justify-content: center;
+    gap: 10px 16px;
+    padding-top: 12px;
+    margin-top: 12px;
+}
+
+.chaxun-type-checkbox input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+}
+
+.chaxun-checkbox-label {
+    font-size: 13px;
+}
+
+/* 内容区域 */
+.chaxun-content {
+    padding: 20px;
+}
+
+.chaxun-cards-container {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 18px;
+}
+
+/* 卡片样式 */
+.chaxun-card {
+    padding: 10px 14px 12px 14px;
+}

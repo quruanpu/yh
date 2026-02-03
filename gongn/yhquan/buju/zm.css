@@ -1,0 +1,35 @@
+/* 优惠券模块 - 桌面端布局 (min-width: 769px) */
+
+/* 搜索区域 */
+.yhquan-search-container {
+    padding: 14px 24px;
+}
+
+.yhquan-search-box {
+    max-width: 700px;
+}
+
+.yhquan-search-input {
+    height: 38px;
+}
+
+.yhquan-search-btn {
+    height: 38px;
+    padding: 0 24px;
+}
+
+/* 内容区域 */
+.yhquan-content {
+    padding: 20px;
+}
+
+/* 卡片容器 */
+.yhquan-cards-container {
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px;
+}
+
+/* 卡片 - 保持原样 */
+.yhquan-card {
+    padding: 16px;
+}
