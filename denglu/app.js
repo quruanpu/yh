@@ -311,60 +311,50 @@ const LoginModule = {
         }
     },
 
-    // 开始SCM轮询
-    async startScmPolling() {
-        const qrcodeOverlay = this.state.main.querySelector('#qrcode-overlay');
-        const loginBtn = this.state.main.querySelector('#scm-login');
-
+    // 统一轮询方法
+    _startPolling(system, overlayId, btnId, module) {
+        const qrcodeOverlay = this.state.main.querySelector(overlayId);
+        const loginBtn = this.state.main.querySelector(btnId);
         if (!qrcodeOverlay || !loginBtn) return;
 
-        // 启动轮询（不等待，让它在后台运行）
-        ScmLoginModule.startPolling().then(() => {
-            // 轮询成功完成，显示登录成功
-            this.showLoginSuccess('SCM');
+        module.startPolling().then(() => {
+            this.showLoginSuccess(system);
         }).catch((error) => {
-            // 轮询失败
             qrcodeOverlay.style.display = 'none';
             loginBtn.disabled = false;
             loginBtn.textContent = '重试';
-            console.error('SCM轮询失败:', error);
+            console.error(`${system}轮询失败:`, error);
         });
 
-        // UI状态检查循环
         const checkStatus = () => {
-            const state = ScmLoginModule.getState();
-            console.log('SCM状态检查:', state.currentStep, state.lastStatus);
-
+            const state = module.getState();
             if (state.currentStep === 'polling') {
                 if (state.lastStatus === 'QRCODE_SCAN_ING') {
-                    // 扫码成功，显示遮罩和绿勾
-                    console.log('SCM: 显示扫码成功遮罩');
                     qrcodeOverlay.style.display = 'flex';
                     loginBtn.disabled = true;
                     loginBtn.textContent = '扫码成功，请确认...';
                 } else if (state.lastStatus === 'QRCODE_SCAN_SUCC') {
-                    // 确认成功，正在登录
-                    console.log('SCM: 确认成功，正在登录');
                     qrcodeOverlay.style.display = 'flex';
                     loginBtn.disabled = true;
                     loginBtn.textContent = '登录中...';
                 } else {
-                    // 等待扫码
                     qrcodeOverlay.style.display = 'none';
                     loginBtn.disabled = true;
                     loginBtn.textContent = '等待扫码...';
                 }
                 setTimeout(checkStatus, 300);
             } else if (state.currentStep === 'success') {
-                // 登录成功，保持登录中状态
-                console.log('SCM: 登录流程完成');
                 qrcodeOverlay.style.display = 'flex';
                 loginBtn.disabled = true;
                 loginBtn.textContent = '登录中...';
             }
         };
-
         checkStatus();
+    },
+
+    // 开始SCM轮询
+    startScmPolling() {
+        this._startPolling('SCM', '#qrcode-overlay', '#scm-login', ScmLoginModule);
     },
 
     // 渲染PMS二维码视图
@@ -493,59 +483,8 @@ const LoginModule = {
     },
 
     // 开始PMS轮询
-    async startPmsPolling() {
-        const qrcodeOverlay = this.state.main.querySelector('#pms-qrcode-overlay');
-        const loginBtn = this.state.main.querySelector('#pms-login');
-
-        if (!qrcodeOverlay || !loginBtn) return;
-
-        // 启动轮询（不等待，让它在后台运行）
-        PmsLoginModule.startPolling().then(() => {
-            // 轮询成功完成，显示登录成功
-            this.showLoginSuccess('PMS');
-        }).catch((error) => {
-            // 轮询失败
-            qrcodeOverlay.style.display = 'none';
-            loginBtn.disabled = false;
-            loginBtn.textContent = '重试';
-            console.error('PMS轮询失败:', error);
-        });
-
-        // UI状态检查循环
-        const checkStatus = () => {
-            const state = PmsLoginModule.getState();
-            console.log('PMS状态检查:', state.currentStep, state.lastStatus);
-
-            if (state.currentStep === 'polling') {
-                if (state.lastStatus === 'QRCODE_SCAN_ING') {
-                    // 扫码成功，显示遮罩和绿勾
-                    console.log('PMS: 显示扫码成功遮罩');
-                    qrcodeOverlay.style.display = 'flex';
-                    loginBtn.disabled = true;
-                    loginBtn.textContent = '扫码成功，请确认...';
-                } else if (state.lastStatus === 'QRCODE_SCAN_SUCC') {
-                    // 确认成功，正在登录
-                    console.log('PMS: 确认成功，正在登录');
-                    qrcodeOverlay.style.display = 'flex';
-                    loginBtn.disabled = true;
-                    loginBtn.textContent = '登录中...';
-                } else {
-                    // 等待扫码
-                    qrcodeOverlay.style.display = 'none';
-                    loginBtn.disabled = true;
-                    loginBtn.textContent = '等待扫码...';
-                }
-                setTimeout(checkStatus, 300);
-            } else if (state.currentStep === 'success') {
-                // 登录成功，保持登录中状态
-                console.log('PMS: 登录流程完成');
-                qrcodeOverlay.style.display = 'flex';
-                loginBtn.disabled = true;
-                loginBtn.textContent = '登录中...';
-            }
-        };
-
-        checkStatus();
+    startPmsPolling() {
+        this._startPolling('PMS', '#pms-qrcode-overlay', '#pms-login', PmsLoginModule);
     },
 
     // 显示登录成功
@@ -647,6 +586,181 @@ const LoginModule = {
                 userText.title = username;
             }
         }
+    },
+
+    // ========== 统一登录接口（供其它模块调用） ==========
+
+    /**
+     * 获取SCM登录凭证
+     * 策略：1.优先当前设备 → 2.最新登录 → 3.弹出登录弹窗
+     * @returns {Promise<Object|null>} 凭证对象或null
+     */
+    async getScmCredentials() {
+        try {
+            if (!window.FirebaseModule) {
+                console.warn('Firebase模块未加载');
+                this.open('scm');
+                return null;
+            }
+            await window.FirebaseModule.init();
+
+            // 1. 优先当前设备的SCM登录
+            const deviceLogins = await window.FirebaseModule.getDeviceLogins();
+            if (deviceLogins.scm?.length > 0) {
+                const sorted = deviceLogins.scm.sort((a, b) => b.login_time - a.login_time);
+                for (const login of sorted) {
+                    const info = await window.FirebaseModule.getScmLogin(login.username);
+                    if (info?.credentials) {
+                        console.log('使用当前设备SCM凭证:', login.username);
+                        return info.credentials;
+                    }
+                }
+            }
+
+            // 2. 使用最新的SCM登录
+            const db = window.FirebaseModule.state.database;
+            const snapshot = await db.ref('zhanghu/scm').once('value');
+            const allLogins = [];
+            snapshot.forEach((child) => {
+                const data = child.val();
+                if (data.username && data.login_time) {
+                    allLogins.push({ id: data.username, login_time: data.login_time });
+                }
+            });
+            allLogins.sort((a, b) => b.login_time - a.login_time);
+
+            for (const login of allLogins) {
+                const info = await window.FirebaseModule.getScmLogin(login.id);
+                if (info?.credentials) {
+                    console.log('使用最新SCM凭证:', login.id);
+                    return info.credentials;
+                }
+            }
+
+            // 3. 都没有，弹出登录弹窗
+            console.log('没有SCM登录信息，弹出登录弹窗');
+            this.open('scm');
+            return null;
+        } catch (error) {
+            console.error('获取SCM凭证失败:', error);
+            this.open('scm');
+            return null;
+        }
+    },
+
+    // 从PMS登录信息中提取凭证
+    _extractPmsCredentials(info) {
+        if (!info?.credentials) return null;
+        const subProviders = info.permissions?.sub_providers || [];
+        const providerId = subProviders[0]?.id || info.credentials.providerId || info.user_info?.providerId;
+        const token = info.credentials.pms_token || info.pms_token;
+        return { token, providerId };
+    },
+
+    /**
+     * 获取PMS登录凭证
+     * 策略：1.优先当前设备 → 2.最新登录 → 3.弹出登录弹窗
+     * @returns {Promise<Object|null>} {token, providerId} 或 null
+     */
+    async getPmsCredentials() {
+        try {
+            if (!window.FirebaseModule) {
+                console.warn('Firebase模块未加载');
+                this.open('pms');
+                return null;
+            }
+            await window.FirebaseModule.init();
+
+            // 1. 优先当前设备的PMS登录
+            const deviceLogins = await window.FirebaseModule.getDeviceLogins();
+            if (deviceLogins.pms?.length > 0) {
+                const sorted = deviceLogins.pms.sort((a, b) => b.login_time - a.login_time);
+                for (const login of sorted) {
+                    const info = await window.FirebaseModule.getPmsLogin(login.account);
+                    const creds = this._extractPmsCredentials(info);
+                    if (creds) {
+                        console.log('使用当前设备PMS凭证:', login.account);
+                        return creds;
+                    }
+                }
+            }
+
+            // 2. 使用最新的PMS登录
+            const db = window.FirebaseModule.state.database;
+            const snapshot = await db.ref('zhanghu/pms').once('value');
+            const allLogins = [];
+            snapshot.forEach((child) => {
+                const data = child.val();
+                if (data.account && data.login_time) {
+                    allLogins.push({ id: data.account, login_time: data.login_time, ...data });
+                }
+            });
+            allLogins.sort((a, b) => b.login_time - a.login_time);
+
+            if (allLogins.length > 0) {
+                const latest = allLogins[0];
+                const creds = this._extractPmsCredentials(latest);
+                if (creds) {
+                    console.log('使用最新PMS凭证:', latest.id);
+                    return creds;
+                }
+            }
+
+            // 3. 都没有，弹出登录弹窗
+            console.log('没有PMS登录信息，弹出登录弹窗');
+            this.open('pms');
+            return null;
+        } catch (error) {
+            console.error('获取PMS凭证失败:', error);
+            this.open('pms');
+            return null;
+        }
+    },
+
+    /**
+     * 获取显示用户名（仅当前设备有登录时显示）
+     * 优先级：SCM → PMS → null
+     * @returns {Promise<string|null>} 用户名或null
+     */
+    async getDisplayUsername() {
+        try {
+            if (!window.FirebaseModule) return null;
+            await window.FirebaseModule.init();
+
+            const deviceLogins = await window.FirebaseModule.getDeviceLogins();
+
+            // 1. 优先SCM
+            if (deviceLogins.scm?.length > 0) {
+                const sorted = deviceLogins.scm.sort((a, b) => b.login_time - a.login_time);
+                const info = await window.FirebaseModule.getScmLogin(sorted[0].username);
+                if (info) {
+                    return info.provider_info?.username || info.credentials?.username || info.username || null;
+                }
+            }
+
+            // 2. 然后PMS
+            if (deviceLogins.pms?.length > 0) {
+                const sorted = deviceLogins.pms.sort((a, b) => b.login_time - a.login_time);
+                const info = await window.FirebaseModule.getPmsLogin(sorted[0].account);
+                if (info) {
+                    return info.user_info?.account || info.account || null;
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('获取显示用户名失败:', error);
+            return null;
+        }
+    },
+
+    /**
+     * 处理登录失效（弹出对应登录弹窗）
+     * @param {string} system - 'scm' 或 'pms'
+     */
+    handleLoginExpired(system) {
+        console.log(`${system.toUpperCase()}登录已失效，弹出登录弹窗`);
+        this.open(system);
     }
 };
 

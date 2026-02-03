@@ -59,6 +59,18 @@ const FirebaseModule = {
                 return;
             }
 
+            // 检查是否已有加载中的脚本
+            if (document.querySelector('script[src*="firebase-app.js"]')) {
+                // 等待已有脚本加载完成
+                const checkLoaded = setInterval(() => {
+                    if (window.firebase && window.firebase.database) {
+                        clearInterval(checkLoaded);
+                        resolve();
+                    }
+                }, 50);
+                return;
+            }
+
             // 如果 firebase 存在但 database 不存在，只加载 database 模块
             if (window.firebase && !window.firebase.database) {
                 const script = document.createElement('script');
@@ -84,7 +96,7 @@ const FirebaseModule = {
         });
     },
 
-    // 加载FingerprintJS库
+    // 加载FingerprintJS库（本地托管，避免被浏览器跟踪防护阻止）
     async loadFingerprintJS() {
         return new Promise((resolve, reject) => {
             if (window.FingerprintJS) {
@@ -93,53 +105,19 @@ const FirebaseModule = {
             }
 
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js';
+            script.src = 'denglu/fp.min.js';
             script.onload = resolve;
             script.onerror = reject;
             document.head.appendChild(script);
         });
     },
 
-    // 生成浏览器指纹
+    // 生成浏览器指纹（使用本地托管的FingerprintJS）
     async generateFingerprint() {
-        try {
-            await this.loadFingerprintJS();
-            const fp = await FingerprintJS.load();
-            const result = await fp.get();
-            return result.visitorId;
-        } catch (error) {
-            console.error('生成浏览器指纹失败:', error);
-            // 降级方案：使用简单的浏览器特征组合
-            return this.generateSimpleFingerprint();
-        }
-    },
-
-    // 简单指纹生成（降级方案）
-    generateSimpleFingerprint() {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.textBaseline = 'top';
-        ctx.font = '14px Arial';
-        ctx.fillText('fingerprint', 2, 2);
-        const canvasData = canvas.toDataURL();
-
-        const features = [
-            navigator.userAgent,
-            navigator.language,
-            screen.colorDepth,
-            screen.width + 'x' + screen.height,
-            new Date().getTimezoneOffset(),
-            canvasData.slice(0, 100)
-        ].join('|');
-
-        // 简单hash
-        let hash = 0;
-        for (let i = 0; i < features.length; i++) {
-            const char = features.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        return 'fp_' + Math.abs(hash).toString(36);
+        await this.loadFingerprintJS();
+        const fp = await FingerprintJS.load();
+        const result = await fp.get();
+        return result.visitorId;
     },
 
     // 生成设备ID（增强版：指纹 + 设备信息）
@@ -283,49 +261,26 @@ const FirebaseModule = {
         }
     },
 
-    // 获取SCM登录信息
-    async getScmLogin(username) {
+    // 通用获取登录信息方法
+    async _getLogin(system, id) {
         await this.init();
-
         try {
-            const snapshot = await this.state.database.ref(`zhanghu/scm/${username}`).once('value');
+            const snapshot = await this.state.database.ref(`zhanghu/${system}/${id}`).once('value');
             return snapshot.val();
         } catch (error) {
-            console.error('获取SCM登录信息失败:', error);
+            console.error(`获取${system.toUpperCase()}登录信息失败:`, error);
             return null;
         }
+    },
+
+    // 获取SCM登录信息
+    async getScmLogin(username) {
+        return this._getLogin('scm', username);
     },
 
     // 获取PMS登录信息
     async getPmsLogin(account) {
-        await this.init();
-
-        try {
-            const snapshot = await this.state.database.ref(`zhanghu/pms/${account}`).once('value');
-            return snapshot.val();
-        } catch (error) {
-            console.error('获取PMS登录信息失败:', error);
-            return null;
-        }
-    },
-
-    // 检查账户是否在当前设备登录过
-    async checkDeviceLogin(system, accountId) {
-        await this.init();
-
-        try {
-            const path = `zhanghu/${system}/${accountId}`;
-            const snapshot = await this.state.database.ref(path).once('value');
-            const data = snapshot.val();
-
-            if (data && data.sb_id && Array.isArray(data.sb_id)) {
-                return data.sb_id.includes(this.state.deviceId);
-            }
-            return false;
-        } catch (error) {
-            console.error('检查设备登录状态失败:', error);
-            return false;
-        }
+        return this._getLogin('pms', account);
     },
 
     // 获取当前设备的所有登录账户
@@ -368,81 +323,6 @@ const FirebaseModule = {
         } catch (error) {
             console.error('获取设备登录信息失败:', error);
             return { scm: [], pms: [] };
-        }
-    },
-
-    // 删除登录信息
-    async deleteLogin(system, accountId) {
-        await this.init();
-
-        try {
-            const path = `zhanghu/${system}/${accountId}`;
-            const snapshot = await this.state.database.ref(path).once('value');
-            const data = snapshot.val();
-
-            if (data && data.sb_id && Array.isArray(data.sb_id)) {
-                // 从设备ID列表中移除当前设备
-                const updatedDeviceIds = data.sb_id.filter(id => id !== this.state.deviceId);
-
-                if (updatedDeviceIds.length > 0) {
-                    // 还有其他设备登录，只更新设备ID列表
-                    await this.state.database.ref(path).update({
-                        sb_id: updatedDeviceIds,
-                        last_update: Date.now()
-                    });
-                } else {
-                    // 没有其他设备登录，删除整个节点
-                    await this.state.database.ref(path).remove();
-                }
-
-                return true;
-            }
-            return false;
-        } catch (error) {
-            console.error('删除登录信息失败:', error);
-            return false;
-        }
-    },
-
-    // 清理过期的登录信息（可选功能）
-    async cleanupExpiredLogins() {
-        await this.init();
-
-        try {
-            const now = Date.now();
-            const expiryTime = 7 * 24 * 60 * 60 * 1000; // 7天过期
-
-            // 清理SCM
-            const scmSnapshot = await this.state.database.ref('zhanghu/scm').once('value');
-            const scmUpdates = {};
-            scmSnapshot.forEach((childSnapshot) => {
-                const data = childSnapshot.val();
-                if (data.login_time && (now - data.login_time) > expiryTime) {
-                    scmUpdates[`zhanghu/scm/${childSnapshot.key}`] = null;
-                }
-            });
-
-            // 清理PMS
-            const pmsSnapshot = await this.state.database.ref('zhanghu/pms').once('value');
-            const pmsUpdates = {};
-            pmsSnapshot.forEach((childSnapshot) => {
-                const data = childSnapshot.val();
-                if (data.login_time && (now - data.login_time) > expiryTime) {
-                    pmsUpdates[`zhanghu/pms/${childSnapshot.key}`] = null;
-                }
-            });
-
-            // 批量更新
-            const updates = { ...scmUpdates, ...pmsUpdates };
-            if (Object.keys(updates).length > 0) {
-                await this.state.database.ref().update(updates);
-                console.log(`清理了 ${Object.keys(updates).length} 个过期登录`);
-            }
-
-            return true;
-        } catch (error) {
-            console.error('清理过期登录信息失败:', error);
-            return false;
         }
     }
 };

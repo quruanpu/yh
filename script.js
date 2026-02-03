@@ -291,121 +291,31 @@ const AppFramework = {
         }
     },
 
-    // 自动登录检查（仅检查当前设备的登录，通过API验证有效性）
+    // 自动登录检查（使用登录模块统一接口）
+    /**
+     * 账户名称显示规则（由LoginModule.getDisplayUsername处理）：
+     * - 只有当前设备有登录信息时才显示用户名
+     * - 优先级：SCM → PMS → 不显示
+     * - 不进行API验证，失效时由各模块调用时自动弹出登录弹窗
+     */
     async checkAutoLogin() {
         try {
-            // 等待Firebase模块加载
-            if (!window.FirebaseModule) {
-                console.log('Firebase模块未加载，跳过自动登录');
+            // 等待登录模块加载
+            if (!window.LoginModule) {
+                console.log('登录模块未加载，跳过自动登录');
                 return;
             }
 
-            // 初始化Firebase
-            await window.FirebaseModule.init();
-
-            // 获取当前设备的登录账户
-            const deviceLogins = await window.FirebaseModule.getDeviceLogins();
-
-            // 优先使用SCM账户
-            if (deviceLogins.scm && deviceLogins.scm.length > 0) {
-                // 按登录时间排序，获取最近的
-                const latestScm = deviceLogins.scm.sort((a, b) =>
-                    b.login_time - a.login_time
-                )[0];
-
-                // 获取完整登录信息
-                const loginInfo = await window.FirebaseModule.getScmLogin(latestScm.username);
-
-                if (loginInfo && loginInfo.credentials) {
-                    // 通过API验证是否有效
-                    if (await this.validateLoginViaAPI(loginInfo.credentials)) {
-                        const displayName = loginInfo.provider_info?.username ||
-                                          loginInfo.credentials?.username ||
-                                          loginInfo.username || '';
-                        this.setLoginUsername(displayName);
-                        console.log('自动登录成功 (SCM):', displayName);
-                        return;
-                    }
-                }
+            // 使用登录模块统一接口获取显示用户名
+            const displayName = await window.LoginModule.getDisplayUsername();
+            if (displayName) {
+                this.setLoginUsername(displayName);
+                console.log('显示登录用户名:', displayName);
+            } else {
+                console.log('当前设备没有登录信息');
             }
-
-            // 如果没有SCM或SCM无效，尝试PMS
-            if (deviceLogins.pms && deviceLogins.pms.length > 0) {
-                // 按登录时间排序，获取最近的
-                const latestPms = deviceLogins.pms.sort((a, b) =>
-                    b.login_time - a.login_time
-                )[0];
-
-                // 获取完整登录信息
-                const loginInfo = await window.FirebaseModule.getPmsLogin(latestPms.account);
-
-                if (loginInfo && loginInfo.credentials) {
-                    // 通过API验证是否有效
-                    if (await this.validateLoginViaAPI(loginInfo.credentials)) {
-                        const displayName = loginInfo.user_info?.account || loginInfo.account || '';
-                        this.setLoginUsername(displayName);
-                        console.log('自动登录成功 (PMS):', displayName);
-                        return;
-                    }
-                }
-            }
-
-            console.log('当前设备没有有效的登录信息');
         } catch (error) {
             console.error('自动登录检查失败:', error);
-        }
-    },
-
-    // 通过API验证登录凭证是否有效
-    async validateLoginViaAPI(credentials) {
-        try {
-            // 等待配置加载
-            const apiUrl = window.YhquanConfig?.api?.url;
-            if (!apiUrl) {
-                console.log('API配置未加载，跳过验证');
-                return false;
-            }
-
-            const requestBody = {
-                credentials: credentials,
-                action: 'list',
-                pageNo: 1,
-                pageSize: 1,
-                name: '',
-                id: '',
-                type: '',
-                is_valid: '',
-                valid_type: '',
-                ctime: '',
-                chooseDay: ''
-            };
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json; charset=UTF-8',
-                    'Accept': 'application/json; charset=UTF-8'
-                },
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) {
-                console.log('API验证失败（HTTP错误）:', response.status);
-                return false;
-            }
-
-            const result = await response.json();
-
-            if (result.success === false) {
-                console.log('登录凭证无效:', result.message);
-                return false;
-            }
-
-            console.log('登录凭证有效（API验证成功）');
-            return true;
-        } catch (error) {
-            console.error('API验证出错:', error);
-            return false;
         }
     },
 
