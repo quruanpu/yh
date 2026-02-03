@@ -40,7 +40,7 @@ const ChaxunModule = {
 
         // 加载工具模块
         const basePath = 'gongn/chaxun/gongj/';
-        ['utils.js', 'api.js', 'card.js'].forEach(mod => {
+        ['utils.js', 'api.js', 'card.js', 'detail.js'].forEach(mod => {
             if (!document.querySelector(`script[src="${basePath}${mod}"]`)) {
                 const script = document.createElement('script');
                 script.src = basePath + mod;
@@ -86,6 +86,18 @@ const ChaxunModule = {
                 <!-- 状态选择弹窗 -->
                 <div id="chaxun-status-popup" class="chaxun-status-popup" style="display: none;">
                     ${this.renderStatusList()}
+                </div>
+                <!-- 商品详情弹窗 -->
+                <div id="chaxun-detail-overlay" class="chaxun-detail-overlay">
+                    <div class="chaxun-detail-modal">
+                        <div class="chaxun-detail-header">
+                            <span class="chaxun-detail-title">商品详情</span>
+                            <button id="chaxun-detail-close" class="chaxun-detail-close">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div id="chaxun-detail-body" class="chaxun-detail-body"></div>
+                    </div>
                 </div>
             </main>
         `);
@@ -179,6 +191,37 @@ const ChaxunModule = {
                 this.updateSelectedTypes();
             }
         });
+
+        // 详情按钮点击（事件委托）
+        const cardsContainer = document.getElementById('chaxun-cards-container');
+        cardsContainer?.addEventListener('click', (e) => {
+            const detailBtn = e.target.closest('.chaxun-detail-btn');
+            if (detailBtn) {
+                const index = parseInt(detailBtn.dataset.index) - 1;
+                this.showDetail(index);
+                return;
+            }
+
+            // 品种负责人小眼睛点击
+            const eyeIcon = e.target.closest('.chaxun-contactor-eye');
+            if (eyeIcon) {
+                this.queryContactor(eyeIcon);
+            }
+        });
+
+        // 详情弹窗关闭按钮
+        const detailClose = document.getElementById('chaxun-detail-close');
+        detailClose?.addEventListener('click', () => this.hideDetail());
+
+        // 分组折叠点击（事件委托）
+        const detailBody = document.getElementById('chaxun-detail-body');
+        detailBody?.addEventListener('click', (e) => {
+            const header = e.target.closest('.chaxun-detail-section-header');
+            if (header) {
+                const section = header.closest('.chaxun-detail-section');
+                section?.classList.toggle('collapsed');
+            }
+        });
     },
 
     updateSelectedTypes() {
@@ -215,18 +258,6 @@ const ChaxunModule = {
             const icon = toggle.querySelector('i');
             if (icon) {
                 icon.className = isVisible ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
-            }
-        }
-    },
-
-    hideTypeDropdown() {
-        const dropdown = document.getElementById('chaxun-type-checkboxes');
-        const toggle = document.getElementById('chaxun-type-toggle');
-        if (dropdown && dropdown.style.display !== 'none') {
-            dropdown.style.display = 'none';
-            if (toggle) {
-                const icon = toggle.querySelector('i');
-                if (icon) icon.className = 'fa-solid fa-chevron-down';
             }
         }
     },
@@ -320,6 +351,32 @@ const ChaxunModule = {
         this.state.displayedCount = this.state.allProducts.length;
     },
 
+    // 查询品种负责人
+    async queryContactor(eyeIcon) {
+        const wholesaleId = eyeIcon.dataset.wholesaleid;
+        const drugCode = eyeIcon.dataset.drugcode;
+        const valueSpan = document.querySelector(`.chaxun-contactor-value[data-wholesaleid="${wholesaleId}"]`);
+
+        if (!drugCode || !valueSpan) {
+            if (valueSpan) valueSpan.textContent = '-';
+            return;
+        }
+
+        // 显示加载状态
+        eyeIcon.className = 'fa-solid fa-spinner fa-spin chaxun-contactor-eye';
+
+        const result = await window.ChaxunAPIModule.queryPmsContactor(drugCode);
+
+        if (result.success) {
+            valueSpan.textContent = result.contactor;
+            eyeIcon.style.display = 'none';
+        } else {
+            valueSpan.textContent = result.error || '查询失败';
+            valueSpan.style.color = '#ef4444';
+            eyeIcon.className = 'fa-regular fa-eye chaxun-contactor-eye';
+        }
+    },
+
     showLoadingWithText(text = '正在搜索中......') {
         const container = document.getElementById('chaxun-cards-container');
         if (!container) return;
@@ -364,6 +421,75 @@ const ChaxunModule = {
         searchBtn.style.cursor = isLoading ? 'not-allowed' : 'pointer';
     },
 
+    // 显示商品详情弹窗
+    showDetail(index) {
+        const product = this.state.allProducts[index];
+        if (!product) return;
+
+        const overlay = document.getElementById('chaxun-detail-overlay');
+        const body = document.getElementById('chaxun-detail-body');
+        if (!overlay || !body) return;
+
+        body.innerHTML = this.renderDetailContent(product);
+        overlay.classList.add('active');
+    },
+
+    // 隐藏商品详情弹窗
+    hideDetail() {
+        const overlay = document.getElementById('chaxun-detail-overlay');
+        if (overlay) overlay.classList.remove('active');
+    },
+
+    // 渲染详情内容
+    renderDetailContent(product) {
+        const sections = window.ChaxunDetailModule?.getAllSections() || [];
+        return sections.map(section => this.renderSection(section, product)).join('');
+    },
+
+    // 渲染单个分组
+    renderSection(section, product) {
+        const fieldsHtml = section.fields
+            .map(field => this.renderField(field, product))
+            .join('');
+
+        return `
+            <div class="chaxun-detail-section">
+                <div class="chaxun-detail-section-header">
+                    <span class="chaxun-detail-section-title">
+                        <span>${section.icon}</span> ${section.title}
+                    </span>
+                    <i class="fa-solid fa-chevron-down chaxun-detail-section-toggle"></i>
+                </div>
+                <div class="chaxun-detail-section-content">${fieldsHtml}</div>
+            </div>
+        `;
+    },
+
+    // 渲染单个字段
+    renderField(field, product) {
+        let value = product[field.key];
+
+        // 格式化价格
+        if (field.highlight && value !== null && value !== undefined) {
+            value = ChaxunUtils.formatPrice(value);
+        }
+        // 格式化日期
+        if (field.isDate && value) {
+            value = ChaxunUtils.formatDate(value);
+        }
+
+        const displayValue = value ?? '-';
+        const fullWidthClass = field.fullWidth ? ' full-width' : '';
+        const highlightClass = field.highlight ? ' highlight' : '';
+
+        return `
+            <div class="chaxun-detail-field${fullWidthClass}">
+                <span class="chaxun-detail-label">${field.label}</span>
+                <span class="chaxun-detail-value${highlightClass}">${ChaxunUtils.escapeHtml(displayValue)}</span>
+            </div>
+        `;
+    },
+
     async show() {
         this.state.isVisible = true;
         const page = document.getElementById('page-chaxun');
@@ -399,4 +525,3 @@ AppFramework.register({
 });
 
 ChaxunModule.init();
-AppFramework.setModuleInstance('chaxun', ChaxunModule);

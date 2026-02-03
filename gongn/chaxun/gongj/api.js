@@ -8,8 +8,7 @@ const ChaxunAPIModule = {
     },
 
     state: {
-        isSearching: false,
-        lastSearchKeyword: ''
+        isSearching: false
     },
 
     /**
@@ -80,6 +79,123 @@ const ChaxunAPIModule = {
     },
 
     /**
+     * 获取PMS登录凭证
+     */
+    async getPmsCredentials() {
+        try {
+            if (!window.FirebaseModule) {
+                console.warn('Firebase模块未加载');
+                return null;
+            }
+            await window.FirebaseModule.init();
+
+            // 先尝试获取当前设备的PMS登录
+            const deviceLogins = await window.FirebaseModule.getDeviceLogins();
+
+            if (deviceLogins.pms?.length > 0) {
+                // 按登录时间排序，取最新的
+                const sortedLogins = deviceLogins.pms.sort((a, b) => b.login_time - a.login_time);
+
+                for (const login of sortedLogins) {
+                    const fullInfo = await window.FirebaseModule.getPmsLogin(login.account);
+                    if (fullInfo?.credentials) {
+                        // providerId 应该从 sub_providers 获取（当前用户所属的供应商）
+                        // 而不是从 providers 获取（那是所有供应商列表）
+                        const subProviders = fullInfo.permissions?.sub_providers || [];
+                        const providerId = subProviders[0]?.id
+                            || fullInfo.credentials.providerId
+                            || fullInfo.user_info?.providerId;
+                        const token = fullInfo.credentials.pms_token || fullInfo.pms_token;
+                        console.log('获取PMS登录凭证成功:', login.account, 'providerId:', providerId);
+                        return { token, providerId };
+                    }
+                }
+            }
+
+            // 如果当前设备没有登录，尝试获取最新的PMS登录
+            const db = window.FirebaseModule.state.database;
+            const pmsSnapshot = await db.ref('zhanghu/pms').once('value');
+            const allLogins = [];
+
+            pmsSnapshot.forEach((childSnapshot) => {
+                const data = childSnapshot.val();
+                if (data.account && data.login_time) {
+                    allLogins.push({ id: data.account, ...data });
+                }
+            });
+
+            if (allLogins.length === 0) {
+                console.warn('没有找到任何PMS登录记录');
+                return null;
+            }
+
+            allLogins.sort((a, b) => b.login_time - a.login_time);
+            const latest = allLogins[0];
+
+            if (latest.credentials) {
+                // providerId 应该从 sub_providers 获取（当前用户所属的供应商）
+                // 而不是从 providers 获取（那是所有供应商列表）
+                const subProviders = latest.permissions?.sub_providers || [];
+                const providerId = subProviders[0]?.id
+                    || latest.credentials.providerId
+                    || latest.user_info?.providerId;
+                const token = latest.credentials.pms_token || latest.pms_token;
+                console.log('使用最新PMS登录凭证:', latest.id, 'providerId:', providerId);
+                return { token, providerId };
+            }
+            return null;
+        } catch (error) {
+            console.error('获取PMS登录凭证失败:', error);
+            return null;
+        }
+    },
+
+    /**
+     * 查询PMS品种负责人
+     */
+    async queryPmsContactor(drugCode) {
+        try {
+            const auth = await this.getPmsCredentials();
+            if (!auth) {
+                return { success: false, error: 'NO_PMS_LOGIN', message: '请先登录PMS账户' };
+            }
+
+            const pmsUrl = window.ChaxunConfig?.api?.pmsUrl;
+            if (!pmsUrl) {
+                return { success: false, error: 'NO_PMS_URL', message: 'PMS接口未配置' };
+            }
+
+            const response = await fetch(pmsUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    auth: auth,
+                    query: { keyword: drugCode, pageSize: 1 }
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.code !== 0) {
+                return { success: false, error: result.message || '查询失败' };
+            }
+
+            const products = result.data?.products || [];
+            if (products.length === 0) {
+                return { success: false, error: '未找到商品' };
+            }
+
+            return {
+                success: true,
+                contactor: products[0].contactor || '-'
+            };
+        } catch (error) {
+            console.error('查询PMS品种负责人失败:', error);
+            return { success: false, error: error.message || '查询失败' };
+        }
+    },
+
+    /**
      * 搜索商品
      * @param {string} keyword - 搜索关键词
      * @param {number[]} wholesaleTypes - 商品类型数组（空数组表示全部）
@@ -91,7 +207,6 @@ const ChaxunAPIModule = {
         }
 
         this.state.isSearching = true;
-        this.state.lastSearchKeyword = keyword.trim();
 
         try {
             const auth = await this.getCredentials();
@@ -141,10 +256,6 @@ const ChaxunAPIModule = {
         } finally {
             this.state.isSearching = false;
         }
-    },
-
-    isSearching() {
-        return this.state.isSearching;
     }
 };
 

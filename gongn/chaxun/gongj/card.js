@@ -58,12 +58,12 @@ const ChaxunCardModule = {
     generateCard(product, index) {
         const escape = ChaxunUtils.escapeHtml;
         const formatPrice = ChaxunUtils.formatPrice;
-        const formatDate = ChaxunUtils.formatDate;
 
         return `
             <div class="chaxun-card" data-id="${product.wholesaleId}">
                 <div class="chaxun-card-row chaxun-card-header">
                     <span class="chaxun-card-index">#${index} | 活动ID: ${product.wholesaleId || '-'} | 商品id：${product.drugId || '-'}</span>
+                    <button class="chaxun-detail-btn" data-index="${index}">详情</button>
                 </div>
                 <div class="chaxun-card-row chaxun-card-title">
                     <span>💊</span> ${escape(product.drugName || '未知商品')} (${escape(product.provDrugCode || '-')})
@@ -73,7 +73,7 @@ const ChaxunCardModule = {
                 </div>
                 ${this.generatePriceTable(product)}
                 <div class="chaxun-card-row chaxun-card-cost">
-                    <span>💰 含税成本价：${formatPrice(product.unitPrice9)}</span>
+                    💰 含税成本价：${formatPrice(product.unitPrice9)} | 品种负责人：<span class="chaxun-contactor-value" data-wholesaleid="${product.wholesaleId}"></span><i class="fa-regular fa-eye chaxun-contactor-eye" data-wholesaleid="${product.wholesaleId}" data-drugcode="${escape(product.provDrugCode || '')}" title="点击查询"></i>
                 </div>
                 <div class="chaxun-card-row chaxun-card-factory">
                     <span>🏭</span> ${escape(product.factoryName || '未知厂家')}
