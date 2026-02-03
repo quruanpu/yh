@@ -221,16 +221,28 @@ const PmsLoginModule = {
 
             // 2. 保存状态
             this.state.credentials = loginData.credentials;
+            // 将 provider_id 添加到 credentials 中
+            if (loginData.provider_id) {
+                this.state.credentials.providerId = loginData.provider_id;
+            }
             this.state.userInfo = loginData.user;
             this.state.permissions = loginData.permissions;
             this.state.currentStep = 'success';
+
+            // 打印 providerId 日志
+            console.log('=== PMS登录 providerId 信息 ===');
+            console.log('云函数返回的 provider_id:', loginData.provider_id);
+            console.log('credentials.providerId:', this.state.credentials.providerId);
+            console.log('sub_providers:', loginData.permissions?.sub_providers);
+            console.log('providers:', loginData.permissions?.providers);
 
             // 3. 异步存储到数据库（不等待，后台执行）
             if (window.FirebaseModule) {
                 FirebaseModule.savePmsLogin(
                     this.state.userInfo.account,
                     this.state.credentials,
-                    this.state.userInfo
+                    this.state.userInfo,
+                    this.state.permissions
                 ).catch(error => {
                     console.error('保存PMS登录信息失败:', error);
                 });

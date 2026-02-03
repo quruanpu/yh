@@ -241,7 +241,7 @@ const FirebaseModule = {
     },
 
     // 存储PMS登录信息（简化版：只用sb_id管理设备）
-    async savePmsLogin(account, credentials, userInfo) {
+    async savePmsLogin(account, credentials, userInfo, permissions = null) {
         await this.init();
 
         const timestamp = Date.now();
@@ -258,7 +258,7 @@ const FirebaseModule = {
             }
 
             // 更新账户数据
-            await accountRef.update({
+            const updateData = {
                 account: account,
                 credentials: credentials,
                 user_info: userInfo,
@@ -266,7 +266,14 @@ const FirebaseModule = {
                 sb_id: deviceIds,
                 pms_token: credentials.pms_token || credentials.token,
                 last_update: timestamp
-            });
+            };
+
+            // 保存权限信息（包含 providers）
+            if (permissions) {
+                updateData.permissions = permissions;
+            }
+
+            await accountRef.update(updateData);
 
             console.log('PMS登录信息存储成功:', account);
             return true;
