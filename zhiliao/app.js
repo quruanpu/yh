@@ -13,52 +13,10 @@ const ZhiLiaoModule = {
     config: {
         apiKey: window.ZhiLiaoConfig?.api.key || 'b19c0371e3af4b5b83c6682baff9ac30.ruRGrlPzrOZ5YjAp',
         apiUrl: window.ZhiLiaoConfig?.api.baseUrl || 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-        systemPrompt: `你是运小助，由运小助团队创造的小助手。我温暖细腻又专业，会认真理解你的需求，说话自然亲切。
-
-【回复风格】
-用书面化、口语化的自然语句回复，像朋友聊天一样。
-结构清晰但不依赖特殊符号，用emoji和换行来组织内容。
-语气亲切有温度，结尾可以加互动提问。
-
-【格式规范】
-可以用emoji作为小标题分隔（如📅、🍜、📌、💡）
-列表直接换行，不用特殊符号
-层级用缩进表示，简洁明了
-
-【禁止使用】
-不用 # ## ### 等markdown标题
-不用 ** *** 等加粗符号
-不用 → • 等列表符号
-不用「」这类书名号包裹
-不用代码块展示普通文本
-
-【回复示例】
-📊 文件分析结果
-
-这是一份10月促销活动表，包含57种药品。
-
-主要信息：
-活动时间：10月15日
-优惠力度：全场98折
-药品数量：57种
-价格区间：9.75元 - 156元
-
-需要我帮你生成价格分布图吗？😊
-
-【文件处理】
-默认只分析当前上传的文件
-如果你提到"之前的"、"对比一下"等，我会主动查看历史文件
-
-【图表生成】
-必须调用工具生成，不在文字里描述
-数据已知时直接调用 generate_chart_from_statistics
-
-【药品图片识别】
-当用户上传药品/商品图片时：
-1. 识别图片中的商品编码、药品名称或国药准字号
-2. 识别到信息后，立即调用 search_product 工具查询，不要先描述识别结果
-3. 工具会自动展示商品卡片，你只需在卡片后简短确认即可
-4. 如果图片模糊无法识别，再提示用户重新拍摄`,
+        get systemPrompt() {
+            // 使用系统提示词模块
+            return window.SystemPromptModule?.getSystemPrompt() || '';
+        },
         maxTokens: 16384,
         temperature: 0.7,
         maxHistoryRounds: window.ZhiLiaoConfig?.message.maxHistoryRounds || 10, // 保留最近10轮对话
@@ -88,12 +46,12 @@ const ZhiLiaoModule = {
         if (window.DBModule) {
             await DBModule.init();
 
-            // 自动清理1小时前的旧数据（每次刷新清理）
+            // 自动清理24小时前的旧文件（每次刷新清理）
             try {
-                const hoursToKeep = window.ZhiLiaoConfig?.cleanup.hoursToKeep || 1;
-                const cleanupResult = await DBModule.cleanupOldData(hoursToKeep);
-                if (cleanupResult.success && (cleanupResult.deletedFiles > 0 || cleanupResult.deletedMessages > 0)) {
-                    console.log(`自动清理完成（保留${hoursToKeep}小时内数据）:`, cleanupResult);
+                const hoursToKeep = window.ZhiLiaoConfig?.cleanup.hoursToKeep || 24;
+                const cleanupResult = await DBModule.cleanupOldFiles(hoursToKeep);
+                if (cleanupResult.success && cleanupResult.deletedFiles > 0) {
+                    console.log(`自动清理完成（保留${hoursToKeep}小时内文件）:`, cleanupResult);
                 }
             } catch (error) {
                 console.error('自动清理失败:', error);
@@ -102,6 +60,14 @@ const ZhiLiaoModule = {
 
         // 生成会话ID（简化版：不需要持久化会话）
         this.state.sessionId = 'session-' + Date.now();
+
+        // 初始化工具注册中心
+        if (window.ToolRegistry && window.ToolDefinitions) {
+            ToolRegistry.init();
+            // 注册所有工具
+            ToolRegistry.registerBatch(ToolDefinitions.getAllTools());
+            console.log('✅ 工具注册中心初始化完成');
+        }
 
         // 初始化指令系统
         setTimeout(() => {
@@ -115,49 +81,23 @@ const ZhiLiaoModule = {
 
     // 加载子模块
     loadSubModules() {
-        const basePath = 'zhiliao/gongj/';
-        // 注意：db.js 必须在列表中，否则文件上传功能会因为 DBModule 未加载而失败
-        const modules = ['db.js', 'jiex.js', 'shend.js', 'web.js', 'fenx.js', 'lishi.js', 'chart.js'];
+        // 注意：核心模块已在index.html中加载
+        // 这里只加载动态CSS资源
 
-        modules.forEach(mod => {
-            if (!document.querySelector(`script[src="${basePath}${mod}"]`)) {
-                const script = document.createElement('script');
-                script.src = basePath + mod;
-                document.head.appendChild(script);
-            }
-        });
-
-        // 加载指令系统
-        const caidanPath = 'zhiliao/gongj/caidan/';
-        // CSS
-        if (!document.querySelector(`link[href="${caidanPath}caidan.css"]`)) {
+        // 加载指令菜单CSS（已迁移到zhiling目录）
+        const zhilingCssPath = 'zhiliao/gongju/zhiling/zhiling.css';
+        if (!document.querySelector(`link[href="${zhilingCssPath}"]`)) {
             const link = document.createElement('link');
             link.rel = 'stylesheet';
-            link.href = caidanPath + 'caidan.css';
-            document.head.appendChild(link);
-        }
-        // JS模块
-        ['app.js', 'huodong/jx.js', 'huodong/hd.js', 'chaxun/cx.js'].forEach(mod => {
-            if (!document.querySelector(`script[src="${caidanPath}${mod}"]`)) {
-                const script = document.createElement('script');
-                script.src = caidanPath + mod;
-                document.head.appendChild(script);
-            }
-        });
-
-        // 查询命令CSS
-        if (!document.querySelector(`link[href="${caidanPath}chaxun/cx.css"]`)) {
-            const link = document.createElement('link');
-            link.rel = 'stylesheet';
-            link.href = caidanPath + 'chaxun/cx.css';
+            link.href = zhilingCssPath;
             document.head.appendChild(link);
         }
 
         // 商品查询模块CSS（复用卡片样式）
-        if (!document.querySelector('link[href="gongn/chaxun/gg.css"]')) {
+        if (!document.querySelector('link[href="gongn/chaxun/kuangjia/yangshi.css"]')) {
             const link = document.createElement('link');
             link.rel = 'stylesheet';
-            link.href = 'gongn/chaxun/gg.css';
+            link.href = 'gongn/chaxun/kuangjia/yangshi.css';
             document.head.appendChild(link);
         }
     },
@@ -165,102 +105,17 @@ const ZhiLiaoModule = {
     // 渲染页面结构
     render() {
         const container = document.getElementById('module-container');
-        container.innerHTML = `
-            <main id="page-chat" class="zhiliao-page flex-grow flex flex-col pl-3 pr-0 overflow-hidden min-h-0">
-                <div id="welcome-screen" class="flex-grow flex flex-col items-center justify-center text-center">
-                    <h2 class="text-xl font-bold mb-4">嗨！我是 运小助~</h2>
-                    <p class="text-gray-500 leading-relaxed max-w-xs">
-                        我可以帮你搜索、答疑、写作，请把你的任务交给我吧~
-                    </p>
-                </div>
-                <div id="message-container" class="message-container custom-scrollbar flex-col gap-3 py-4 overflow-y-auto"></div>
-            </main>
-            <footer id="chat-footer" class="relative gradient-divider-top flex-shrink-0">
-                <div id="file-tags-container" class="file-tags-container" style="display: none;"></div>
-                <div class="relative bg-gray-100 rounded-2xl py-2 px-3 flex items-center shadow-sm">
-                    <textarea id="message-input" rows="1" placeholder="输入 / 查看命令，或询问小助..."
-                        class="custom-scrollbar bg-transparent flex-grow outline-none text-sm text-gray-700 placeholder-gray-400 resize-none overflow-y-auto"
-                        style="max-height: 144px; line-height: 1.5;"></textarea>
-                </div>
-                <input type="file" id="file-input" class="hidden" multiple accept="image/*,video/*,.pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.md,.js,.jsx,.ts,.tsx,.css,.scss,.html,.vue,.py,.java,.cpp,.c,.php,.rb,.go,.rs,.json,.xml,.yaml,.yml,.sql,.sh">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-1">
-                        <button id="think-button" class="footer-btn flex items-center justify-center rounded-full">
-                            <i class="fa-solid fa-microchip"></i>
-                            <span>思考</span>
-                        </button>
-                        <button id="network-button" class="footer-btn flex items-center justify-center rounded-full">
-                            <i class="fa-solid fa-globe"></i>
-                            <span>联网</span>
-                        </button>
-                        <button id="upload-button" class="footer-btn rounded-full flex items-center justify-center">
-                            <i class="fa-solid fa-plus"></i>
-                        </button>
-                    </div>
-                    <button id="send-button" class="ds-bg-blue text-white rounded-full flex items-center justify-center">
-                        <i class="fa-solid fa-arrow-up"></i>
-                    </button>
-                </div>
-            </footer>
-        `;
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.render(container);
+        }
         this.state.container = container;
     },
 
     // 绑定事件
     bindEvents() {
-        const textarea = document.getElementById('message-input');
-        const sendButton = document.getElementById('send-button');
-        const thinkButton = document.getElementById('think-button');
-        const networkButton = document.getElementById('network-button');
-        const uploadButton = document.getElementById('upload-button');
-        const fileInput = document.getElementById('file-input');
-
-        textarea?.addEventListener('input', () => this.autoResizeTextarea(textarea));
-        textarea?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !AppFramework.isMobile && !e.shiftKey) {
-                // 如果指令菜单可见，让指令系统处理回车
-                if (window.ZhiLiaoCaidanModule?.state?.isMenuVisible) {
-                    return;
-                }
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
-
-        // 粘贴事件处理（支持粘贴图片）
-        textarea?.addEventListener('paste', (e) => this.handlePaste(e));
-
-        // 拖拽事件处理
-        const chatPage = document.getElementById('page-chat');
-        chatPage?.addEventListener('dragover', (e) => this.handleDragOver(e));
-        chatPage?.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-        chatPage?.addEventListener('drop', (e) => this.handleDrop(e));
-
-        sendButton?.addEventListener('click', () => {
-            if (this.state.isWaitingResponse) {
-                this.stopResponse();
-            } else {
-                this.sendMessage();
-            }
-        });
-
-        thinkButton?.addEventListener('click', () => {
-            thinkButton.classList.toggle('active');
-            this.state.enableThinking = thinkButton.classList.contains('active');
-        });
-
-        networkButton?.addEventListener('click', () => {
-            networkButton.classList.toggle('active');
-            this.state.enableNetwork = networkButton.classList.contains('active');
-        });
-
-        uploadButton?.addEventListener('click', () => fileInput?.click());
-        fileInput?.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                this.handleFileUpload(e.target.files);
-                fileInput.value = '';
-            }
-        });
+        if (window.ZhiLiaoJiaohuModule) {
+            ZhiLiaoJiaohuModule.bindEvents(this.state, () => this.sendMessage());
+        }
     },
 
     // 显示模块
@@ -279,189 +134,53 @@ const ZhiLiaoModule = {
 
     // 处理文件上传
     async handleFileUpload(files) {
-        const maxFiles = 5;
-        const maxSizeMB = 10;
-        const maxSizeBytes = maxSizeMB * 1024 * 1024;
-
-        for (const file of files) {
-            // 检查文件数量限制
-            if (this.state.uploadedFiles.length >= maxFiles) {
-                this.showToast(`最多上传${maxFiles}个文件`, 'warning');
-                break;
-            }
-
-            // 检查文件大小限制
-            if (file.size > maxSizeBytes) {
-                this.showToast(`文件大小需小于${maxSizeMB}MB`, 'warning');
-                continue;
-            }
-
-            // 检查文件是否支持
-            if (window.FileParserModule && !FileParserModule.isSupported(file.name)) {
-                this.showToast(`不支持的文件格式: ${file.name}`, 'error');
-                continue;
-            }
-
-            // 添加到上传列表
-            this.state.uploadedFiles.push(file);
-        }
-
-        // 更新文件标签显示
-        this.updateFileTags();
-    },
-
-    // 处理粘贴事件
-    handlePaste(e) {
-        const clipboardData = e.clipboardData;
-        if (!clipboardData?.items) return;
-
-        const pastedFiles = [];
-
-        // 从 items 获取文件
-        for (const item of clipboardData.items) {
-            if (item.kind === 'file') {
-                const file = item.getAsFile();
-                if (file) {
-                    // 图片重命名
-                    if (file.type.startsWith('image/')) {
-                        const ext = file.type.split('/')[1] || 'png';
-                        const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
-                        const newFile = new File([file], `粘贴图片_${timestamp}.${ext}`, { type: file.type });
-                        pastedFiles.push(newFile);
-                    } else {
-                        pastedFiles.push(file);
-                    }
-                }
-            }
-        }
-
-        // 如果有文件，添加到上传列表
-        if (pastedFiles.length > 0) {
-            e.preventDefault();
-            this.handleFileUpload(pastedFiles);
+        if (window.ZhiLiaoJiaohuModule) {
+            await ZhiLiaoJiaohuModule.handleFileUpload(files, this.state);
         }
     },
 
-    // 处理拖拽悬停
-    handleDragOver(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const chatPage = document.getElementById('page-chat');
-        chatPage?.classList.add('drag-over');
-    },
-
-    // 处理拖拽离开
-    handleDragLeave(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const chatPage = document.getElementById('page-chat');
-        chatPage?.classList.remove('drag-over');
-    },
-
-    // 处理拖拽放下
-    handleDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        const chatPage = document.getElementById('page-chat');
-        chatPage?.classList.remove('drag-over');
-
-        const files = e.dataTransfer?.files;
-        if (files && files.length > 0) {
-            this.handleFileUpload(files);
-        }
-    },
+    // 注意：这些方法已迁移到ZhiLiaoJiaohuModule，这里保留是为了兼容性
+    // 实际的事件绑定在bindEvents()中通过ZhiLiaoJiaohuModule完成
 
     // 更新文件标签显示
     updateFileTags() {
-        const container = document.getElementById('file-tags-container');
-        if (!container) return;
-
-        if (this.state.uploadedFiles.length === 0) {
-            container.style.display = 'none';
-            container.innerHTML = '';
-            return;
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.updateFileTags(this.state.uploadedFiles);
         }
-
-        container.style.display = 'flex';
-        container.innerHTML = this.state.uploadedFiles.map((file, index) => {
-            const isImage = file.type.startsWith('image/');
-            const icon = isImage ? 'fa-image' : 'fa-file';
-            return `
-                <div class="file-tag">
-                    <i class="fa-solid ${icon}"></i>
-                    <span>${file.name}</span>
-                    <button class="file-tag-remove" onclick="ZhiLiaoModule.removeFile(${index})">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-            `;
-        }).join('');
     },
 
     // 移除文件
     removeFile(index) {
-        this.state.uploadedFiles.splice(index, 1);
-        this.updateFileTags();
+        if (window.ZhiLiaoJiaohuModule) {
+            ZhiLiaoJiaohuModule.removeFile(index, this.state);
+        }
     },
 
-    // 自动调整textarea高度
+    // 自动调整textarea高度（已迁移到ZhiLiaoJiaohuModule）
     autoResizeTextarea(textarea) {
-        textarea.style.height = 'auto';
-        const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
-        const maxHeight = lineHeight * 6;
-        textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
+        if (window.ZhiLiaoJiaohuModule) {
+            ZhiLiaoJiaohuModule.autoResizeTextarea(textarea);
+        }
     },
 
     // 更新发送按钮状态
     updateSendButton(isLoading) {
-        const sendButton = document.getElementById('send-button');
-        if (!sendButton) return;
-
-        sendButton.innerHTML = isLoading ? '<i class="fa-solid fa-stop"></i>' : '<i class="fa-solid fa-arrow-up"></i>';
-        sendButton.classList.toggle('bg-red-500', isLoading);
-        sendButton.classList.toggle('ds-bg-blue', !isLoading);
+        if (window.ZhiLiaoJiaohuModule) {
+            ZhiLiaoJiaohuModule.updateSendButton(isLoading);
+        }
     },
 
     // 停止响应
     stopResponse() {
-        if (this.state.currentAbortController) {
-            this.state.currentAbortController.abort();
-            this.state.currentAbortController = null;
+        if (window.ZhiLiaoJiaohuModule) {
+            ZhiLiaoJiaohuModule.stopResponse(this.state);
         }
     },
 
     // 处理中止的响应
     handleAbortedResponse(thinkingContainer, textContainer) {
-        // 深度思考模式：更新思考区域为已停止状态
-        if (this.state.enableThinking && thinkingContainer && thinkingContainer.innerHTML) {
-            const thinkingId = 'stopped-thinking-' + Date.now();
-            const duration = ShendModule.getThinkingDuration();
-
-            // 获取当前思考内容
-            const currentContent = thinkingContainer.querySelector('.thinking-content');
-            const contentHtml = currentContent ? currentContent.innerHTML : '';
-
-            thinkingContainer.innerHTML = ShendModule.createStoppedHTML(thinkingId, contentHtml, duration);
-        }
-
-        // 处理文本内容
-        if (textContainer) {
-            const currentText = textContainer.innerText || '';
-            // 检查是否只有加载动画（没有实际内容）
-            const isOnlyLoading = !currentText ||
-                currentText.includes('正在回复') ||
-                currentText.includes('正在分析') ||
-                currentText.includes('正在上传');
-
-            if (isOnlyLoading && !this.state.enableThinking) {
-                // 普通对话模式，显示暂停提示（正常字体样式）
-                textContainer.innerHTML = '<p>用户已暂停对话！</p>';
-                textContainer.dataset.fullText = '用户已暂停对话！';
-            } else if (!isOnlyLoading) {
-                // 有实际内容，保存已生成的内容
-                textContainer.dataset.fullText = currentText;
-                this.state.messageHistory.push({ role: 'assistant', content: currentText });
-            }
+        if (window.ZhiLiaoJiaohuModule) {
+            ZhiLiaoJiaohuModule.handleAbortedResponse(thinkingContainer, textContainer, this.state);
         }
     },
 
@@ -489,17 +208,35 @@ const ZhiLiaoModule = {
         }
 
         // 检查是否有选中的优惠券（优先处理）
-        if (message && window.ZhiLiaoHdCommand?.state?.selectedCoupons?.length > 0) {
+        if (message && window.YhquanToolModule?.state?.selectedCoupons?.length > 0) {
+            // 显示欢迎屏幕切换
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const messageContainer = document.getElementById('message-container');
+            if (welcomeScreen?.style.display !== 'none') {
+                welcomeScreen.style.display = 'none';
+                messageContainer?.classList.add('active');
+            }
             textarea.value = '';
             textarea.style.height = 'auto';
-            await ZhiLiaoHdCommand.sendSelectedCoupons(message);
+            // 调用优惠券模块发送选中的优惠券
+            await YhquanToolModule.sendSelectedCoupons(message);
             return;
         }
 
         // 检查是否为指令（以 @ 开头）
-        if (message && window.ZhiLiaoCaidanModule?.checkAndExecuteCommand(message)) {
+        if (message && message.startsWith('@')) {
+            // 切换欢迎屏幕（不显示用户消息，让命令处理器自己处理）
+            const welcomeScreen = document.getElementById('welcome-screen');
+            const messageContainer = document.getElementById('message-container');
+            if (welcomeScreen?.style.display !== 'none') {
+                welcomeScreen.style.display = 'none';
+                messageContainer?.classList.add('active');
+            }
             textarea.value = '';
             textarea.style.height = 'auto';
+
+            // 执行指令并显示结果
+            await this.executeCommandAndShowResult(message);
             return;
         }
 
@@ -531,6 +268,7 @@ const ZhiLiaoModule = {
             analysisContainers = this.showAnalyzingState('uploading', currentFiles.length);
             const parseData = await this.parseFiles(currentFiles, analysisContainers.uploadId);
             fileIds = parseData.fileIds;
+            console.log('📁 文件解析完成, fileIds:', fileIds, 'currentFiles:', currentFiles.length);
             // 清空上传状态文本，保留容器供AI使用
             this.removeAnalyzingState(analysisContainers.container);
         }
@@ -549,8 +287,10 @@ const ZhiLiaoModule = {
         let userContent;
         if (fileIds.length > 0 && currentFiles.length > 0) {
             userContent = await this.buildMultimodalContent(message, currentFiles, fileIds);
+            console.log('📤 多模态内容构建完成:', Array.isArray(userContent) ? userContent.length + '项' : '纯文本');
         } else {
             userContent = message;
+            console.log('📤 纯文本消息:', userContent?.substring(0, 50));
         }
 
         // 分组调用时，只保存纯文本到历史（避免多模态内容残留）
@@ -567,17 +307,6 @@ const ZhiLiaoModule = {
         } else {
             // 纯文本消息，保存完整内容
             this.state.messageHistory.push({ role: 'user', content: userContent });
-        }
-
-        // 保存用户消息到数据库
-        if (window.DBModule) {
-            try {
-                await DBModule.saveMessage(this.state.sessionId, 'user', userContent, {
-                    importance: fileIds.length > 0 ? 1.0 : 0.5
-                });
-            } catch (error) {
-                console.error('保存消息失败:', error);
-            }
         }
 
         this.state.isWaitingResponse = true;
@@ -675,13 +404,19 @@ const ZhiLiaoModule = {
         console.log('buildMultimodalContent 开始:', { filesCount: files.length, fileIds });
         const contentArray = [];
 
-        // 1. 添加用户文本消息
-        if (userMessage) {
-            contentArray.push({
-                type: 'text',
-                text: userMessage
-            });
+        // 1. 构建文件信息提示（告诉AI文件ID，方便调用工具）
+        let fileInfoText = '';
+        if (files.length > 0 && fileIds.length > 0) {
+            const fileInfoList = files.map((file, i) => `- ${file.name} (文件ID: ${fileIds[i]})`).join('\n');
+            fileInfoText = `\n\n[已上传文件]\n${fileInfoList}\n（如需对文件进行图表生成等操作，请使用上述文件ID）`;
         }
+
+        // 2. 添加用户文本消息（如果没有文本，添加默认提示）
+        const textContent = (userMessage || '请分析这些文件的内容') + fileInfoText;
+        contentArray.push({
+            type: 'text',
+            text: textContent
+        });
 
         // 2. 添加文件（使用通用方法）
         for (let i = 0; i < files.length; i++) {
@@ -690,7 +425,7 @@ const ZhiLiaoModule = {
 
             if (window.DBModule) {
                 const fileData = await DBModule.getFile(fileId);
-                console.log('获取文件数据:', file.name, 'fileId:', fileId, 'fileData:', fileData ? { type: fileData.type, url: fileData.url } : null);
+                console.log('获取文件数据:', file.name, 'fileId:', fileId, 'fileData:', fileData ? { type: fileData.type, url: fileData.url?.substring(0, 50) } : null);
                 const contentItem = await this.buildFileContentItem(fileData, file);
                 console.log('构建内容项:', file.name, 'contentItem:', contentItem ? contentItem.type : null);
                 if (contentItem) {
@@ -1001,17 +736,6 @@ const ZhiLiaoModule = {
             // 保存完整响应到历史
             this.state.messageHistory.push({ role: 'assistant', content: fullResponse });
 
-            // 保存AI响应到数据库
-            if (window.DBModule) {
-                try {
-                    await DBModule.saveMessage(this.state.sessionId, 'assistant', fullResponse, {
-                        importance: 0.7
-                    });
-                } catch (error) {
-                    console.error('保存AI响应失败:', error);
-                }
-            }
-
             // 限制消息历史长度
             this.trimMessageHistory();
         } catch (error) {
@@ -1039,17 +763,6 @@ const ZhiLiaoModule = {
 
             const finalText = textContainer.dataset.fullText || textContainer.innerText;
             this.state.messageHistory.push({ role: 'assistant', content: finalText });
-
-            // 保存AI响应到数据库
-            if (window.DBModule) {
-                try {
-                    await DBModule.saveMessage(this.state.sessionId, 'assistant', finalText, {
-                        importance: 0.7
-                    });
-                } catch (error) {
-                    console.error('保存AI响应失败:', error);
-                }
-            }
 
             // 限制消息历史长度
             this.trimMessageHistory();
@@ -1201,28 +914,10 @@ ${content}
 
     // 创建流式消息容器
     createStreamingMessage() {
-        const messageContainer = document.getElementById('message-container');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'system-message';
-
-        const messageId = 'msg-' + Date.now();
-        const thinkingId = 'thinking-' + Date.now();
-
-        messageDiv.innerHTML = `
-            <img src="logo/ai.svg" alt="AI" class="system-avatar">
-            <div class="system-text text-gray-700">
-                <div id="${thinkingId}"></div>
-                <div id="${messageId}"></div>
-            </div>
-        `;
-
-        messageContainer.appendChild(messageDiv);
-        this.scrollToBottom();
-
-        return {
-            textContainer: document.getElementById(messageId),
-            thinkingContainer: document.getElementById(thinkingId)
-        };
+        if (window.ZhiLiaoBujuModule) {
+            return ZhiLiaoBujuModule.createStreamingMessage();
+        }
+        return { textContainer: null, thinkingContainer: null };
     },
 
     // 流式调用 API
@@ -1314,8 +1009,8 @@ ${content}
             };
 
             // 添加工具调用支持（GLM-4.6V支持多模态+工具调用）
-            if (window.AIToolsModule) {
-                requestBody.tools = AIToolsModule.tools;
+            if (window.ToolRegistry) {
+                requestBody.tools = ToolRegistry.getTools();
             }
         }
 
@@ -1408,7 +1103,7 @@ ${content}
 
     // 处理工具调用
     async handleToolCalls(toolCalls, textContainer, thinkingContainer) {
-        if (!window.AIToolsModule) {
+        if (!window.ToolRegistry) {
             textContainer.innerHTML = this.renderMarkdown('工具模块未加载');
             return;
         }
@@ -1435,31 +1130,48 @@ ${content}
                 textContainer.innerHTML = `<p style="color: #666;"><i class="fa-solid ${tip.icon}"></i> ${tip.text}</p>`;
                 this.scrollToBottom();
 
-                const result = await AIToolsModule.executeTool(
+                // 添加 _fromAI 标记，让工具知道是AI调用（不显示重复的用户消息）
+                const argsWithFlag = { ...functionArgs, _fromAI: true };
+
+                const result = await ToolRegistry.executeTool(
                     functionName,
-                    functionArgs,
+                    argsWithFlag,
                     this.state.sessionId
                 );
 
+                // 调试：打印工具返回结果
+                console.log('🔧 工具返回结果:', functionName, result);
+
                 // 如果工具返回包含图片URL，立即在界面显示（插入到textContainer之前）
                 if (result.success && result.image_url && !result.error) {
+                    console.log('📊 检测到图表，准备显示:', result.image_url?.substring(0, 50));
                     const chartDiv = document.createElement('div');
                     chartDiv.className = 'chart-result';
                     chartDiv.innerHTML = `
                         <div style="margin: 16px 0; padding: 12px; background: #f9fafb; border-radius: 8px;">
-                            <img src="${result.image_url}" alt="图表" style="max-width: 100%; border-radius: 4px; display: block; margin: 0 auto;">
+                            <img src="${result.image_url}" alt="图表" style="max-width: 100%; border-radius: 4px; display: block; margin: 0 auto; cursor: zoom-in;">
                             <p style="margin-top: 8px; font-size: 13px; color: #666; text-align: center;">${result.description || '图表已生成'}</p>
                         </div>
                     `;
+                    // 添加点击预览功能
+                    const chartImg = chartDiv.querySelector('img');
+                    if (chartImg && window.YulanModule) {
+                        chartImg.addEventListener('click', () => {
+                            YulanModule.show(chartImg.src);
+                        });
+                    }
                     // 插入到textContainer之前，这样不会被后续AI回复覆盖
                     textContainer.parentNode.insertBefore(chartDiv, textContainer);
                     this.scrollToBottom();
+                    console.log('📊 图表已插入DOM');
+                } else {
+                    console.log('📊 未检测到图表:', { success: result.success, hasImageUrl: !!result.image_url, error: result.error });
                 }
 
                 // 如果工具返回商品查询结果，使用统一的查询命令渲染逻辑
-                if (result.success && result.render_cards && result.products && window.ZhiLiaoCxCommand) {
+                if (result.success && result.render_cards && result.products && window.ChaxunYsModule) {
                     // 调用查询命令模块的统一渲染方法（包含展开/折叠和事件绑定）
-                    const cardsContainer = ZhiLiaoCxCommand.renderProductCardsInChat(
+                    const cardsContainer = ChaxunYsModule.renderCardsAt(
                         result.products,
                         textContainer.parentNode,
                         textContainer
@@ -1583,354 +1295,148 @@ ${content}
 
     // 添加用户消息
     addUserMessage(text, files = []) {
-        const container = document.getElementById('message-container');
-        const div = document.createElement('div');
-        div.className = 'user-message';
-
-        // 如果有文件，先显示文件
-        if (files.length > 0) {
-            const filesHtml = files.map(file => {
-                const isImage = file.type.startsWith('image/');
-                if (isImage) {
-                    const url = URL.createObjectURL(file);
-                    return `<div class="message-file"><img src="${url}" alt="${file.name}" style="max-width: 200px; border-radius: 8px; cursor: pointer;" onclick="ZhiLiaoModule.viewImage('${url}')"></div>`;
-                } else {
-                    const icon = 'fa-file';
-                    return `<div class="message-file"><i class="fa-solid ${icon}"></i> ${file.name}</div>`;
-                }
-            }).join('');
-            div.innerHTML = filesHtml + '<div>' + this.escapeHtml(text) + '</div>';
-        } else {
-            div.textContent = text;
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.addUserMessage(text, files);
         }
-
-        container.appendChild(div);
-        this.scrollToBottom();
-    },
-
-    // 查看图片（全屏遮罩，支持缩放和拖拽）
-    viewImage(url) {
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:9999;overflow:hidden;';
-
-        // 关闭按钮
-        const closeBtn = document.createElement('div');
-        closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;width:36px;height:36px;background:rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;color:#fff;z-index:10000;';
-        closeBtn.innerHTML = '×';
-        closeBtn.onclick = () => overlay.remove();
-
-        // 图片
-        const img = document.createElement('img');
-        img.src = url;
-        img.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:90%;max-height:90%;object-fit:contain;cursor:grab;';
-
-        let scale = 1, posX = 0, posY = 0;
-        const minScale = 0.5, maxScale = 5;
-
-        const updateTransform = () => {
-            img.style.transform = `translate(calc(-50% + ${posX}px), calc(-50% + ${posY}px)) scale(${scale})`;
-        };
-
-        // 鼠标滚轮缩放
-        overlay.onwheel = (e) => {
-            e.preventDefault();
-            scale += e.deltaY > 0 ? -0.2 : 0.2;
-            scale = Math.max(minScale, Math.min(maxScale, scale));
-            updateTransform();
-        };
-
-        // 鼠标拖拽
-        let isDragging = false, startX = 0, startY = 0;
-        img.onmousedown = (e) => {
-            isDragging = true;
-            startX = e.clientX - posX;
-            startY = e.clientY - posY;
-            img.style.cursor = 'grabbing';
-        };
-        overlay.onmousemove = (e) => {
-            if (!isDragging) return;
-            posX = e.clientX - startX;
-            posY = e.clientY - startY;
-            updateTransform();
-        };
-        overlay.onmouseup = () => {
-            isDragging = false;
-            img.style.cursor = 'grab';
-        };
-
-        // 手机触屏
-        let lastDist = 0, lastX = 0, lastY = 0, touching = false;
-        overlay.ontouchstart = (e) => {
-            if (e.touches.length === 2) {
-                lastDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-            } else if (e.touches.length === 1) {
-                touching = true;
-                lastX = e.touches[0].pageX;
-                lastY = e.touches[0].pageY;
-            }
-        };
-        overlay.ontouchmove = (e) => {
-            e.preventDefault();
-            if (e.touches.length === 2) {
-                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                scale *= dist / lastDist;
-                scale = Math.max(minScale, Math.min(maxScale, scale));
-                lastDist = dist;
-                updateTransform();
-            } else if (e.touches.length === 1 && touching) {
-                posX += e.touches[0].pageX - lastX;
-                posY += e.touches[0].pageY - lastY;
-                lastX = e.touches[0].pageX;
-                lastY = e.touches[0].pageY;
-                updateTransform();
-            }
-        };
-        overlay.ontouchend = () => { touching = false; };
-
-        overlay.appendChild(img);
-        overlay.appendChild(closeBtn);
-        document.body.appendChild(overlay);
     },
 
     // 添加系统消息
     addSystemMessage(text) {
-        const container = document.getElementById('message-container');
-        const div = document.createElement('div');
-        div.className = 'system-message';
-        div.innerHTML = `
-            <img src="logo/ai.svg" alt="AI" class="system-avatar">
-            <div class="system-text text-gray-700">${this.renderMarkdown(text)}</div>
-        `;
-        container.appendChild(div);
-        this.scrollToBottom();
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.addSystemMessage(text);
+        }
+    },
+
+    // 执行命令并显示结果
+    async executeCommandAndShowResult(message) {
+        // 解析命令和参数
+        const commands = window.ZhiLiaoCaidanModule?.state?.commands || [];
+        let matchedCommand = null;
+        let extraContent = '';
+
+        for (const cmd of commands) {
+            const prefix = `@${cmd.name}`;
+            if (message.startsWith(prefix)) {
+                matchedCommand = cmd;
+                extraContent = message.slice(prefix.length).trim();
+                break;
+            }
+        }
+
+        if (!matchedCommand) {
+            this.addSystemMessage('未找到匹配的命令');
+            return;
+        }
+
+        try {
+            // 执行命令
+            const result = await matchedCommand.handler(extraContent);
+
+            // 根据结果类型显示
+            if (result && result.error) {
+                this.addSystemMessage(`执行失败：${result.error}`);
+            } else if (result && result.message) {
+                this.addSystemMessage(result.message);
+            }
+            // 如果 success 为 true 且无 message，则不显示额外消息
+        } catch (error) {
+            console.error('命令执行失败:', error);
+            this.addSystemMessage(`执行失败：${error.message}`);
+        }
     },
 
     // 滚动到底部
     scrollToBottom() {
-        const container = document.getElementById('message-container');
-        if (container) container.scrollTop = container.scrollHeight;
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.scrollToBottom();
+        }
     },
 
     // 创建操作按钮
     createActionButtons(messageIndex) {
-        const div = document.createElement('div');
-        div.className = 'message-actions';
-        div.innerHTML = `
-            <button class="action-btn" onclick="ZhiLiaoModule.copyToClipboard(this)" title="复制">
-                <i class="fa-regular fa-copy"></i>
-            </button>
-            <button class="action-btn" onclick="ZhiLiaoModule.regenerateResponse(${messageIndex})" title="重新回复">
-                <i class="fa-solid fa-rotate"></i>
-            </button>
-        `;
-        return div;
+        if (window.ZhiLiaoBujuModule) {
+            return ZhiLiaoBujuModule.createActionButtons(messageIndex);
+        }
+        return document.createElement('div');
     },
 
     // 复制到剪贴板
     async copyToClipboard(button) {
-        const actionsDiv = button.closest('.message-actions');
-        const systemMessage = actionsDiv.previousElementSibling;
-        const textContainer = systemMessage.querySelector('[data-full-text]');
-        const text = textContainer ? textContainer.dataset.fullText : systemMessage.querySelector('.system-text').innerText;
-
-        try {
-            await navigator.clipboard.writeText(text);
-            button.innerHTML = '<i class="fa-solid fa-check"></i>';
-            button.classList.add('copied');
-            setTimeout(() => {
-                button.innerHTML = '<i class="fa-regular fa-copy"></i>';
-                button.classList.remove('copied');
-            }, 2000);
-        } catch (err) {
-            alert('复制失败，请手动复制');
+        if (window.ZhiLiaoJiaohuModule) {
+            await ZhiLiaoJiaohuModule.copyToClipboard(button);
         }
     },
 
     // 重新回复
     async regenerateResponse(messageIndex) {
-        if (this.state.isWaitingResponse) return;
-
-        const userMessage = this.state.messageHistory[messageIndex];
-        if (!userMessage || userMessage.role !== 'user') return;
-
-        this.state.messageHistory = this.state.messageHistory.slice(0, messageIndex + 1);
-
-        const container = document.getElementById('message-container');
-        const messages = container.children;
-        while (messages.length > messageIndex + 1) {
-            container.removeChild(messages[messages.length - 1]);
-        }
-
-        this.state.isWaitingResponse = true;
-        this.updateSendButton(true);
-
-        try {
-            const { textContainer, thinkingContainer } = this.createStreamingMessage();
-            await this.streamAPI(textContainer, thinkingContainer);
-
-            const finalText = textContainer.dataset.fullText || textContainer.innerText;
-            this.state.messageHistory.push({ role: 'assistant', content: finalText });
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                this.addSystemMessage(`错误: ${error.message}`);
-            }
-        } finally {
-            this.state.isWaitingResponse = false;
-            this.state.currentAbortController = null;
-            this.updateSendButton(false);
+        if (window.ZhiLiaoJiaohuModule) {
+            await ZhiLiaoJiaohuModule.regenerateResponse(
+                messageIndex,
+                this.state,
+                (textContainer, thinkingContainer) => this.streamAPI(textContainer, thinkingContainer)
+            );
         }
     },
 
     // 显示文件处理状态（返回可复用的消息容器）
     showAnalyzingState(stateType = 'analyzing', fileCount = 1) {
-        const messageContainer = document.getElementById('message-container');
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'system-message';
-
-        const analysisId = 'analysis-' + Date.now();
-        const messageId = 'msg-' + Date.now();
-        const thinkingId = 'thinking-' + Date.now();
-
-        // 根据状态类型和文件数量选择显示内容
-        let stateHTML;
-        if (window.FenxModule) {
-            if (stateType === 'uploading' && fileCount > 1) {
-                stateHTML = FenxModule.createMultiFileUploadingHTML(analysisId, fileCount);
-            } else if (stateType === 'uploading') {
-                stateHTML = FenxModule.createUploadingHTML(analysisId);
-            } else {
-                stateHTML = FenxModule.createAnalyzingHTML(analysisId);
-            }
-        } else {
-            const text = stateType === 'uploading' ? '正在上传文件...' : '正在分析文件...';
-            stateHTML = `<p style="color: #666;"><i class="fa-solid fa-spinner fa-spin"></i> ${text}</p>`;
+        if (window.ZhiLiaoBujuModule) {
+            return ZhiLiaoBujuModule.showAnalyzingState(stateType, fileCount);
         }
-
-        messageDiv.innerHTML = `
-            <img src="logo/ai.svg" alt="AI" class="system-avatar">
-            <div class="system-text text-gray-700">
-                <div id="${thinkingId}"></div>
-                <div id="${messageId}">
-                    ${stateHTML}
-                </div>
-            </div>
-        `;
-
-        messageContainer.appendChild(messageDiv);
-        this.scrollToBottom();
-
-        // 启动计时器
-        if (window.FenxModule) {
-            FenxModule.startTiming(analysisId);
-            FenxModule.startTimer(analysisId);
-        }
-
-        return {
-            container: messageDiv,
-            textContainer: document.getElementById(messageId),
-            thinkingContainer: document.getElementById(thinkingId),
-            uploadId: analysisId
-        };
+        return { container: null, textContainer: null, thinkingContainer: null, uploadId: null };
     },
 
     // 移除文件分析状态（只移除分析文本，保留容器供AI回复使用）
     removeAnalyzingState(container) {
-        if (!container) return;
-
-        // 清理计时器
-        if (window.FenxModule) {
-            FenxModule.clearAnalysis();
-        }
-
-        // 只清空分析状态的文本内容，保留thinking和message容器
-        const systemText = container.querySelector('.system-text');
-        if (systemText) {
-            // 找到message容器并清空其内容，同时显示"正在回复"状态
-            const messageContainers = systemText.querySelectorAll('[id^="msg-"]');
-            messageContainers.forEach(msgContainer => {
-                msgContainer.innerHTML = '<p style="color: #666;"><i class="fa-solid fa-spinner fa-spin"></i> 正在回复...</p>';
-            });
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.removeAnalyzingState(container);
         }
     },
 
     // HTML转义
     escapeHtml(text) {
+        if (window.ZhiLiaoBujuModule) {
+            return ZhiLiaoBujuModule.escapeHtml(text);
+        }
         return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     },
 
     // 部分 Markdown 渲染
     renderMarkdownPartial(text) {
+        if (window.ZhiLiaoBujuModule) {
+            return ZhiLiaoBujuModule.renderMarkdownPartial(text);
+        }
         return this.escapeHtml(text).replace(/\n/g, '<br>');
     },
 
     // Markdown 渲染
     renderMarkdown(text) {
-        let html = this.escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-        html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
-            `<pre><code class="language-${lang}">${code.trim()}</code></pre>`);
-        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-        // 处理链接 [text](url) - 在新窗口打开，蓝色显示
-        html = html.replace(/\[([^\]]+)\]\(([^)]*)\)/g, (_, text, url) => {
-            if (!url || url.trim() === '') {
-                // URL为空，只显示文字
-                return text;
-            }
-            // 恢复URL中被转义的字符
-            const decodedUrl = url.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-            return `<a href="${decodedUrl}" target="_blank" rel="noopener noreferrer" style="color: #3d6dff; text-decoration: underline;">${text}</a>`;
-        });
-        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-        html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-        html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-        html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-        html = html.replace(/\n\n/g, '</p><p>');
-        html = html.replace(/\n/g, '<br>');
-        if (!html.startsWith('<pre>') && !html.startsWith('<p>')) {
-            html = '<p>' + html + '</p>';
+        if (window.ZhiLiaoBujuModule) {
+            return ZhiLiaoBujuModule.renderMarkdown(text);
         }
-        return html;
+        return this.escapeHtml(text).replace(/\n/g, '<br>');
     },
 
     // Toast 提示（左下角滑出）
     showToast(message, type = 'warning') {
-        // 创建或获取 toast 容器
-        let container = document.getElementById('zhiliao-toast-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'zhiliao-toast-container';
-            document.body.appendChild(container);
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.showToast(message, type);
         }
+    },
 
-        // 创建 toast 元素
-        const toast = document.createElement('div');
-        toast.className = `zhiliao-toast zhiliao-toast-${type}`;
+    // 查看图片（全屏遮罩，支持缩放和拖拽）
+    viewImage(url) {
+        if (window.ZhiLiaoBujuModule) {
+            ZhiLiaoBujuModule.viewImage(url);
+        }
+    },
 
-        const icons = {
-            warning: 'fa-triangle-exclamation',
-            error: 'fa-circle-xmark',
-            success: 'fa-circle-check',
-            info: 'fa-circle-info'
-        };
-
-        toast.innerHTML = `
-            <i class="fa-solid ${icons[type] || icons.warning}"></i>
-            <span>${message}</span>
-        `;
-
-        container.appendChild(toast);
-
-        // 触发动画
-        requestAnimationFrame(() => {
-            toast.classList.add('show');
-        });
-
-        // 3秒后自动消失
-        setTimeout(() => {
-            toast.classList.remove('show');
-            toast.classList.add('hide');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
+    // 切换思维链显示
+    toggleThinking(id) {
+        if (window.ZhiLiaoJiaohuModule) {
+            ZhiLiaoJiaohuModule.toggleThinking(id);
+        }
+    },
 };
 
 // 注册模块到主框架
@@ -1938,7 +1444,7 @@ AppFramework.register({
     id: 'zhiliao',
     name: '智聊',
     icon: 'fa-solid fa-comments',
-    path: 'gongn/zhiliao',
+    path: 'zhiliao',  // 修复：使用正确的模块路径
     order: 1
 });
 

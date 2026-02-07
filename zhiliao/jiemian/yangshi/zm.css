@@ -1,0 +1,115 @@
+/* 智聊模块桌面端样式 */
+
+/* 字体变量 */
+:root {
+    --font-size-main: 0.875rem;
+    --font-size-small: 0.85rem;
+    --font-size-thinking: 0.75rem;
+}
+
+/* 消息区域 */
+.message-container.active {
+    padding-right: 14px;
+}
+
+.user-message {
+    padding: 10px 14px;
+    max-width: 65%;
+    font-size: var(--font-size-main);
+}
+
+.system-message {
+    gap: 10px;
+}
+
+.system-avatar {
+    width: 28px;
+    height: 28px;
+}
+
+.system-text {
+    font-size: var(--font-size-main);
+}
+
+.system-text code {
+    font-size: var(--font-size-small);
+}
+
+/* 思考区域 */
+.thinking-header {
+    font-size: var(--font-size-thinking);
+}
+
+.thinking-header-icon,
+.thinking-header .spinner,
+.thinking-header .header-dot {
+    width: 8px;
+    height: 8px;
+}
+
+.thinking-arrow {
+    font-size: 0.625rem;
+}
+
+.thinking-content {
+    margin-top: 8px;
+    padding-left: 14px;
+    font-size: var(--font-size-small);
+}
+
+/* 操作按钮 */
+.message-actions {
+    margin-top: -6px;
+    margin-left: 38px;
+}
+
+.action-btn {
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-size-main);
+}
+
+/* 底部区域 */
+footer {
+    padding: 14px 20px !important;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 输入框容器的间距 */
+footer .bg-gray-100 {
+    margin-bottom: 12px;
+}
+
+#message-input {
+    font-size: var(--font-size-main) !important;
+    padding: 0;
+    line-height: 1.5;
+}
+
+#message-input::placeholder {
+    font-size: var(--font-size-main);
+    line-height: 1.5;
+}
+
+/* 底部按钮统一高度 */
+.footer-btn {
+    height: 30px;
+    font-size: var(--font-size-main) !important;
+    gap: 6px;
+}
+
+#think-button,
+#network-button {
+    padding: 0 12px;
+}
+
+#upload-button {
+    width: 30px;
+}
+
+#send-button {
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
+}

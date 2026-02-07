@@ -78,12 +78,20 @@ const AppFramework = {
     async loadStyles(basePath) {
         const isMobile = this.isMobile || window.innerWidth <= 768;
 
-        // 加载公共样式
-        this.addStylesheet(`${basePath}/gg.css`);
-
-        // 加载响应式样式
-        this.addStylesheet(`${basePath}/buju/sj.css`, '(max-width: 768px)');
-        this.addStylesheet(`${basePath}/buju/zm.css`, '(min-width: 769px)');
+        // 智聊模块使用新的样式路径结构
+        if (basePath === 'zhiliao') {
+            this.addStylesheet(`${basePath}/jiemian/yangshi/gg.css`);
+            this.addStylesheet(`${basePath}/jiemian/yangshi/sj.css`, '(max-width: 768px)');
+            this.addStylesheet(`${basePath}/jiemian/yangshi/zm.css`, '(min-width: 769px)');
+        } else if (basePath === 'gongn/chaxun') {
+            // 商品查询模块只有 kuangjia/yangshi.css
+            this.addStylesheet(`${basePath}/kuangjia/yangshi.css`);
+        } else {
+            // 其他模块使用传统路径结构
+            this.addStylesheet(`${basePath}/gg.css`);
+            this.addStylesheet(`${basePath}/buju/sj.css`, '(max-width: 768px)');
+            this.addStylesheet(`${basePath}/buju/zm.css`, '(min-width: 769px)');
+        }
     },
 
     // 添加样式表

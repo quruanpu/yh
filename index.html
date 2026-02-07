@@ -10,17 +10,16 @@
     <link rel="stylesheet" href="buju/sj.css" media="(max-width: 768px)">
     <link rel="stylesheet" href="buju/zm.css" media="(min-width: 769px)">
     <!-- 智聊模块样式 -->
-    <link rel="stylesheet" href="zhiliao/gg.css">
-    <link rel="stylesheet" href="zhiliao/buju/sj.css" media="(max-width: 768px)">
-    <link rel="stylesheet" href="zhiliao/buju/zm.css" media="(min-width: 769px)">
+    <link rel="stylesheet" href="zhiliao/jiemian/yangshi/gg.css">
+    <link rel="stylesheet" href="zhiliao/jiemian/yangshi/sj.css" media="(max-width: 768px)">
+    <link rel="stylesheet" href="zhiliao/jiemian/yangshi/zm.css" media="(min-width: 769px)">
     <!-- 优惠券模块样式 -->
     <link rel="stylesheet" href="gongn/yhquan/gg.css">
+    <link rel="stylesheet" href="gongn/yhquan/kuangjia/yangshi.css">
     <link rel="stylesheet" href="gongn/yhquan/buju/sj.css" media="(max-width: 768px)">
     <link rel="stylesheet" href="gongn/yhquan/buju/zm.css" media="(min-width: 769px)">
     <!-- 商品查询模块样式 -->
-    <link rel="stylesheet" href="gongn/chaxun/gg.css">
-    <link rel="stylesheet" href="gongn/chaxun/buju/sj.css" media="(max-width: 768px)">
-    <link rel="stylesheet" href="gongn/chaxun/buju/zm.css" media="(min-width: 769px)">
+    <link rel="stylesheet" href="gongn/chaxun/kuangjia/yangshi.css">
     <!-- 文件解析库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -66,27 +65,49 @@
     </div>
 
     <script src="script.js"></script>
+    <!-- 通知系统 -->
+    <script src="tongzhi/yangshi.js"></script>
+    <script src="tongzhi/app.js"></script>
     <!-- 智聊模块配置和工具 -->
     <script src="zhiliao/config.js"></script>
-    <script src="zhiliao/gongj/utils.js"></script>
+    <!-- 统一工具注册系统 -->
+    <script src="zhiliao/gongju/app_ts.js"></script>
+    <script src="zhiliao/gongju/app_zc.js"></script>
     <!-- 优惠券模块配置 -->
     <script src="gongn/yhquan/config.js"></script>
-    <!-- 文件解析模块 -->
-    <script src="zhiliao/gongj/db.js"></script>
-    <script src="zhiliao/gongj/jiex.js"></script>
-    <script src="zhiliao/gongj/tools.js"></script>
-    <script src="zhiliao/gongj/shend.js"></script>
-    <script src="zhiliao/gongj/web.js"></script>
-    <script src="zhiliao/gongj/fenx.js"></script>
+    <script src="gongn/yhquan/gongju.js"></script>
+    <!-- 智聊模块 - 会话层 -->
+    <script src="zhiliao/huihua/wenjian.js"></script>
+    <script src="zhiliao/huihua/huancun.js"></script>
+    <script src="zhiliao/huihua/tisici.js"></script>
+    <!-- 智聊模块 - 业务层 -->
+    <script src="zhiliao/yewu/jiexi.js"></script>
+    <script src="zhiliao/yewu/shendu.js"></script>
+    <script src="zhiliao/yewu/sousuo.js"></script>
+    <script src="zhiliao/yewu/tubiao.js"></script>
+    <!-- 智聊模块 - 界面层 -->
+    <script src="zhiliao/jiemian/buju.js"></script>
+    <script src="zhiliao/jiemian/jiaohu.js"></script>
+    <!-- 智聊模块 - 工具层 -->
+    <script src="zhiliao/gongju/zhiling/zhiling.js"></script>
+    <!-- 智聊模块 - 图片预览 -->
+    <script src="zhiliao/gongju/yulan/yangshi.js"></script>
+    <script src="zhiliao/gongju/yulan/app.js"></script>
+    <!-- 智聊模块 - 接口层（商品查询） -->
+    <script src="zhiliao/gongju/jiekou/chaxun/ys.js"></script>
+    <script src="zhiliao/gongju/jiekou/chaxun/shibie.js"></script>
+    <script src="zhiliao/gongju/jiekou/chaxun/app.js"></script>
+    <!-- 智聊模块 - 接口层（优惠券） -->
+    <script src="zhiliao/gongju/jiekou/yhquan/ys.js"></script>
+    <script src="zhiliao/gongju/jiekou/yhquan/app.js"></script>
     <!-- 加载模块（模块会自动注册到框架） -->
     <script src="zhiliao/app.js"></script>
     <!-- 优惠券模块 -->
     <script src="gongn/yhquan/app.js"></script>
+    <script src="gongn/yhquan/jiekou.js"></script>
     <!-- 商品查询模块 -->
     <script src="gongn/chaxun/config.js"></script>
-    <script src="gongn/chaxun/gongj/utils.js"></script>
-    <script src="gongn/chaxun/gongj/api.js"></script>
-    <script src="gongn/chaxun/gongj/card.js"></script>
+    <script src="gongn/chaxun/gongju.js"></script>
     <script src="gongn/chaxun/app.js"></script>
     <!-- 登录模块 -->
     <link rel="stylesheet" href="denglu/gg.css">
