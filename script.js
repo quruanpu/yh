@@ -83,8 +83,8 @@ const AppFramework = {
             this.addStylesheet(`${basePath}/jiemian/yangshi/gg.css`);
             this.addStylesheet(`${basePath}/jiemian/yangshi/sj.css`, '(max-width: 768px)');
             this.addStylesheet(`${basePath}/jiemian/yangshi/zm.css`, '(min-width: 769px)');
-        } else if (basePath === 'gongn/chaxun') {
-            // 商品查询模块只有 kuangjia/yangshi.css
+        } else if (basePath === 'gongn/chaxun' || basePath === 'gongn/yhquan') {
+            // 这些模块只有 kuangjia/yangshi.css
             this.addStylesheet(`${basePath}/kuangjia/yangshi.css`);
         } else {
             // 其他模块使用传统路径结构
