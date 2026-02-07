@@ -64,7 +64,7 @@ const EwmYangshi = {
     font-size: 14px;
     font-weight: 600;
     color: #1f2937;
-    margin: 0 auto 16px;
+    margin: 0 auto 12px;
     padding: 0;
     line-height: 1.4;
     text-align: left;

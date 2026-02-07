@@ -352,10 +352,10 @@ const EwmYewu = {
             cloneTitle.style.overflow = 'visible';
             cloneTitle.style.textOverflow = 'unset';
         }
-        // 截图时按钮隐藏，减少底部多余留白
-        const cloneQuote = clone.querySelector('.ewm-popup-quote');
-        if (cloneQuote) cloneQuote.style.marginBottom = '6px';
-        clone.style.paddingBottom = '14px';
+        // 按钮隐藏后调整底部留白；补偿html2canvas渲染差异
+        const cloneQr = clone.querySelector('.ewm-popup-qr');
+        if (cloneQr) cloneQr.style.marginBottom = '2px';
+        clone.style.paddingBottom = '4px';
         document.body.appendChild(clone);
 
         try {
