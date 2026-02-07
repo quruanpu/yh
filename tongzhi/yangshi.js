@@ -115,9 +115,7 @@ const TongzhiYangshi = {
     .tongzhi {
         top: 10px;
         right: 10px;
-        left: 10px;
-        min-width: auto;
-        max-width: none;
+        max-width: 85%;
         padding: 10px 12px;
     }
     .tongzhi-icon { width: 18px; height: 18px; font-size: 14px; }
