@@ -364,6 +364,8 @@ const YhquanModule = {
         const container = document.getElementById('yhquan-cards-container');
         if (!container) return;
 
+        if (window.KapianYangshi) KapianYangshi.inject();
+
         container.innerHTML = this.state.allCoupons.map((coupon, i) =>
             KapianYewu.renderCard(coupon, i + 1)
         ).join('');
