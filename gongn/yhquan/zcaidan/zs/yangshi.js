@@ -1,0 +1,386 @@
+/**
+ * 优惠券模块 - 赠送弹窗样式
+ */
+const ZsYangshi = {
+    styleId: 'yhquan-zs-styles',
+
+    getStyles() {
+        return `
+/* 模态框 */
+.yhquan-zs-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 遮罩层 */
+.yhquan-zs-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* 弹窗内容 */
+.yhquan-zs-content {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    width: 80%;
+    height: 80vh;
+    max-width: 400px;
+    max-height: 800px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* 弹窗头部 */
+.yhquan-zs-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.yhquan-zs-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.yhquan-zs-title i {
+    color: #3b82f6;
+}
+
+.yhquan-zs-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #f3f4f6;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.yhquan-zs-close:hover {
+    background: #e5e7eb;
+}
+
+.yhquan-zs-close i {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* 弹窗主体 */
+.yhquan-zs-body {
+    flex: 1;
+    overflow: hidden;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* 区块 */
+.yhquan-zs-section {
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.yhquan-zs-section:last-child {
+    margin-bottom: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.yhquan-zs-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+/* 优惠券信息 */
+.yhquan-zs-info-grid {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.yhquan-zs-info-row {
+    display: flex;
+    margin-bottom: 5px;
+    font-size: 11px;
+}
+
+.yhquan-zs-info-row:last-child {
+    margin-bottom: 0;
+}
+
+.yhquan-zs-info-label {
+    color: #6b7280;
+    min-width: 50px;
+    flex-shrink: 0;
+}
+
+.yhquan-zs-info-value {
+    color: #111827;
+    flex: 1;
+}
+
+/* 赠送设置 */
+.yhquan-zs-quantity-select {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+    transition: all 0.2s;
+    background: white;
+    cursor: pointer;
+}
+
+.yhquan-zs-quantity-select:focus {
+    border-color: #3b82f6;
+}
+
+.yhquan-zs-quantity-select:hover {
+    border-color: #9ca3af;
+}
+
+/* 目标输入 */
+.yhquan-zs-textarea {
+    width: 100%;
+    flex: 1;
+    min-height: 70px;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.5;
+    font-family: monospace;
+    resize: none;
+    outline: none;
+    transition: all 0.2s;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.yhquan-zs-textarea:focus {
+    border-color: #3b82f6;
+}
+
+/* 弹窗底部 */
+.yhquan-zs-footer {
+    padding: 10px 14px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.yhquan-zs-btn {
+    height: 28px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.yhquan-zs-btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.yhquan-zs-btn-primary:hover {
+    background: #2563eb;
+}
+
+.yhquan-zs-btn-primary:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* 手机端适配 */
+@media (max-width: 768px) {
+    .yhquan-zs-content {
+        width: 80%;
+        height: 80vh;
+    }
+}
+
+/* 通知组件 */
+.yhquan-zs-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    left: auto;
+    bottom: auto;
+    min-width: 280px;
+    max-width: 400px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10001;
+    animation: yhquan-notification-slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+}
+
+.yhquan-zs-notification-hide {
+    animation: yhquan-notification-fade-out 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes yhquan-notification-slide-in {
+    from { transform: translateY(-100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes yhquan-notification-fade-out {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(400px); opacity: 0; }
+}
+
+.yhquan-zs-notification-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.yhquan-zs-notification-content {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #1f2937;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-weight: 500;
+}
+
+.yhquan-zs-notification-close {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.yhquan-zs-notification-close:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #4b5563;
+}
+
+/* 成功通知 */
+.yhquan-zs-notification-success {
+    background: rgba(236, 253, 245, 0.95);
+    border-left: 3px solid #10b981;
+}
+
+.yhquan-zs-notification-success .yhquan-zs-notification-icon {
+    color: #10b981;
+}
+
+/* 错误通知 */
+.yhquan-zs-notification-error {
+    background: rgba(254, 242, 242, 0.95);
+    border-left: 3px solid #ef4444;
+}
+
+.yhquan-zs-notification-error .yhquan-zs-notification-icon {
+    color: #ef4444;
+}
+
+/* 警告通知 */
+.yhquan-zs-notification-warning {
+    background: rgba(255, 251, 235, 0.95);
+    border-left: 3px solid #f59e0b;
+}
+
+.yhquan-zs-notification-warning .yhquan-zs-notification-icon {
+    color: #f59e0b;
+}
+
+/* 手机端通知适配 */
+@media (max-width: 768px) {
+    .yhquan-zs-notification {
+        top: 10px;
+        right: 10px;
+        min-width: 200px;
+        max-width: 280px;
+        padding: 10px 12px;
+    }
+
+    .yhquan-zs-notification-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 14px;
+    }
+
+    .yhquan-zs-notification-content {
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .yhquan-zs-notification-close {
+        width: 18px;
+        height: 18px;
+        font-size: 12px;
+    }
+}
+        `;
+    },
+
+    inject() {
+        if (document.getElementById(this.styleId)) return;
+        const style = document.createElement('style');
+        style.id = this.styleId;
+        style.textContent = this.getStyles();
+        document.head.appendChild(style);
+    }
+};
+
+window.ZsYangshi = ZsYangshi;
