@@ -372,6 +372,13 @@ const EwmYewu = {
                     this.notify('图片生成失败', 'error');
                     return;
                 }
+                // 移动端剪贴板写入图片不可靠，直接下载
+                const isMobile = window.innerWidth <= 768;
+                if (isMobile) {
+                    this.restoreBtn(btn, 'image');
+                    this.downloadFallback(canvas);
+                    return;
+                }
                 try {
                     const item = new ClipboardItem({ 'image/png': blob });
                     navigator.clipboard.write([item]).then(() => {
