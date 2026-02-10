@@ -131,7 +131,7 @@ const EwmYangshi = {
 .ewm-qr-grid {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 16px;
     margin: 0 auto 8px;
     max-width: 100%;

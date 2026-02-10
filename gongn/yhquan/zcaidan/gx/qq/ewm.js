@@ -287,6 +287,13 @@ const EwmYewu = {
             popup.classList.add('ewm-popup-multi');
         }
 
+        // 计算网格宽度：使整体居中，换行项左对齐
+        const itemWidth = 230;
+        const gap = 16;
+        const maxCols = Math.min(urlList.length, 4);
+        const gridWidth = maxCols * itemWidth + (maxCols - 1) * gap;
+        grid.style.width = gridWidth + 'px';
+
         // 逐个生成二维码
         urlList.forEach((item, i) => {
             const container = document.getElementById(`ewm-qr-${i}`);
@@ -377,7 +384,7 @@ const EwmYewu = {
         }
     },
 
-    // ========== 截图（dom-to-image，直接截取弹窗，视觉完全一致） ==========
+    // ========== 截图（克隆弹窗到屏幕外，避免原始弹窗视觉跳动） ==========
     async copyOrDownloadImage() {
         if (!window.domtoimage) {
             this.notify('截图库未加载', 'error');
@@ -387,22 +394,44 @@ const EwmYewu = {
         const popup = document.getElementById('ewm-popup');
         if (!popup) return;
 
-        // 截图前隐藏工具栏
-        const toolbar = popup.querySelector('.ewm-popup-toolbar');
-        if (toolbar) toolbar.style.display = 'none';
-
-        // 截图前展开：移除滚动限制，确保所有二维码完整显示（垂直长图）
-        const savedPopupStyle = popup.style.cssText;
-        popup.style.maxHeight = 'none';
-        popup.style.overflow = 'visible';
-
+        let wrapper = null;
+        let clone = null;
         try {
+            // 克隆弹窗
+            clone = popup.cloneNode(true);
+
+            // cloneNode 不保留 canvas 绘制内容，手动复制
+            const origCanvases = popup.querySelectorAll('canvas');
+            const cloneCanvases = clone.querySelectorAll('canvas');
+            origCanvases.forEach((orig, i) => {
+                if (cloneCanvases[i]) {
+                    cloneCanvases[i].width = orig.width;
+                    cloneCanvases[i].height = orig.height;
+                    const ctx = cloneCanvases[i].getContext('2d');
+                    ctx.drawImage(orig, 0, 0);
+                }
+            });
+
+            // wrapper 用 opacity:0 隐藏（保留真实尺寸，确保 clone 布局正确）
+            wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:-1;';
+            clone.style.width = popup.offsetWidth + 'px';
+            clone.style.minWidth = popup.offsetWidth + 'px';
+            clone.style.maxWidth = 'none';
+            clone.style.maxHeight = 'none';
+            clone.style.overflow = 'visible';
+            const toolbar = clone.querySelector('.ewm-popup-toolbar');
+            if (toolbar) toolbar.style.display = 'none';
+
+            wrapper.appendChild(clone);
+            document.body.appendChild(wrapper);
+
             const scale = 2;
-            const blob = await domtoimage.toBlob(popup, {
+            const blob = await domtoimage.toBlob(clone, {
                 bgcolor: '#ffffff',
-                width: popup.offsetWidth * scale,
-                height: popup.offsetHeight * scale,
-                style: { transform: `scale(${scale})`, transformOrigin: 'top left' }
+                width: clone.offsetWidth * scale,
+                height: clone.offsetHeight * scale,
+                style: { transform: `scale(${scale})`, transformOrigin: 'top left', opacity: '1' }
             });
 
             if (!blob) {
@@ -428,9 +457,7 @@ const EwmYewu = {
             console.error('截图失败:', err);
             this.notify('截图失败: ' + err.message, 'error');
         } finally {
-            // 恢复截图前的样式
-            popup.style.cssText = savedPopupStyle;
-            if (toolbar) toolbar.style.display = '';
+            if (wrapper) wrapper.remove();
         }
     },
 
