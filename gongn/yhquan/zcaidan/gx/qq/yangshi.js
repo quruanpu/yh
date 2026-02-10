@@ -33,56 +33,69 @@ const EwmYangshi = {
     padding: 28px 24px 24px;
 }
 
-/* ========== 关闭按钮 ========== */
-.ewm-popup-close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
+/* ========== 顶部工具栏 ========== */
+.ewm-popup-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    margin: -12px -8px 8px 0;
+}
+
+.ewm-popup-icon-btn {
     background: none;
     border: none;
-    font-size: 15px;
+    font-size: 12px;
     color: #9ca3af;
     cursor: pointer;
-    padding: 4px 6px;
-    border-radius: 6px;
+    padding: 3px 5px;
+    border-radius: 5px;
     transition: color 0.2s, background 0.2s;
-    z-index: 1;
     line-height: 1;
 }
 
-.ewm-popup-close:hover {
+.ewm-popup-icon-btn:hover:not(:disabled) {
     color: #374151;
     background: #f3f4f6;
+}
+
+.ewm-popup-icon-btn:disabled {
+    color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.ewm-copy-btn {
+    font-size: 10px;
+    padding: 2px 4px;
+}
+
+.ewm-close-btn {
+    font-size: 14px;
+    padding: 3px 5px;
+}
+
+.ewm-popup-icon-btn.ewm-copy-active {
+    color: #10b981;
 }
         `;
     },
 
     getTitleStyles() {
         return `
-/* ========== 活动名称 ========== */
-.ewm-popup-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 auto 12px;
-    padding: 0;
-    line-height: 1.4;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 230px;
-}
-
 /* ========== 名言区域 ========== */
 .ewm-popup-quote {
     font-size: 11px;
     color: #9ca3af;
-    margin: 0 auto 18px;
+    margin: 0 auto;
     padding: 0;
     line-height: 1.5;
     text-align: left;
     max-width: 230px;
+}
+
+.ewm-popup-multi .ewm-popup-quote {
+    max-width: none;
+    padding: 0 10px;
 }
         `;
     },
@@ -112,6 +125,46 @@ const EwmYangshi = {
     display: block;
     width: 100% !important;
     height: 100% !important;
+}
+
+/* ========== 多二维码网格 ========== */
+.ewm-qr-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    margin: 0 auto 8px;
+    max-width: 100%;
+}
+
+.ewm-qr-item {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+.ewm-qr-item .ewm-popup-qr {
+    margin-bottom: 0;
+}
+
+.ewm-qr-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    text-align: left;
+    max-width: 230px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+/* 多个二维码时弹窗加宽（桌面端横排，最多4个） */
+.ewm-popup-multi {
+    width: auto;
+    max-width: min(92%, 1040px);
 }
 
 /* ========== 状态文字（加载中） ========== */
@@ -159,61 +212,7 @@ const EwmYangshi = {
     },
 
     getButtonStyles() {
-        return `
-/* ========== 底部按钮 ========== */
-.ewm-popup-actions {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.ewm-popup-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 9px 22px;
-    border: none;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    line-height: 1;
-}
-
-.ewm-popup-btn:disabled {
-    background: #d1d5db !important;
-    color: #9ca3af !important;
-    cursor: not-allowed;
-}
-
-.ewm-btn-link {
-    background: #3b82f6;
-    color: #fff;
-}
-
-.ewm-btn-link:hover:not(:disabled) {
-    background: #2563eb;
-}
-
-.ewm-btn-image {
-    background: #10b981;
-    color: #fff;
-}
-
-.ewm-btn-image:hover:not(:disabled) {
-    background: #059669;
-}
-
-/* 按钮加载中 */
-.ewm-popup-btn.ewm-btn-loading {
-    background: #d1d5db !important;
-    color: #9ca3af !important;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-        `;
+        return '';
     },
 
     getAnimationStyles() {
@@ -235,11 +234,36 @@ const EwmYangshi = {
         padding: 24px 20px 20px;
     }
 
-    .ewm-popup-qr {
-        width: 210px;
+    .ewm-popup-multi {
+        width: 280px;
+        max-width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
     }
 
-    .ewm-popup-title,
+    .ewm-popup-qr {
+        width: 100%;
+        max-width: 210px;
+    }
+
+    .ewm-qr-grid {
+        flex-direction: column;
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 12px;
+    }
+
+    .ewm-qr-item {
+        align-items: stretch;
+        width: 100%;
+        max-width: 210px;
+    }
+
+    .ewm-qr-label {
+        max-width: 210px;
+        font-size: 11px;
+    }
+
     .ewm-popup-quote {
         max-width: 210px;
     }

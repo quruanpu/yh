@@ -34,9 +34,10 @@ const GxYangshi = {
     position: relative;
     background: white;
     border-radius: 8px;
-    width: 80%;
+    width: 85%;
     max-width: 400px;
-    max-height: 90vh;
+    height: 80vh;
+    max-height: 800px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -177,6 +178,30 @@ const GxYangshi = {
     border-color: #9ca3af;
 }
 
+/* 下拉选择器 */
+.yhquan-gx-select {
+    width: 100%;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+    transition: all 0.2s;
+    background: white;
+    box-sizing: border-box;
+    cursor: pointer;
+    appearance: auto;
+}
+
+.yhquan-gx-select:focus {
+    border-color: #3b82f6;
+}
+
+.yhquan-gx-select:hover {
+    border-color: #9ca3af;
+}
+
 /* 弹窗底部 */
 .yhquan-gx-footer {
     padding: 10px 14px;
@@ -189,6 +214,43 @@ const GxYangshi = {
 .yhquan-gx-footer-left {
     display: flex;
     gap: 8px;
+}
+
+/* 操作菜单 */
+.yhquan-gx-action-menu {
+    position: relative;
+}
+
+.yhquan-gx-action-popup {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: transparent;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: 2px;
+    z-index: 10;
+}
+
+.yhquan-gx-action-popup.open {
+    display: flex;
+}
+
+.yhquan-gx-action-popup .yhquan-gx-btn {
+    width: 100%;
+    text-align: center;
+}
+
+#yhquan-gx-action-trigger i {
+    font-size: 9px;
+    margin-left: 2px;
+    transition: transform 0.2s;
+}
+
+#yhquan-gx-action-trigger.open i {
+    transform: rotate(180deg);
 }
 
 .yhquan-gx-btn {
@@ -229,13 +291,13 @@ const GxYangshi = {
     background: #dc2626;
 }
 
-.yhquan-gx-btn-warning {
-    background: #f97316;
+.yhquan-gx-btn-success {
+    background: #10b981;
     color: white;
 }
 
-.yhquan-gx-btn-warning:hover {
-    background: #ea580c;
+.yhquan-gx-btn-success:hover {
+    background: #059669;
 }
 
 .yhquan-gx-btn:disabled {
@@ -273,8 +335,62 @@ const GxYangshi = {
 .yhquan-gx-chips,
 .yhquan-gx-area-wrap {
     display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* 折叠头部行 */
+.yhquan-gx-collapse-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 折叠内容区 */
+.yhquan-gx-collapse-body {
+    display: flex;
     flex-wrap: wrap;
     gap: 4px;
+    padding-top: 2px;
+}
+
+/* 展开/收起按钮 */
+.yhquan-gx-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.yhquan-gx-expand-btn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* 摘要文字 */
+.yhquan-gx-collapse-summary {
+    font-size: 9px;
+    color: #9ca3af;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 加载中提示 */
+.yhquan-gx-collapse-loading {
+    font-size: 9px;
+    color: #9ca3af;
+    padding: 4px 0;
 }
 
 .yhquan-gx-chip {
@@ -344,8 +460,8 @@ const GxYangshi = {
 /* 手机端适配 */
 @media (max-width: 768px) {
     .yhquan-gx-content {
-        width: 95%;
-        max-height: 85vh;
+        width: 85%;
+        height: 80vh;
     }
 
     .yhquan-gx-body {

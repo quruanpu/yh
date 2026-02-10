@@ -34,7 +34,7 @@ const ZsYangshi = {
     position: relative;
     background: white;
     border-radius: 8px;
-    width: 80%;
+    width: 85%;
     height: 80vh;
     max-width: 400px;
     max-height: 800px;
@@ -228,7 +228,7 @@ const ZsYangshi = {
 /* 手机端适配 */
 @media (max-width: 768px) {
     .yhquan-zs-content {
-        width: 80%;
+        width: 85%;
         height: 80vh;
     }
 }

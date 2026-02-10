@@ -13,7 +13,7 @@ const EwmYewu = {
         apiUrl: 'https://1317825751-21j36twzqr.ap-guangzhou.tencentscf.com',
         couponPageBase: 'https://dian.ysbang.cn/#/grabCoupon?id=',
         qrLibUrl: 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
-        h2cLibUrl: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+        d2iLibUrl: 'https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js'
     },
 
     // ========== 随机暖句 ==========
@@ -35,7 +35,7 @@ const EwmYewu = {
     state: {
         isRunning: false,
         currentCoupon: null,
-        currentUrl: null
+        currentUrls: []  // [{activityId, url, name}]
     },
 
     // ========== 加载二维码库 ==========
@@ -50,12 +50,12 @@ const EwmYewu = {
         });
     },
 
-    // ========== 加载截图库 ==========
-    async loadH2cLib() {
-        if (window.html2canvas) return;
+    // ========== 加载截图库（dom-to-image） ==========
+    async loadD2iLib() {
+        if (window.domtoimage) return;
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
-            script.src = this.config.h2cLibUrl;
+            script.src = this.config.d2iLibUrl;
             script.onload = resolve;
             script.onerror = () => reject(new Error('截图库加载失败'));
             document.head.appendChild(script);
@@ -70,17 +70,16 @@ const EwmYewu = {
         }
 
         this.state.currentCoupon = coupon;
-        this.state.currentUrl = null;
+        this.state.currentUrls = [];
         if (window.EwmYangshi) EwmYangshi.inject();
 
         this.state.isRunning = true;
-        const title = coupon.name || '未命名优惠券';
-        this.showPopup(title);
+        this.showPopup();
 
         try {
             // 并行加载二维码库和截图库
             const qrLibPromise = this.loadQrLib();
-            const h2cLibPromise = this.loadH2cLib();
+            const d2iLibPromise = this.loadD2iLib();
 
             // 获取登录凭证
             const credentials = await this.getCredentials();
@@ -89,26 +88,34 @@ const EwmYewu = {
                 return;
             }
 
-            // 查询已有的抢券活动（共享已开启，活动必然存在）
+            // 查询所有抢券活动，筛选启用的
             this.updateStatus('获取活动信息...', 'loading');
-            const existing = await this.apiPost(credentials, 'queryActivity', { couponTypeId: coupon.id });
+            const allActivities = await this.apiPost(credentials, 'queryAllActivities', { couponTypeId: coupon.id });
 
-            if (!existing || !existing.activityId) {
-                this.updateStatus('未找到抢券活动，请检查共享状态', 'error');
+            const enabledList = Array.isArray(allActivities)
+                ? allActivities.filter(a => a.isClose === 0)
+                : [];
+
+            if (enabledList.length === 0) {
+                this.updateStatus('未找到启用的抢券活动，请检查共享状态', 'error');
                 return;
             }
 
             // 等待库加载完成
             this.updateStatus('生成二维码...', 'loading');
             await qrLibPromise;
-            await h2cLibPromise;
+            await d2iLibPromise;
 
-            const couponUrl = this.config.couponPageBase + existing.activityId;
-            this.state.currentUrl = couponUrl;
+            // 构建所有启用活动的URL列表
+            this.state.currentUrls = enabledList.map(a => ({
+                activityId: a.id,
+                url: this.config.couponPageBase + a.id,
+                name: a.eventName || '未命名活动'
+            }));
 
-            // 生成二维码并启用按钮
-            this.renderQrCode(couponUrl);
-            this.enableButtons();
+            // 渲染多个二维码并启用按钮
+            this.renderQrCodes(this.state.currentUrls);
+            this.enableCopyBtn();
 
         } catch (err) {
             console.error('二维码生成失败:', err);
@@ -141,6 +148,12 @@ const EwmYewu = {
         const credentials = await this.getCredentials();
         if (!credentials) throw new Error('无有效登录信息，请先登录');
         return await this.apiPost(credentials, 'queryActivity', { couponTypeId });
+    },
+
+    async queryAllByCouponId(couponTypeId) {
+        const credentials = await this.getCredentials();
+        if (!credentials) throw new Error('无有效登录信息，请先登录');
+        return await this.apiPost(credentials, 'queryAllActivities', { couponTypeId });
     },
 
     async getActivityDetail(activityId) {
@@ -202,28 +215,32 @@ const EwmYewu = {
         });
     },
     // ========== UI：二维码弹窗 ==========
-    showPopup(title) {
+    showPopup() {
         const old = document.getElementById('ewm-progress');
         if (old) old.remove();
 
-        const escape = window.YhquanGongju ? YhquanGongju.escapeHtml : (s) => s;
         const html = `
             <div class="ewm-overlay" id="ewm-progress">
                 <div class="ewm-popup" id="ewm-popup">
-                    <button class="ewm-popup-close" id="ewm-close">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                    <div class="ewm-popup-title">🎁${escape(title)}👇</div>
-                    <div class="ewm-popup-qr" id="ewm-qr">
-                        <div class="ewm-popup-status ewm-status-loading" id="ewm-status">
-                            <span class="ewm-status-text">准备中...</span>
+                    <div class="ewm-popup-toolbar">
+                        <button class="ewm-popup-icon-btn ewm-copy-btn" id="ewm-copy-link" disabled title="复制链接">
+                            <i class="fa-solid fa-link"></i>
+                        </button>
+                        <button class="ewm-popup-icon-btn ewm-copy-btn" id="ewm-copy-img" disabled title="复制图片">
+                            <i class="fa-regular fa-image"></i>
+                        </button>
+                        <button class="ewm-popup-icon-btn ewm-close-btn" id="ewm-close" title="关闭">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                    <div class="ewm-qr-grid" id="ewm-qr-grid">
+                        <div class="ewm-popup-qr" id="ewm-qr">
+                            <div class="ewm-popup-status ewm-status-loading" id="ewm-status">
+                                <span class="ewm-status-text">准备中...</span>
+                            </div>
                         </div>
                     </div>
                     <div class="ewm-popup-quote" id="ewm-quote"></div>
-                    <div class="ewm-popup-actions">
-                        <button class="ewm-popup-btn ewm-btn-link" id="ewm-btn-link" disabled>链接</button>
-                        <button class="ewm-popup-btn ewm-btn-image" id="ewm-btn-image" disabled>图片</button>
-                    </div>
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
@@ -250,35 +267,52 @@ const EwmYewu = {
         if (textEl) textEl.textContent = text;
     },
 
-    renderQrCode(url) {
-        const qrContainer = document.getElementById('ewm-qr');
-        if (!qrContainer) return;
+    renderQrCodes(urlList) {
+        const grid = document.getElementById('ewm-qr-grid');
+        if (!grid) return;
 
-        // 清除状态文字
-        qrContainer.innerHTML = '';
+        const escape = window.YhquanGongju ? YhquanGongju.escapeHtml : (s) => s;
 
-        // 生成二维码
-        new QRCode(qrContainer, {
-            text: url,
-            width: 210,
-            height: 210,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.H
+        // 清空加载状态，替换为多个二维码项
+        grid.innerHTML = urlList.map((item, i) => `
+            <div class="ewm-qr-item">
+                <div class="ewm-qr-label">🎁${escape(item.name)}👇</div>
+                <div class="ewm-popup-qr" id="ewm-qr-${i}"></div>
+            </div>
+        `).join('');
+
+        // 根据数量动态调整弹窗宽度
+        const popup = document.getElementById('ewm-popup');
+        if (popup && urlList.length > 1) {
+            popup.classList.add('ewm-popup-multi');
+        }
+
+        // 逐个生成二维码
+        urlList.forEach((item, i) => {
+            const container = document.getElementById(`ewm-qr-${i}`);
+            if (!container) return;
+            new QRCode(container, {
+                text: item.url,
+                width: 210,
+                height: 210,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
         });
     },
 
-    enableButtons() {
-        const linkBtn = document.getElementById('ewm-btn-link');
-        const imageBtn = document.getElementById('ewm-btn-image');
-
+    enableCopyBtn() {
+        const linkBtn = document.getElementById('ewm-copy-link');
         if (linkBtn) {
             linkBtn.disabled = false;
-            linkBtn.onclick = () => this.copyLink();
+            linkBtn.onclick = () => this.handleCopyLink();
         }
-        if (imageBtn) {
-            imageBtn.disabled = false;
-            imageBtn.onclick = () => this.copyImage();
+
+        const imgBtn = document.getElementById('ewm-copy-img');
+        if (imgBtn) {
+            imgBtn.disabled = false;
+            imgBtn.onclick = () => this.handleCopyImage();
         }
 
         // 允许关闭
@@ -287,132 +321,127 @@ const EwmYewu = {
             closeBtn.onclick = () => document.getElementById('ewm-progress')?.remove();
         }
     },
-    // ========== 复制功能 ==========
-    copyLink() {
-        if (!this.state.currentUrl) return;
-        const url = this.state.currentUrl;
-        const btn = document.getElementById('ewm-btn-link');
+    // ========== 复制链接 ==========
+    async handleCopyLink() {
+        const btn = document.getElementById('ewm-copy-link');
+        if (!this.state.currentUrls.length) return;
 
-        this.setBtnLoading(btn);
+        if (btn) { btn.disabled = true; btn.classList.add('ewm-copy-active'); }
 
-        navigator.clipboard.writeText(url).then(() => {
-            this.restoreBtn(btn, 'link');
-            this.notify('链接复制成功！', 'success');
-        }).catch(() => {
-            const input = document.createElement('input');
-            input.value = url;
-            document.body.appendChild(input);
-            input.select();
-            document.execCommand('copy');
-            input.remove();
-            this.restoreBtn(btn, 'link');
-            this.notify('链接复制成功！', 'success');
-        });
+        try {
+            const urls = this.state.currentUrls;
+            const text = urls.length === 1
+                ? `${urls[0].name}：${urls[0].url}`
+                : urls.map((item, i) => `${i + 1}.${item.name}：${item.url}`).join('\n');
+            await this.copyText(text);
+            this.notify('已复制链接', 'success');
+        } catch (err) {
+            console.error('复制链接失败:', err);
+            this.notify('复制链接失败: ' + err.message, 'error');
+        }
+
+        setTimeout(() => {
+            if (btn) { btn.disabled = false; btn.classList.remove('ewm-copy-active'); }
+        }, 1000);
     },
 
-    async copyImage() {
-        const popup = document.getElementById('ewm-popup');
-        if (!popup) return;
+    // ========== 复制图片 ==========
+    async handleCopyImage() {
+        const btn = document.getElementById('ewm-copy-img');
+        if (!this.state.currentUrls.length) return;
 
-        if (!window.html2canvas) {
+        if (btn) { btn.disabled = true; btn.classList.add('ewm-copy-active'); }
+
+        try {
+            await this.copyOrDownloadImage();
+        } catch (err) {
+            console.error('复制图片失败:', err);
+            this.notify('复制图片失败: ' + err.message, 'error');
+        }
+
+        setTimeout(() => {
+            if (btn) { btn.disabled = false; btn.classList.remove('ewm-copy-active'); }
+        }, 1000);
+    },
+
+    async copyText(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+        }
+    },
+
+    // ========== 截图（dom-to-image，直接截取弹窗，视觉完全一致） ==========
+    async copyOrDownloadImage() {
+        if (!window.domtoimage) {
             this.notify('截图库未加载', 'error');
             return;
         }
 
-        const btn = document.getElementById('ewm-btn-image');
-        this.setBtnLoading(btn);
+        const popup = document.getElementById('ewm-popup');
+        if (!popup) return;
 
-        // 克隆弹窗到屏幕外，在克隆体上隐藏按钮再截图
-        const clone = popup.cloneNode(true);
-        clone.style.position = 'fixed';
-        clone.style.left = '-9999px';
-        clone.style.top = '0';
-        const cloneClose = clone.querySelector('.ewm-popup-close');
-        const cloneActions = clone.querySelector('.ewm-popup-actions');
-        const cloneTitle = clone.querySelector('.ewm-popup-title');
-        if (cloneClose) cloneClose.style.display = 'none';
-        if (cloneActions) cloneActions.style.display = 'none';
-        // 截图时标题不截断，完整显示
-        if (cloneTitle) {
-            cloneTitle.style.whiteSpace = 'normal';
-            cloneTitle.style.overflow = 'visible';
-            cloneTitle.style.textOverflow = 'unset';
-        }
-        // 按钮隐藏后调整底部留白；补偿html2canvas渲染差异
-        const cloneQr = clone.querySelector('.ewm-popup-qr');
-        if (cloneQr) cloneQr.style.marginBottom = '2px';
-        clone.style.paddingBottom = '4px';
-        document.body.appendChild(clone);
+        // 截图前隐藏工具栏
+        const toolbar = popup.querySelector('.ewm-popup-toolbar');
+        if (toolbar) toolbar.style.display = 'none';
+
+        // 截图前展开：移除滚动限制，确保所有二维码完整显示（垂直长图）
+        const savedPopupStyle = popup.style.cssText;
+        popup.style.maxHeight = 'none';
+        popup.style.overflow = 'visible';
 
         try {
-            const canvas = await html2canvas(clone, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                useCORS: true
+            const scale = 2;
+            const blob = await domtoimage.toBlob(popup, {
+                bgcolor: '#ffffff',
+                width: popup.offsetWidth * scale,
+                height: popup.offsetHeight * scale,
+                style: { transform: `scale(${scale})`, transformOrigin: 'top left' }
             });
-            clone.remove();
 
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    this.restoreBtn(btn, 'image');
-                    this.notify('图片生成失败', 'error');
-                    return;
-                }
-                // 移动端剪贴板写入图片不可靠，直接下载
-                const isMobile = window.innerWidth <= 768;
-                if (isMobile) {
-                    this.restoreBtn(btn, 'image');
-                    this.downloadFallback(canvas);
-                    return;
-                }
-                try {
-                    const item = new ClipboardItem({ 'image/png': blob });
-                    navigator.clipboard.write([item]).then(() => {
-                        this.restoreBtn(btn, 'image');
-                        this.notify('二维码复制成功！', 'success');
-                    }).catch(() => {
-                        this.restoreBtn(btn, 'image');
-                        this.downloadFallback(canvas);
-                    });
-                } catch (e) {
-                    this.restoreBtn(btn, 'image');
-                    this.downloadFallback(canvas);
-                }
-            }, 'image/png');
+            if (!blob) {
+                this.notify('图片生成失败', 'error');
+                return;
+            }
+
+            // 移动端：下载图片
+            if (window.innerWidth <= 768) {
+                this.downloadBlobFallback(blob);
+                return;
+            }
+
+            // 桌面端：写入剪贴板
+            try {
+                const item = new ClipboardItem({ 'image/png': blob });
+                await navigator.clipboard.write([item]);
+                this.notify('已复制图片', 'success');
+            } catch {
+                this.downloadBlobFallback(blob);
+            }
         } catch (err) {
-            clone.remove();
-            this.restoreBtn(btn, 'image');
+            console.error('截图失败:', err);
             this.notify('截图失败: ' + err.message, 'error');
+        } finally {
+            // 恢复截图前的样式
+            popup.style.cssText = savedPopupStyle;
+            if (toolbar) toolbar.style.display = '';
         }
     },
 
-    // 不支持复制图片时，降级为下载
-    downloadFallback(canvas) {
+    downloadBlobFallback(blob) {
+        const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.download = '优惠券二维码.png';
-        link.href = canvas.toDataURL('image/png');
+        link.href = url;
         link.click();
-        this.notify('已保存二维码图片', 'success');
-    },
-
-    // 按钮设为加载中
-    setBtnLoading(btn) {
-        if (!btn) return;
-        btn.disabled = true;
-        btn.classList.add('ewm-btn-loading');
-        btn.innerHTML = '处理中...';
-    },
-
-    // 恢复按钮原始状态
-    restoreBtn(btn, type) {
-        if (!btn) return;
-        btn.disabled = false;
-        btn.classList.remove('ewm-btn-loading');
-        if (type === 'link') {
-            btn.innerHTML = '链接';
-        } else {
-            btn.innerHTML = '图片';
-        }
+        URL.revokeObjectURL(url);
+        this.notify('图片已保存', 'success');
     },
 
     // ========== 通知 ==========

@@ -56,7 +56,7 @@ const CjYangshi = {
     position: relative;
     background: white;
     border-radius: 8px;
-    width: 80%;
+    width: 85%;
     height: 80vh;
     max-width: 420px;
     max-height: 800px;
@@ -271,7 +271,7 @@ const CjYangshi = {
 
 /* 手机端适配 */
 @media (max-width: 768px) {
-    .yhquan-cj-content { width: 90%; height: 85vh; }
+    .yhquan-cj-content { width: 85%; height: 85vh; }
     .yhquan-cj-type-tab { font-size: 10px; }
     .yhquan-cj-body {
         scrollbar-width: none;

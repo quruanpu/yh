@@ -34,7 +34,7 @@ const XqYangshi = {
     position: relative;
     background: white;
     border-radius: 8px;
-    width: 80%;
+    width: 85%;
     max-width: 400px;
     max-height: 90vh;
     display: flex;
@@ -196,7 +196,7 @@ const XqYangshi = {
 /* 手机端适配 */
 @media (max-width: 768px) {
     .yhquan-xq-content {
-        width: 95%;
+        width: 85%;
         max-height: 85vh;
     }
 }

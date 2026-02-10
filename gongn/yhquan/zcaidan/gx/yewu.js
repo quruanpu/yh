@@ -5,31 +5,27 @@ const GxYewu = {
     currentCoupon: null,
     shareData: null,
     shareListener: null,
+    activityList: null,
     activityData: null,
     activityId: null,
     areaProvinces: null,
     _operationInProgress: false,
 
-    // 判断共享是否处于开启状态：数据库标识 → 活动API存在性
+    // 判断共享是否处于开启状态：有活动且未被禁用
     isSharingActive() {
-        // 数据库有明确标识，直接使用
-        if (this.shareData?.shifenggongxiang !== undefined && this.shareData?.shifenggongxiang !== null) {
-            return this.shareData.shifenggongxiang === true;
-        }
-        // 数据库无标识，活动API存在则视为开启
-        return this.activityData != null;
+        return this.activityData != null && this.activityData.isClose === 0;
     },
 
-    // 客户类型映射
+    // 客户类型映射（值与药师帮SCM后台一致）
     STORE_SUB_TYPES: [
         { value: -1, label: '不限' },
-        { value: 2, label: '零售单体' },
-        { value: 4, label: '第三终端' },
-        { value: 5, label: '民营医院' },
-        { value: 1, label: '连锁总部(批零一体)' },
+        { value: 0, label: '零售单体' },
+        { value: 1, label: '第三终端' },
+        { value: 2, label: '连锁总部(批零一体)' },
         { value: 3, label: '连锁加盟' },
-        { value: 6, label: '连锁总部(纯连锁)' },
-        { value: 7, label: '商业公司' },
+        { value: 4, label: '连锁总部(纯连锁)' },
+        { value: 5, label: '商业公司' },
+        { value: 6, label: '民营医院' },
         { value: 8, label: '医疗器械经营店' }
     ],
 
@@ -38,6 +34,7 @@ const GxYewu = {
     show(coupon) {
         this.currentCoupon = coupon;
         this.shareData = null;
+        this.activityList = null;
         this.activityData = null;
         this.activityId = null;
         this.areaProvinces = null;
@@ -46,31 +43,20 @@ const GxYewu = {
         this.render();
         this.bindEvents();
 
-        if (coupon.isSharing) {
-            // 已共享：加载数据库和活动API数据
-            this.setFormLoading(true);
-            this.loadAllData().then(() => {
-                this.refreshBody();
-                this.bindBodyEvents();
-                this.setFormLoading(false);
-                this.setupShareListener();
-            }).catch(err => {
-                console.error('加载数据失败:', err);
-                this.setFormLoading(false);
-            });
-        } else {
-            // 未共享：仅加载区域选项（供开启时选择），其余使用默认值
-            this.setFormLoading(true);
-            this.loadAreaProvinces().then(() => {
-                this.refreshBody();
-                this.bindBodyEvents();
-                this.setFormLoading(false);
-                this.setupShareListener();
-            }).catch(err => {
-                console.error('加载区域数据失败:', err);
-                this.setFormLoading(false);
-            });
-        }
+        // 统一加载：Firebase + 活动列表 + 选中活动详情 + 区域
+        this.setFormLoading(true);
+        this.loadAllData().then(() => {
+            this.refreshBody();
+            this.bindBodyEvents();
+            this.setFormLoading(false);
+            this.setupShareListener();
+        }).catch(err => {
+            console.error('加载数据失败:', err);
+            // 即使加载失败，也要渲染表单并绑定事件，确保UI可交互
+            this.refreshBody();
+            this.bindBodyEvents();
+            this.setFormLoading(false);
+        });
     },
 
     hide() {
@@ -79,6 +65,7 @@ const GxYewu = {
         if (modal) modal.remove();
         this.currentCoupon = null;
         this.shareData = null;
+        this.activityList = null;
         this.activityData = null;
         this.activityId = null;
         this.areaProvinces = null;
@@ -97,6 +84,9 @@ const GxYewu = {
             this.shareListener = couponRef.on('value', (snapshot) => {
                 this.shareData = snapshot.val();
                 this.updateButtonState();
+                // 根据 shifenggongxiang 自动更新卡片图标
+                const isSharing = !!(this.shareData?.shifenggongxiang);
+                this.updateCardStatusIcon(this.currentCoupon.id, isSharing);
             });
         } catch (error) {
             console.error('设置共享状态监听失败:', error);
@@ -126,11 +116,30 @@ const GxYewu = {
             }
 
             const card = document.querySelector(`.yhquan-card[data-id="${couponId}"]`);
-            if (card && coupon) {
+            if (!card) return;
+
+            // 更新状态图标（🌎️/💡）
+            if (coupon) {
                 const statusIcon = card.querySelector('.yhquan-status-icon');
                 if (statusIcon) {
                     statusIcon.textContent = YhquanGongju.getStatusIcon(coupon);
                 }
+            }
+
+            // 更新二维码图标显示/隐藏
+            const tagsRow = card.querySelector('.yhquan-card-tags');
+            if (!tagsRow) return;
+            const existingEwm = tagsRow.querySelector('.yhquan-tag-ewm');
+            const isValid = coupon ? YhquanGongju.getCouponStatus(coupon).valid : false;
+
+            if (isSharing && isValid) {
+                if (!existingEwm) {
+                    tagsRow.insertAdjacentHTML('beforeend',
+                        `<span class="yhquan-tag yhquan-tag-ewm" data-id="${couponId}" title="生成二维码链接"><i class="fa-solid fa-qrcode"></i></span>`
+                    );
+                }
+            } else {
+                if (existingEwm) existingEwm.remove();
             }
         } catch (error) {
             console.error('更新卡片状态图标失败:', error);
@@ -142,7 +151,11 @@ const GxYewu = {
     async loadShareData() {
         try {
             const db = firebase.database();
-            const snapshot = await db.ref(`yhq_gx/${this.currentCoupon.id}`).once('value');
+            const firebasePromise = db.ref(`yhq_gx/${this.currentCoupon.id}`).once('value');
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Firebase 连接超时')), 8000)
+            );
+            const snapshot = await Promise.race([firebasePromise, timeoutPromise]);
             this.shareData = snapshot.val();
         } catch (error) {
             console.error('加载共享数据失败:', error);
@@ -150,20 +163,28 @@ const GxYewu = {
         }
     },
 
-    async loadActivityData() {
+    async loadActivityList() {
         try {
             if (!window.EwmYewu) return;
-            const queryResult = await EwmYewu.queryByCouponId(this.currentCoupon.id);
+            const list = await EwmYewu.queryAllByCouponId(this.currentCoupon.id);
+            this.activityList = Array.isArray(list) ? list : [];
+        } catch (error) {
+            console.error('加载活动列表失败:', error);
+            this.activityList = [];
+        }
+    },
 
-            if (queryResult && queryResult.activityId) {
-                this.activityId = queryResult.activityId;
-                this.activityData = await EwmYewu.getActivityDetail(queryResult.activityId);
-            } else {
+    async loadSelectedActivity(activityId) {
+        try {
+            if (!window.EwmYewu || !activityId) {
                 this.activityId = null;
                 this.activityData = null;
+                return;
             }
+            this.activityId = activityId;
+            this.activityData = await EwmYewu.getActivityDetail(activityId);
         } catch (error) {
-            console.error('加载抢券活动数据失败:', error);
+            console.error('加载活动详情失败:', error);
             this.activityId = null;
             this.activityData = null;
         }
@@ -174,11 +195,28 @@ const GxYewu = {
             if (!window.EwmYewu) return;
             const data = await EwmYewu.getAreaTree('#', this.activityId || undefined);
             if (Array.isArray(data)) {
-                this.areaProvinces = data.map(item => ({
-                    id: parseInt(String(item.id).replace('node_', '')),
-                    text: item.text,
-                    selected: item.state?.selected || false
-                }));
+                // 调试：打印第一个省份的完整数据结构，确认 state 字段格式
+                if (data.length > 0) {
+                    console.log('[区域调试] 第一个省份原始数据:', JSON.stringify(data[0]));
+                }
+                this.areaProvinces = data.map(item => {
+                    const s = item.state;
+                    let isSelected = false;
+                    if (Array.isArray(s)) {
+                        // SCM 实际格式: [{status:"selected",assured:true/false}, {status:"undetermined",assured:true/false}, ...]
+                        isSelected = s.some(st =>
+                            (st.status === 'selected' || st.status === 'undetermined') && st.assured === true
+                        );
+                    } else if (s && typeof s === 'object') {
+                        // 兼容标准 jstree 对象格式
+                        isSelected = !!(s.selected || s.checked || s.undetermined);
+                    }
+                    return {
+                        id: parseInt(String(item.id).replace('node_', '')),
+                        text: item.text,
+                        selected: isSelected
+                    };
+                });
             }
         } catch (error) {
             console.error('加载区域数据失败:', error);
@@ -187,13 +225,22 @@ const GxYewu = {
     },
 
     async loadAllData() {
-        // 并行加载 Firebase 和活动数据
+        // 并行加载 Firebase（仅用于写入时的辅助字段）和活动列表（表单数据源）
         await Promise.all([
             this.loadShareData(),
-            this.loadActivityData()
+            this.loadActivityList()
         ]);
-        // 区域加载依赖 activityId，需在活动数据之后
-        await this.loadAreaProvinces();
+        // 默认选中第一个活动，加载其详情
+        const firstActivity = this.activityList?.[0];
+        if (firstActivity) {
+            await this.loadSelectedActivity(firstActivity.id);
+        }
+        // 异步加载区域数据（不阻塞UI，加载完后更新摘要）
+        if (this.activityData?.isLimitArea === 1) {
+            this.loadAreaProvinces().then(() => {
+                this.updateAreaSummaryFromData();
+            });
+        }
     },
 
     // ========== 加载状态控制 ==========
@@ -203,6 +250,7 @@ const GxYewu = {
         const toggleBtn = document.getElementById('yhquan-gx-toggle');
         const resetBtn = document.getElementById('yhquan-gx-reset');
         const updateBtn = document.getElementById('yhquan-gx-update');
+        const deleteBtn = document.getElementById('yhquan-gx-delete');
 
         if (loading) {
             if (body) body.style.opacity = '0.4';
@@ -210,12 +258,14 @@ const GxYewu = {
             if (toggleBtn) { toggleBtn.disabled = true; toggleBtn.classList.add('loading'); }
             if (resetBtn) { resetBtn.disabled = true; }
             if (updateBtn) { updateBtn.disabled = true; }
+            if (deleteBtn) { deleteBtn.disabled = true; }
         } else {
             if (body) body.style.opacity = '1';
             if (body) body.style.pointerEvents = '';
             if (toggleBtn) toggleBtn.classList.remove('loading');
             if (resetBtn) resetBtn.classList.remove('loading');
             if (updateBtn) updateBtn.classList.remove('loading');
+            if (deleteBtn) deleteBtn.classList.remove('loading');
             this.updateButtonState();
         }
     },
@@ -231,6 +281,7 @@ const GxYewu = {
 
         body.innerHTML = [
             this.renderCouponInfo(coupon, status),
+            this.renderActivitySelect(),
             this.renderKeywordInput(),
             this.renderLimitSettings(),
             this.renderStoreSubTypes(),
@@ -241,14 +292,21 @@ const GxYewu = {
 
     // ========== 日期工具 ==========
 
+    formatLocalDate(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    },
+
     getTodayStr() {
-        return new Date().toISOString().slice(0, 10);
+        return this.formatLocalDate(new Date());
     },
 
     getDefaultEndStr() {
         const d = new Date();
         d.setDate(d.getDate() + 2);
-        let endStr = d.toISOString().slice(0, 10);
+        let endStr = this.formatLocalDate(d);
         // 不能超过优惠券结束日期
         if (this.currentCoupon?.endTime) {
             const couponEnd = this.currentCoupon.endTime.split(' ')[0];
@@ -286,14 +344,43 @@ const GxYewu = {
         `;
     },
 
+    // ========== 渲染：抢券活动选择 ==========
+
+    renderActivitySelect() {
+        const list = this.activityList || [];
+        const selectedId = this.activityId;
+
+        let optionsHtml;
+        if (list.length === 0) {
+            optionsHtml = '<option value="">暂无抢券活动</option>';
+        } else {
+            optionsHtml = list.map(a => {
+                const sel = String(a.id) === String(selectedId) ? ' selected' : '';
+                const tag = a.isClose === 0 ? '启用' : '禁用';
+                const tagClass = a.isClose === 0 ? 'yhquan-gx-tag-on' : 'yhquan-gx-tag-off';
+                const name = YhquanGongju.escapeHtml(a.eventName || '未命名活动');
+                return `<option value="${a.id}"${sel}>[${tag}] ${name}</option>`;
+            }).join('');
+        }
+
+        return `
+            <div class="yhquan-gx-section">
+                <div class="yhquan-gx-section-title">2. 抢券活动</div>
+                <select class="yhquan-gx-select" id="yhquan-gx-activity-select">
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+    },
+
     // ========== 渲染：活动名称（原触发关键字） ==========
 
     renderKeywordInput() {
         const escape = YhquanGongju.escapeHtml;
-        const keyword = this.shareData?.guanjianzi || this.activityData?.eventName || '';
+        const keyword = this.activityData?.eventName || '';
         return `
             <div class="yhquan-gx-section">
-                <div class="yhquan-gx-section-title">2. 活动名称</div>
+                <div class="yhquan-gx-section-title">3. 活动名称</div>
                 <input type="text"
                        class="yhquan-gx-input"
                        id="yhquan-gx-keyword"
@@ -306,12 +393,12 @@ const GxYewu = {
     // ========== 渲染：数量设置 ==========
 
     renderLimitSettings() {
-        const totalLimit = this.shareData?.zengsongzongshu || this.activityData?.couponAmount || 10000;
-        const storeLimit = this.shareData?.dandianxianzhi || this.activityData?.couponNum || 5;
+        const totalLimit = this.activityData?.couponAmount || 10000;
+        const storeLimit = this.activityData?.couponNum || 5;
 
         return `
             <div class="yhquan-gx-section">
-                <div class="yhquan-gx-section-title">3. 数量设置</div>
+                <div class="yhquan-gx-section-title">4. 数量设置</div>
                 <div class="yhquan-gx-limit-row">
                     <div class="yhquan-gx-limit-item">
                         <label class="yhquan-gx-limit-label">总量上限</label>
@@ -326,87 +413,143 @@ const GxYewu = {
         `;
     },
 
+    // ========== 解析客户类型 ==========
+
+    // 解析API返回的storeSubtypes（拼接的单字符格式，如 "0163" → [0,1,6,3]，"-1" → [-1]）
+    parseApiStoreSubtypes(str) {
+        const s = String(str).trim();
+        if (s === '' || s === '-1') return [-1];
+        return s.split('').map(Number).filter(n => !isNaN(n));
+    },
+
     // ========== 渲染：领券对象 ==========
 
     renderStoreSubTypes() {
-        // 解析客户类型：数据库 → 活动API → 默认不限
+        // 解析客户类型：活动API → 默认不限
         let selected = [-1];
         const validValues = this.STORE_SUB_TYPES.map(t => t.value);
-        if (this.shareData?.kehuTypes != null && String(this.shareData.kehuTypes).trim() !== '') {
-            const parsed = String(this.shareData.kehuTypes).split(',').map(Number).filter(n => !isNaN(n));
-            if (parsed.length > 0) selected = parsed;
-        } else if (this.activityData?.storeSubtypes != null && String(this.activityData.storeSubtypes).trim() !== '') {
-            const parsed = String(this.activityData.storeSubtypes).split(',').map(Number).filter(n => !isNaN(n));
-            if (parsed.length > 0) selected = parsed;
+        if (this.activityData?.storeSubtypes != null && String(this.activityData.storeSubtypes).trim() !== '') {
+            selected = this.parseApiStoreSubtypes(this.activityData.storeSubtypes);
         }
-        // 解析值无法匹配任何已知类型时，回退到"不限"
         if (!selected.some(v => validValues.includes(v))) selected = [-1];
 
-        const chips = this.STORE_SUB_TYPES.map(t => {
+        const isUnlimited = selected.includes(-1);
+        const summaryText = isUnlimited ? '' : this.getChipsSummaryText(selected);
+        const bodyChips = this.STORE_SUB_TYPES.filter(t => t.value !== -1).map(t => {
             const isActive = selected.includes(t.value);
             return `<span class="yhquan-gx-chip${isActive ? ' active' : ''}" data-value="${t.value}">${t.label}</span>`;
         }).join('');
 
         return `
             <div class="yhquan-gx-section">
-                <div class="yhquan-gx-section-title">4. 领券对象</div>
-                <div class="yhquan-gx-chips" id="yhquan-gx-chips">${chips}</div>
-            </div>
-        `;
-    },
-
-    // ========== 渲染：区域设置 ==========
-
-    renderAreaSetting() {
-        // 数据库 → 活动API → 默认不限
-        const dbLimitArea = this.shareData?.isLimitArea;
-        let isLimited = (dbLimitArea !== undefined && dbLimitArea !== null)
-            ? dbLimitArea === 1
-            : this.activityData?.isLimitArea === 1;
-
-        // 解析数据库中存储的已选区域ID
-        let dbAreaIds = null;
-        if (this.shareData?.selectedAreaIds) {
-            dbAreaIds = String(this.shareData.selectedAreaIds).split(',').map(Number).filter(n => !isNaN(n) && n > 0);
-        }
-
-        // 预计算：标记为限制区域但实际无任何省份选中时，回退到"不限"
-        if (isLimited && this.areaProvinces && this.areaProvinces.length > 0) {
-            const hasAnyActive = this.areaProvinces.some(p => dbAreaIds ? dbAreaIds.includes(p.id) : p.selected);
-            if (!hasAnyActive) isLimited = false;
-        }
-
-        const noLimitActive = !isLimited ? ' active' : '';
-
-        let provinceChips = '';
-        if (this.areaProvinces && this.areaProvinces.length > 0) {
-            provinceChips = this.areaProvinces.map(p => {
-                const isActive = isLimited && (dbAreaIds ? dbAreaIds.includes(p.id) : p.selected);
-                return `<span class="yhquan-gx-chip yhquan-gx-area-chip${isActive ? ' active' : ''}" data-area-id="${p.id}">${p.text}</span>`;
-            }).join('');
-        }
-
-        return `
-            <div class="yhquan-gx-section">
-                <div class="yhquan-gx-section-title">5. 区域设置</div>
-                <div class="yhquan-gx-area-wrap" id="yhquan-gx-area-wrap">
-                    <span class="yhquan-gx-chip${noLimitActive}" id="yhquan-gx-area-nolimit">不限</span>
-                    ${provinceChips}
+                <div class="yhquan-gx-section-title">5. 领券对象</div>
+                <div class="yhquan-gx-chips" id="yhquan-gx-chips">
+                    <div class="yhquan-gx-collapse-header">
+                        <span class="yhquan-gx-chip${isUnlimited ? ' active' : ''}" data-value="-1">不限</span>
+                        <span class="yhquan-gx-collapse-summary" id="yhquan-gx-chips-summary">${summaryText}</span>
+                        <span class="yhquan-gx-expand-btn" id="yhquan-gx-chips-toggle">▼</span>
+                    </div>
+                    <div class="yhquan-gx-collapse-body" id="yhquan-gx-chips-body" style="display:none">
+                        ${bodyChips}
+                    </div>
                 </div>
             </div>
         `;
     },
 
+    // 通用摘要格式：已选"A、B、C"等N个xx
+    formatSummary(names, unit) {
+        if (names.length === 0) return '';
+        const preview = names.slice(0, 3).join('、');
+        return `已选"${preview}"等${names.length}个${unit}！`;
+    },
+
+    getChipsSummaryText(selected) {
+        const names = this.STORE_SUB_TYPES
+            .filter(t => t.value !== -1 && selected.includes(t.value))
+            .map(t => t.label);
+        return this.formatSummary(names, '领券对象');
+    },
+
+    updateChipsSummary() {
+        const summary = document.getElementById('yhquan-gx-chips-summary');
+        if (!summary) return;
+        const chips = document.querySelectorAll('#yhquan-gx-chips-body .yhquan-gx-chip.active');
+        const names = Array.from(chips).map(c => c.textContent);
+        summary.textContent = this.formatSummary(names, '领券对象');
+    },
+
+    // ========== 渲染：区域设置 ==========
+
+    renderAreaSetting() {
+        // 判断是否限制区域（仅从API读取）
+        const isLimited = this.activityData?.isLimitArea === 1;
+
+        const noLimitActive = !isLimited ? ' active' : '';
+        let summaryText = '';
+        if (isLimited && this.areaProvinces) {
+            const selectedNames = this.areaProvinces.filter(p => p.selected).map(p => p.text);
+            summaryText = this.formatSummary(selectedNames, '省份');
+        } else if (isLimited) {
+            summaryText = '加载中......';
+        }
+
+        return `
+            <div class="yhquan-gx-section">
+                <div class="yhquan-gx-section-title">6. 区域设置</div>
+                <div class="yhquan-gx-area-wrap" id="yhquan-gx-area-wrap">
+                    <div class="yhquan-gx-collapse-header">
+                        <span class="yhquan-gx-chip${noLimitActive}" id="yhquan-gx-area-nolimit">不限</span>
+                        <span class="yhquan-gx-collapse-summary" id="yhquan-gx-area-summary">${summaryText}</span>
+                        <span class="yhquan-gx-expand-btn" id="yhquan-gx-area-toggle">▼</span>
+                    </div>
+                    <div class="yhquan-gx-collapse-body" id="yhquan-gx-area-body" style="display:none">
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    // 渲染省份 chip 到折叠区域
+    renderAreaChips() {
+        const body = document.getElementById('yhquan-gx-area-body');
+        if (!body || !this.areaProvinces) return;
+
+        // 判断已选区域（仅从API读取）
+        const isLimited = this.activityData?.isLimitArea === 1;
+
+        body.innerHTML = this.areaProvinces.map(p => {
+            const isActive = isLimited && p.selected;
+            return `<span class="yhquan-gx-chip yhquan-gx-area-chip${isActive ? ' active' : ''}" data-area-id="${p.id}">${p.text}</span>`;
+        }).join('');
+    },
+
+    updateAreaSummary() {
+        const summary = document.getElementById('yhquan-gx-area-summary');
+        if (!summary) return;
+        const chips = document.querySelectorAll('#yhquan-gx-area-body .yhquan-gx-area-chip.active');
+        const names = Array.from(chips).map(c => c.textContent);
+        summary.textContent = this.formatSummary(names, '省份');
+    },
+
+    // 从内存数据更新摘要（异步加载完成后调用，不依赖DOM chip）
+    updateAreaSummaryFromData() {
+        const summary = document.getElementById('yhquan-gx-area-summary');
+        if (!summary || !this.areaProvinces) return;
+        const selectedNames = this.areaProvinces.filter(p => p.selected).map(p => p.text);
+        summary.textContent = this.formatSummary(selectedNames, '省份');
+    },
+
     // ========== 渲染：抢券时间 ==========
 
     renderDateRange() {
-        const beginDate = this.shareData?.beginTimeDate || this.activityData?.beginTimeDate || this.getTodayStr();
-        const endDate = this.shareData?.endTimeDate || this.activityData?.endTimeDate || this.getDefaultEndStr();
+        const beginDate = this.activityData?.beginTimeDate || this.getTodayStr();
+        const endDate = this.activityData?.endTimeDate || this.getDefaultEndStr();
         const maxDate = this.currentCoupon?.endTime ? this.currentCoupon.endTime.split(' ')[0] : '';
 
         return `
             <div class="yhquan-gx-section">
-                <div class="yhquan-gx-section-title">6. 抢券时间</div>
+                <div class="yhquan-gx-section-title">7. 抢券时间</div>
                 <div class="yhquan-gx-date-row">
                     <input type="date" class="yhquan-gx-date-input" id="yhquan-gx-begin"
                            value="${beginDate}" ${maxDate ? `max="${maxDate}"` : ''}>
@@ -456,8 +599,16 @@ const GxYewu = {
                     </div>
                     <div class="yhquan-gx-footer">
                         <div class="yhquan-gx-footer-left">
-                            <button class="yhquan-gx-btn yhquan-gx-btn-danger" id="yhquan-gx-reset" ${resetDisabled}>重置</button>
-                            <button class="yhquan-gx-btn yhquan-gx-btn-warning" id="yhquan-gx-update" ${toggleBtnDisabled}>更新</button>
+                            <div class="yhquan-gx-action-menu" id="yhquan-gx-action-menu">
+                                <div class="yhquan-gx-action-popup" id="yhquan-gx-action-popup">
+                                    <button class="yhquan-gx-btn yhquan-gx-btn-success" id="yhquan-gx-update" ${toggleBtnDisabled}>更新</button>
+                                    <button class="yhquan-gx-btn yhquan-gx-btn-danger" id="yhquan-gx-reset" ${resetDisabled}>重置</button>
+                                    <button class="yhquan-gx-btn yhquan-gx-btn-danger" id="yhquan-gx-delete" disabled>删除</button>
+                                </div>
+                                <button class="yhquan-gx-btn yhquan-gx-btn-primary" id="yhquan-gx-action-trigger">
+                                    操作 <i class="fa-solid fa-chevron-up"></i>
+                                </button>
+                            </div>
                         </div>
                         <button class="yhquan-gx-btn ${toggleBtnClass}" id="yhquan-gx-toggle" ${toggleBtnDisabled}>
                             ${toggleBtnText}
@@ -498,6 +649,12 @@ const GxYewu = {
             updateBtn.disabled = !isValid;
             updateBtn.classList.remove('loading');
         }
+
+        const deleteBtn = document.getElementById('yhquan-gx-delete');
+        if (deleteBtn) {
+            deleteBtn.disabled = !isValid || !this.activityId || this.isSharingActive();
+            deleteBtn.classList.remove('loading');
+        }
     },
 
     // ========== 表单读取 ==========
@@ -515,12 +672,11 @@ const GxYewu = {
     },
 
     getSelectedStoreSubTypes() {
-        const chips = document.querySelectorAll('#yhquan-gx-chips .yhquan-gx-chip.active');
+        const unlimitedChip = document.querySelector('#yhquan-gx-chips [data-value="-1"]');
+        if (unlimitedChip?.classList.contains('active')) return [-1];
+        const chips = document.querySelectorAll('#yhquan-gx-chips-body .yhquan-gx-chip.active');
         if (chips.length === 0) return [-1];
-        const values = Array.from(chips).map(c => parseInt(c.dataset.value));
-        // 如果选了"不限"，只返回[-1]
-        if (values.includes(-1)) return [-1];
-        return values;
+        return Array.from(chips).map(c => parseInt(c.dataset.value));
     },
 
     getSelectedAreaInfo() {
@@ -528,7 +684,7 @@ const GxYewu = {
         if (noLimitChip?.classList.contains('active')) {
             return { isLimitArea: 0, selectedAreaIds: [] };
         }
-        const areaChips = document.querySelectorAll('#yhquan-gx-area-wrap .yhquan-gx-area-chip.active');
+        const areaChips = document.querySelectorAll('#yhquan-gx-area-body .yhquan-gx-area-chip.active');
         const ids = Array.from(areaChips).map(c => parseInt(c.dataset.areaId));
         if (ids.length === 0) return { isLimitArea: 0, selectedAreaIds: [] };
         return { isLimitArea: 1, selectedAreaIds: ids };
@@ -538,80 +694,74 @@ const GxYewu = {
 
     async openSharing() {
         this._operationInProgress = true;
+        this.setFormLoading(true);
         const toggleBtn = document.getElementById('yhquan-gx-toggle');
-        const resetBtn = document.getElementById('yhquan-gx-reset');
         if (toggleBtn) { toggleBtn.classList.add('loading'); toggleBtn.disabled = true; }
-        if (resetBtn) { resetBtn.disabled = true; }
 
         try {
             const form = this.getFormValues();
 
-            // 1. 更新 Firebase（全字段）
-            const db = firebase.database();
-            const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-            await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
-                shifenggongxiang: true,
-                guanjianzi: form.keyword,
-                mingcheng: form.keyword,
-                gengxinshijian: now,
-                zengsongzongshu: form.totalLimit,
-                dandianxianzhi: form.storeLimit,
-                yifafangzongshu: this.shareData?.yifafangzongshu || 0,
-                kehuTypes: form.storeSubTypes.join(','),
-                isLimitArea: form.isLimitArea,
-                selectedAreaIds: form.selectedAreaIds.join(','),
-                beginTimeDate: form.beginDate,
-                endTimeDate: form.endDate
-            });
-
-            // 2. 处理抢券活动
+            // 1. 处理抢券活动：只启用，不编辑；无活动则创建
             if (window.EwmYewu) {
-                const activityParams = {
-                    eventName: form.keyword,
-                    couponTypeId: this.currentCoupon.id,
-                    couponNum: form.storeLimit,
-                    couponAmount: form.totalLimit,
-                    tagBeginTimeDate: form.beginDate,
-                    tagBeginTimeHms: '00:00:00',
-                    beginTimeDate: form.beginDate,
-                    beginTimeHms: '00:00:00',
-                    endTimeDate: form.endDate,
-                    endTimeHms: '23:59:59',
-                    storeSubTypes: form.storeSubTypes,
-                    isLimitArea: form.isLimitArea,
-                    selectedAreaIds: form.selectedAreaIds,
-                    deselectedAreaIds: []
-                };
+                let isNewlyCreated = false;
 
-                const queryResult = await EwmYewu.queryByCouponId(this.currentCoupon.id);
-
-                if (queryResult && queryResult.activityId) {
-                    const detail = await EwmYewu.getActivityDetail(queryResult.activityId);
-                    if (detail && detail.isClose === 1) {
-                        await EwmYewu.enableActivity(queryResult.activityId, form.storeSubTypes);
-                    }
-                    await EwmYewu.editActivity(queryResult.activityId, activityParams);
-                    this.activityId = queryResult.activityId;
+                if (this.activityId) {
+                    // 有选中活动：仅启用（不执行编辑）
+                    await EwmYewu.enableActivity(this.activityId, form.storeSubTypes);
                 } else {
-                    const newId = await EwmYewu.createNewActivity(activityParams);
+                    // 无活动：以表单设置创建新活动
+                    const newId = await EwmYewu.createNewActivity({
+                        eventName: form.keyword,
+                        couponTypeId: this.currentCoupon.id,
+                        couponNum: form.storeLimit,
+                        couponAmount: form.totalLimit,
+                        tagBeginTimeDate: form.beginDate,
+                        tagBeginTimeHms: '00:00:00',
+                        beginTimeDate: form.beginDate,
+                        beginTimeHms: '00:00:00',
+                        endTimeDate: form.endDate,
+                        endTimeHms: '23:59:59',
+                        storeSubTypes: form.storeSubTypes,
+                        isLimitArea: form.isLimitArea,
+                        selectedAreaIds: form.selectedAreaIds,
+                        deselectedAreaIds: []
+                    });
                     this.activityId = newId;
+                    isNewlyCreated = true;
+
+                    // 加载新活动的完整详情
+                    await this.loadSelectedActivity(newId);
+                    this.areaProvinces = null;
                 }
 
-                // 同步内部状态：标记活动为启用
+                // 刷新活动列表下拉
+                await this.refreshActivitySelect();
+
+                // 同步内部状态
                 if (!this.activityData) this.activityData = {};
                 this.activityData.isClose = 0;
+
+                // 新创建活动时刷新表单区域
+                if (isNewlyCreated) {
+                    this.refreshFormSections();
+                    this.bindFormSectionEvents();
+                }
             }
 
-            this.updateCardStatusIcon(this.currentCoupon.id, true);
+            // 2. Firebase：无条件写 shifenggongxiang + guanjianzi
+            const db = firebase.database();
+            await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+                shifenggongxiang: true,
+                guanjianzi: form.keyword
+            });
+
             this.showNotification('共享已开启', 'success');
         } catch (error) {
             console.error('开启共享失败:', error);
             this.showNotification('开启失败: ' + error.message, 'error');
         } finally {
-            // 所有操作完成后才恢复按钮状态
             this._operationInProgress = false;
-            this.updateButtonState();
+            this.setFormLoading(false);
         }
     },
 
@@ -619,56 +769,41 @@ const GxYewu = {
 
     async closeSharing() {
         this._operationInProgress = true;
+        this.setFormLoading(true);
         const toggleBtn = document.getElementById('yhquan-gx-toggle');
-        const resetBtn = document.getElementById('yhquan-gx-reset');
         if (toggleBtn) { toggleBtn.classList.add('loading'); toggleBtn.disabled = true; }
-        if (resetBtn) { resetBtn.disabled = true; }
 
         try {
-            const form = this.getFormValues();
-
-            // 1. Firebase 更新状态和数据（保留节点）
-            const db = firebase.database();
-            const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
-            await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
-                shifenggongxiang: false,
-                guanjianzi: form.keyword,
-                mingcheng: form.keyword,
-                gengxinshijian: now,
-                zengsongzongshu: form.totalLimit,
-                dandianxianzhi: form.storeLimit,
-                kehuTypes: form.storeSubTypes.join(','),
-                isLimitArea: form.isLimitArea,
-                selectedAreaIds: form.selectedAreaIds.join(','),
-                beginTimeDate: form.beginDate,
-                endTimeDate: form.endDate
-            });
-
-            // 2. 处理抢券活动：先禁用再删除
-            if (window.EwmYewu) {
-                try {
-                    const queryResult = await EwmYewu.queryByCouponId(this.currentCoupon.id);
-                    if (queryResult && queryResult.activityId) {
-                        const storeSubTypes = this.getSelectedStoreSubTypes();
-                        await EwmYewu.disableActivity(queryResult.activityId, storeSubTypes);
-                        await EwmYewu.deleteActivity(queryResult.activityId);
-                    }
-                } catch (apiErr) {
-                    console.error('关闭抢券活动失败:', apiErr);
-                }
+            // 1. 禁用当前选中的抢券活动
+            if (window.EwmYewu && this.activityId) {
+                const storeSubTypes = this.getSelectedStoreSubTypes();
+                await EwmYewu.disableActivity(this.activityId, storeSubTypes);
             }
 
-            this.activityId = null;
-            this.activityData = null;
-            this.updateCardStatusIcon(this.currentCoupon.id, false);
-            this.showNotification('共享已关闭', 'success');
+            // 同步内部状态
+            if (this.activityData) this.activityData.isClose = 1;
+
+            // 刷新活动列表下拉（获取最新状态）
+            await this.refreshActivitySelect();
+
+            // 2. 检查是否还有其他启用的活动
+            const hasEnabledActivity = (this.activityList || []).some(a => a.isClose === 0);
+
+            // 仅当没有任何启用的活动时，才写 shifenggongxiang: false
+            if (!hasEnabledActivity) {
+                const db = firebase.database();
+                await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+                    shifenggongxiang: false
+                });
+            }
+
+            this.showNotification('已禁用选中的活动', 'success');
         } catch (error) {
             console.error('关闭共享失败:', error);
             this.showNotification('关闭失败，请重试', 'error');
         } finally {
-            // 所有操作完成后才恢复按钮状态
             this._operationInProgress = false;
-            this.updateButtonState();
+            this.setFormLoading(false);
         }
     },
 
@@ -686,28 +821,15 @@ const GxYewu = {
 
     async handleReset() {
         this._operationInProgress = true;
+        this.setFormLoading(true);
         const resetBtn = document.getElementById('yhquan-gx-reset');
-        const toggleBtn = document.getElementById('yhquan-gx-toggle');
         if (resetBtn) { resetBtn.classList.add('loading'); resetBtn.disabled = true; }
-        if (toggleBtn) { toggleBtn.disabled = true; }
 
         try {
-            // 1. 重置 Firebase（全字段）
+            // 1. Firebase：只同步 guanjianzi（不改变 shifenggongxiang）
             const db = firebase.database();
-            const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
             await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
-                guanjianzi: this.currentCoupon.name,
-                mingcheng: this.currentCoupon.name,
-                gengxinshijian: now,
-                yaodiantongji: null,
-                yifafangzongshu: 0,
-                dandianxianzhi: 5,
-                zengsongzongshu: 10000,
-                kehuTypes: '-1',
-                isLimitArea: 0,
-                selectedAreaIds: '',
-                beginTimeDate: this.getTodayStr(),
-                endTimeDate: this.getDefaultEndStr()
+                guanjianzi: this.currentCoupon.name
             });
 
             // 2. 同步修改抢券活动
@@ -737,19 +859,6 @@ const GxYewu = {
             }
 
             // 3. 更新内部状态为重置后的值
-            if (this.shareData) {
-                this.shareData.guanjianzi = this.currentCoupon.name;
-                this.shareData.mingcheng = this.currentCoupon.name;
-                this.shareData.dandianxianzhi = 5;
-                this.shareData.zengsongzongshu = 10000;
-                this.shareData.yifafangzongshu = 0;
-                this.shareData.yaodiantongji = null;
-                this.shareData.kehuTypes = '-1';
-                this.shareData.isLimitArea = 0;
-                this.shareData.selectedAreaIds = '';
-                this.shareData.beginTimeDate = this.getTodayStr();
-                this.shareData.endTimeDate = this.getDefaultEndStr();
-            }
             if (this.activityData) {
                 this.activityData.eventName = this.currentCoupon.name;
                 this.activityData.couponNum = 5;
@@ -764,13 +873,16 @@ const GxYewu = {
             this.refreshBody();
             this.bindBodyEvents();
 
+            // 刷新活动列表下拉（活动名称已重置）
+            await this.refreshActivitySelect();
+
             this.showNotification(`${this.currentCoupon.name} 重置成功！`, 'success');
         } catch (error) {
             console.error('重置失败:', error);
             this.showNotification('重置失败，请重试', 'error');
         } finally {
             this._operationInProgress = false;
-            this.updateButtonState();
+            this.setFormLoading(false);
         }
     },
 
@@ -788,20 +900,10 @@ const GxYewu = {
         try {
             const form = this.getFormValues();
 
-            // 1. 更新 Firebase（全字段）
+            // 1. Firebase：只同步 guanjianzi（不改变 shifenggongxiang）
             const db = firebase.database();
-            const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
             await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
-                guanjianzi: form.keyword,
-                mingcheng: form.keyword,
-                gengxinshijian: now,
-                zengsongzongshu: form.totalLimit,
-                dandianxianzhi: form.storeLimit,
-                kehuTypes: form.storeSubTypes.join(','),
-                isLimitArea: form.isLimitArea,
-                selectedAreaIds: form.selectedAreaIds.join(','),
-                beginTimeDate: form.beginDate,
-                endTimeDate: form.endDate
+                guanjianzi: form.keyword
             });
 
             // 2. 如果有活动，同步编辑活动信息
@@ -824,6 +926,9 @@ const GxYewu = {
                 });
             }
 
+            // 刷新活动列表下拉（活动名称可能变更）
+            await this.refreshActivitySelect();
+
             this.showNotification('更新成功', 'success');
         } catch (error) {
             console.error('更新失败:', error);
@@ -831,6 +936,63 @@ const GxYewu = {
         } finally {
             this._operationInProgress = false;
             this.updateButtonState();
+        }
+    },
+
+    // ========== 删除 ==========
+
+    async handleDelete() {
+        if (!this.activityId) {
+            this.showNotification('没有选中的活动可删除', 'warning');
+            return;
+        }
+
+        this._operationInProgress = true;
+        this.setFormLoading(true);
+        const deleteBtn = document.getElementById('yhquan-gx-delete');
+        if (deleteBtn) { deleteBtn.classList.add('loading'); deleteBtn.disabled = true; }
+
+        try {
+            // 1. 调用删除接口
+            if (window.EwmYewu) {
+                await EwmYewu.deleteActivity(this.activityId);
+            }
+
+            // 2. 清除当前选中
+            const deletedId = this.activityId;
+            this.activityId = null;
+            this.activityData = null;
+            this.areaProvinces = null;
+
+            // 3. 刷新活动列表
+            await this.loadActivityList();
+
+            // 4. 选中下一个活动（如有）
+            const nextActivity = (this.activityList || [])[0];
+            if (nextActivity) {
+                await this.loadSelectedActivity(nextActivity.id);
+            }
+
+            // 5. 刷新整个表单
+            this.refreshBody();
+            this.bindBodyEvents();
+
+            // 6. 如果没有任何启用的活动，同步 Firebase
+            const hasEnabled = (this.activityList || []).some(a => a.isClose === 0);
+            if (!hasEnabled) {
+                const db = firebase.database();
+                await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+                    shifenggongxiang: false
+                });
+            }
+
+            this.showNotification('活动已删除', 'success');
+        } catch (error) {
+            console.error('删除活动失败:', error);
+            this.showNotification('删除失败: ' + error.message, 'error');
+        } finally {
+            this._operationInProgress = false;
+            this.setFormLoading(false);
         }
     },
 
@@ -851,17 +1013,127 @@ const GxYewu = {
         const toggleBtn = document.getElementById('yhquan-gx-toggle');
         const resetBtn = document.getElementById('yhquan-gx-reset');
         const updateBtn = document.getElementById('yhquan-gx-update');
+        const deleteBtn = document.getElementById('yhquan-gx-delete');
+        const actionTrigger = document.getElementById('yhquan-gx-action-trigger');
+        const actionPopup = document.getElementById('yhquan-gx-action-popup');
 
         closeBtn?.addEventListener('click', () => this.hide());
         toggleBtn?.addEventListener('click', () => this.handleToggle());
         resetBtn?.addEventListener('click', () => this.handleReset());
         updateBtn?.addEventListener('click', () => this.handleUpdate());
+        deleteBtn?.addEventListener('click', () => this.handleDelete());
+
+        // 操作菜单展开/折叠
+        if (actionTrigger && actionPopup) {
+            actionTrigger.addEventListener('click', () => {
+                actionPopup.classList.toggle('open');
+                actionTrigger.classList.toggle('open');
+            });
+        }
+    },
+
+    closeActionMenu() {
+        const popup = document.getElementById('yhquan-gx-action-popup');
+        const trigger = document.getElementById('yhquan-gx-action-trigger');
+        if (popup) popup.classList.remove('open');
+        if (trigger) trigger.classList.remove('open');
+    },
+
+    // ========== 刷新活动下拉 ==========
+
+    async refreshActivitySelect() {
+        try {
+            await this.loadActivityList();
+            const selectEl = document.getElementById('yhquan-gx-activity-select');
+            if (!selectEl) return;
+
+            const list = this.activityList || [];
+            const selectedId = this.activityId;
+
+            if (list.length === 0) {
+                selectEl.innerHTML = '<option value="">暂无抢券活动</option>';
+            } else {
+                selectEl.innerHTML = list.map(a => {
+                    const sel = String(a.id) === String(selectedId) ? ' selected' : '';
+                    const tag = a.isClose === 0 ? '启用' : '禁用';
+                    const name = YhquanGongju.escapeHtml(a.eventName || '未命名活动');
+                    return `<option value="${a.id}"${sel}>[${tag}] ${name}</option>`;
+                }).join('');
+            }
+        } catch (err) {
+            console.error('刷新活动下拉失败:', err);
+        }
+    },
+
+    // ========== 活动切换 ==========
+
+    async onActivityChange(newActivityId) {
+        if (!newActivityId || newActivityId === String(this.activityId)) return;
+
+        this.setFormLoading(true);
+        try {
+            await this.loadSelectedActivity(newActivityId);
+            // 重置区域数据，下次展开时重新懒加载（带新的 activityId）
+            this.areaProvinces = null;
+            this.refreshFormSections();
+            this.bindFormSectionEvents();
+        } catch (err) {
+            console.error('切换活动失败:', err);
+            this.showNotification('加载活动数据失败', 'error');
+        } finally {
+            this.setFormLoading(false);
+        }
+    },
+
+    // 仅刷新表单区域（不刷新活动下拉）
+    refreshFormSections() {
+        const body = document.querySelector('.yhquan-gx-body');
+        if (!body) return;
+
+        // 保留前两个 section（优惠券信息 + 活动选择），替换后续表单
+        const sections = body.querySelectorAll('.yhquan-gx-section');
+        // 移除第3个及之后的 section
+        for (let i = sections.length - 1; i >= 2; i--) {
+            sections[i].remove();
+        }
+
+        // 追加新的表单区块
+        const formHtml = [
+            this.renderKeywordInput(),
+            this.renderLimitSettings(),
+            this.renderStoreSubTypes(),
+            this.renderAreaSetting(),
+            this.renderDateRange()
+        ].join('');
+
+        body.insertAdjacentHTML('beforeend', formHtml);
+    },
+
+    // 仅绑定表单区域事件（不含活动下拉）
+    bindFormSectionEvents() {
+        // 复用 bindBodyEvents 中除活动下拉外的逻辑
+        this.bindStoreInput();
+        this.bindChipsEvents();
+        this.bindAreaEvents();
+        this.bindDateEvents();
     },
 
     // ========== 事件绑定（内容区，每次刷新后重新绑定） ==========
 
     bindBodyEvents() {
-        // 单店限制：大于5自动修正为5
+        // 抢券活动下拉切换
+        const activitySelect = document.getElementById('yhquan-gx-activity-select');
+        if (activitySelect) {
+            activitySelect.addEventListener('change', () => this.onActivityChange(activitySelect.value));
+        }
+        // 表单区域事件
+        this.bindStoreInput();
+        this.bindChipsEvents();
+        this.bindAreaEvents();
+        this.bindDateEvents();
+    },
+
+    bindStoreInput() {
         const storeInput = document.getElementById('yhquan-gx-store');
         if (storeInput) {
             storeInput.addEventListener('input', () => {
@@ -872,49 +1144,129 @@ const GxYewu = {
                 }
             });
         }
+    },
 
-        // 领券对象多选标签
-        const chipsContainer = document.getElementById('yhquan-gx-chips');
-        if (chipsContainer) {
-            chipsContainer.addEventListener('click', (e) => {
+    bindChipsEvents() {
+        // 展开/收起按钮
+        const toggleBtn = document.getElementById('yhquan-gx-chips-toggle');
+        const body = document.getElementById('yhquan-gx-chips-body');
+        if (toggleBtn && body) {
+            toggleBtn.addEventListener('click', () => {
+                const isHidden = body.style.display === 'none';
+                body.style.display = isHidden ? 'flex' : 'none';
+                toggleBtn.textContent = isHidden ? '▲' : '▼';
+            });
+        }
+
+        // "不限" chip 点击
+        const unlimitedChip = document.querySelector('#yhquan-gx-chips [data-value="-1"]');
+        if (unlimitedChip) {
+            unlimitedChip.addEventListener('click', () => {
+                // 清除所有选中
+                document.querySelectorAll('#yhquan-gx-chips-body .yhquan-gx-chip').forEach(c => c.classList.remove('active'));
+                unlimitedChip.classList.add('active');
+                // 收起折叠区域
+                if (body) { body.style.display = 'none'; }
+                if (toggleBtn) { toggleBtn.textContent = '▼'; }
+                this.updateChipsSummary();
+            });
+        }
+
+        // 折叠区域内 chip 点击
+        if (body) {
+            body.addEventListener('click', (e) => {
                 const chip = e.target.closest('.yhquan-gx-chip');
                 if (!chip) return;
-                const value = parseInt(chip.dataset.value);
+                if (unlimitedChip) unlimitedChip.classList.remove('active');
+                chip.classList.toggle('active');
+                // 无任何选中时回退到"不限"
+                const anyActive = body.querySelector('.yhquan-gx-chip.active');
+                if (!anyActive && unlimitedChip) {
+                    unlimitedChip.classList.add('active');
+                    body.style.display = 'none';
+                    if (toggleBtn) toggleBtn.textContent = '▼';
+                }
+                this.updateChipsSummary();
+            });
+        }
+    },
 
-                if (value === -1) {
-                    chipsContainer.querySelectorAll('.yhquan-gx-chip').forEach(c => c.classList.remove('active'));
-                    chip.classList.add('active');
+    bindAreaEvents() {
+        const toggleBtn = document.getElementById('yhquan-gx-area-toggle');
+        const body = document.getElementById('yhquan-gx-area-body');
+        const noLimitChip = document.getElementById('yhquan-gx-area-nolimit');
+
+        // 展开/收起按钮（含懒加载）
+        if (toggleBtn && body) {
+            toggleBtn.addEventListener('click', async () => {
+                const isHidden = body.style.display === 'none';
+                if (isHidden) {
+                    // 首次展开：懒加载区域数据
+                    if (!this.areaProvinces) {
+                        body.innerHTML = '<span class="yhquan-gx-collapse-loading">加载中...</span>';
+                        body.style.display = 'flex';
+                        toggleBtn.textContent = '▲';
+                        await this.loadAreaProvinces();
+                        this.renderAreaChips();
+                        this.bindAreaChipEvents();
+                        // 渲染后检查：如果没有任何省份被选中，自动回退到"不限"
+                        const anyActive = body.querySelector('.yhquan-gx-area-chip.active');
+                        if (!anyActive && noLimitChip) {
+                            noLimitChip.classList.add('active');
+                        }
+                        this.updateAreaSummary();
+                    } else {
+                        // 数据已预加载但 chip 未渲染到 DOM
+                        if (!body.querySelector('.yhquan-gx-area-chip')) {
+                            this.renderAreaChips();
+                            this.bindAreaChipEvents();
+                            const anyActive = body.querySelector('.yhquan-gx-area-chip.active');
+                            if (!anyActive && noLimitChip) {
+                                noLimitChip.classList.add('active');
+                            }
+                            this.updateAreaSummary();
+                        }
+                        body.style.display = 'flex';
+                        toggleBtn.textContent = '▲';
+                    }
                 } else {
-                    const unlimitedChip = chipsContainer.querySelector('[data-value="-1"]');
-                    if (unlimitedChip) unlimitedChip.classList.remove('active');
-                    chip.classList.toggle('active');
-                    const anyActive = chipsContainer.querySelector('.yhquan-gx-chip.active');
-                    if (!anyActive && unlimitedChip) unlimitedChip.classList.add('active');
+                    body.style.display = 'none';
+                    toggleBtn.textContent = '▼';
                 }
             });
         }
 
-        // 区域设置多选标签
-        const areaWrap = document.getElementById('yhquan-gx-area-wrap');
-        if (areaWrap) {
-            areaWrap.addEventListener('click', (e) => {
-                const chip = e.target.closest('.yhquan-gx-chip');
-                if (!chip) return;
-                const noLimitChip = document.getElementById('yhquan-gx-area-nolimit');
-
-                if (chip === noLimitChip) {
-                    areaWrap.querySelectorAll('.yhquan-gx-area-chip').forEach(c => c.classList.remove('active'));
-                    chip.classList.add('active');
-                } else {
-                    if (noLimitChip) noLimitChip.classList.remove('active');
-                    chip.classList.toggle('active');
-                    const anyActive = areaWrap.querySelector('.yhquan-gx-area-chip.active');
-                    if (!anyActive && noLimitChip) noLimitChip.classList.add('active');
-                }
+        // "不限" chip 点击
+        if (noLimitChip) {
+            noLimitChip.addEventListener('click', () => {
+                document.querySelectorAll('#yhquan-gx-area-body .yhquan-gx-area-chip').forEach(c => c.classList.remove('active'));
+                noLimitChip.classList.add('active');
+                this.updateAreaSummary();
             });
         }
+    },
 
-        // 抢券时间联动
+    // 绑定省份 chip 点击事件（懒加载后调用）
+    bindAreaChipEvents() {
+        const body = document.getElementById('yhquan-gx-area-body');
+        const noLimitChip = document.getElementById('yhquan-gx-area-nolimit');
+        const toggleBtn = document.getElementById('yhquan-gx-area-toggle');
+        if (!body) return;
+
+        body.addEventListener('click', (e) => {
+            const chip = e.target.closest('.yhquan-gx-area-chip');
+            if (!chip) return;
+            if (noLimitChip) noLimitChip.classList.remove('active');
+            chip.classList.toggle('active');
+            const anyActive = body.querySelector('.yhquan-gx-area-chip.active');
+            if (!anyActive && noLimitChip) {
+                noLimitChip.classList.add('active');
+            }
+            this.updateAreaSummary();
+        });
+    },
+
+    bindDateEvents() {
         const beginInput = document.getElementById('yhquan-gx-begin');
         const endInput = document.getElementById('yhquan-gx-end');
         const maxDate = this.currentCoupon?.endTime ? this.currentCoupon.endTime.split(' ')[0] : '';
@@ -924,7 +1276,7 @@ const GxYewu = {
                 if (!beginInput.value || !endInput) return;
                 const d = new Date(beginInput.value);
                 d.setDate(d.getDate() + 2);
-                let endStr = d.toISOString().slice(0, 10);
+                let endStr = this.formatLocalDate(d);
                 if (maxDate && endStr > maxDate) endStr = maxDate;
                 endInput.value = endStr;
             });
@@ -934,8 +1286,8 @@ const GxYewu = {
                 if (!endInput.value || !beginInput) return;
                 const d = new Date(endInput.value);
                 d.setDate(d.getDate() - 2);
-                const today = new Date().toISOString().slice(0, 10);
-                let beginStr = d.toISOString().slice(0, 10);
+                const today = this.formatLocalDate(new Date());
+                let beginStr = this.formatLocalDate(d);
                 if (beginStr < today) beginStr = today;
                 beginInput.value = beginStr;
             });
