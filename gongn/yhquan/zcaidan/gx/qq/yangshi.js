@@ -267,6 +267,10 @@ const EwmYangshi = {
     .ewm-popup-quote {
         max-width: 210px;
     }
+
+    #ewm-copy-img {
+        display: none;
+    }
 }
         `;
     },
