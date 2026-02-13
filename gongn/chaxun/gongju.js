@@ -23,7 +23,7 @@ const GongjuApi = {
         return {
             token: credentials.token,
             cookies: credentials.cookies,
-            providerIdM: credentials.providerIdM || credentials.providerId
+            providerIdM: credentials.provider_id_m || credentials.provider_id
         };
     },
 
@@ -59,7 +59,11 @@ const GongjuApi = {
             const result = await response.json();
 
             if (result.code !== 0) {
-                return { success: false, error: result.message || '查询失败' };
+                const msg = result.message || '';
+                if (msg.includes('登录') || msg.includes('凭证')) {
+                    return { success: false, error: 'NO_PMS_LOGIN', message: msg };
+                }
+                return { success: false, error: msg || '查询失败' };
             }
 
             const products = result.data?.products || [];
@@ -117,7 +121,11 @@ const GongjuApi = {
             const result = await response.json();
 
             if (result.code !== 0) {
-                throw new Error(result.message || '查询失败');
+                const msg = result.message || '';
+                if (msg.includes('登录') || msg.includes('凭证')) {
+                    return { success: false, error: 'NO_LOGIN', message: msg };
+                }
+                throw new Error(msg || '查询失败');
             }
 
             return {

@@ -286,11 +286,7 @@ const KuangjiaYewu = {
             );
 
             if (!result.success) {
-                if (result.error === 'NO_LOGIN') {
-                    this.showLoginRequired();
-                } else {
-                    this.showEmpty(result.error || '加载失败');
-                }
+                this.showLoginRequired();
                 return;
             }
 
@@ -343,12 +339,8 @@ const KuangjiaYewu = {
             valueSpan.textContent = result.contactor;
             eyeIcon.style.display = 'none';
         } else {
-            // PMS登录失效时使用通知提示
             if (result.error === 'NO_PMS_LOGIN') {
-                if (window.Tongzhi) {
-                    Tongzhi.warning('请重新登录Pms！');
-                }
-                valueSpan.textContent = '登录失效！';
+                valueSpan.textContent = '登录失效';
             } else {
                 valueSpan.textContent = result.error || '查询失败';
             }
@@ -405,11 +397,7 @@ const KuangjiaYewu = {
         if (!container) return;
         container.innerHTML = `
             <div class="chaxun-login-required">
-                <div class="chaxun-login-icon">
-                    <i class="fa-solid fa-user-lock"></i>
-                </div>
-                <div class="chaxun-login-text">无有效登录，请重新登录并重新搜索！</div>
-                <div class="chaxun-login-hint">点击左下角"登录账户"进行登录</div>
+                <div class="chaxun-login-text">当前未登录或登录信息失效！请重新登录。</div>
             </div>
         `;
     },

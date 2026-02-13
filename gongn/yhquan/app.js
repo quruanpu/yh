@@ -43,11 +43,7 @@ const YhquanModule = {
 
         container.innerHTML = `
             <div class="yhquan-login-required">
-                <div class="yhquan-login-icon">
-                    <i class="fa-solid fa-user-lock"></i>
-                </div>
-                <div class="yhquan-login-text">无有效登录，请重新登录并重新搜索！</div>
-                <div class="yhquan-login-hint">点击左下角"登录账户"进行登录</div>
+                <div class="yhquan-login-text">当前未登录或登录信息失效！请重新登录。</div>
             </div>
         `;
     },
@@ -63,11 +59,7 @@ const YhquanModule = {
                     console.log('检测到重复搜索请求，已忽略');
                     return;
                 }
-                if (result.error === 'NO_LOGIN') {
-                    this.showLoginRequired();
-                } else {
-                    this.showEmpty(result.error || '加载失败');
-                }
+                this.showLoginRequired();
                 return;
             }
 

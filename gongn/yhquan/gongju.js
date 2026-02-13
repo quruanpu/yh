@@ -75,7 +75,11 @@ const YhquanGongju = {
             }
 
             if (result.success === false) {
-                throw new Error(result.message || '搜索失败');
+                const msg = result.message || '';
+                if (msg.includes('登录') || msg.includes('凭证')) {
+                    return { success: false, error: 'NO_LOGIN', message: msg };
+                }
+                throw new Error(msg || '搜索失败');
             }
 
             const coupons = result.data?.results || [];
