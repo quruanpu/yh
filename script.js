@@ -299,6 +299,36 @@ const AppFramework = {
         }
     },
 
+    // 获取IP定位并显示地区（JSONP方式调用太平洋电脑网IP接口）
+    initLocation() {
+        const el = document.getElementById('location-text');
+        if (!el) return;
+        this.locationCity = '';
+        this.locationReady = new Promise((resolve) => {
+            this._resolveLocation = resolve;
+        });
+        const cb = '_qqMapCb_' + Date.now();
+        const script = document.createElement('script');
+        const timeout = setTimeout(() => { delete window[cb]; script.remove(); this._resolveLocation(''); }, 5000);
+        window[cb] = (res) => {
+            clearTimeout(timeout);
+            delete window[cb];
+            script.remove();
+            if (res.status === 0 && res.result?.ad_info) {
+                const province = res.result.ad_info.province || '';
+                const city = res.result.ad_info.city || '';
+                this.locationCity = city;
+                if (province || city) {
+                    el.textContent = (province === city ? city : province + city) + ' · ';
+                }
+            }
+            this._resolveLocation(this.locationCity);
+        };
+        script.src = `https://apis.map.qq.com/ws/location/v1/ip?key=HITBZ-I5IC3-4QR3L-RXGCF-SYSQ7-GSFBA&output=jsonp&callback=${cb}`;
+        script.onerror = () => { clearTimeout(timeout); delete window[cb]; script.remove(); this._resolveLocation(''); };
+        document.head.appendChild(script);
+    },
+
     // 自动登录检查（使用登录模块统一接口）
     /**
      * 账户名称显示规则（由LoginModule.getDisplayUsername处理）：
@@ -331,14 +361,14 @@ const AppFramework = {
     init() {
         this.updateDate();
         this.initDeviceCode();
+        this.initLocation();
         this.initSidebar();
         this.loadDefaultModule();
         // 电脑端默认展开侧边栏
         if (!this.isMobile) {
             this.openSidebar();
         }
-        // 执行自动登录检查
-        this.checkAutoLogin();
+        // 登录检查由 LoginModule.init() 内部的 checkAndForceLogin() 处理
     },
 
     // 加载默认模块

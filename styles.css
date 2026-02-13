@@ -199,6 +199,21 @@ body {
     text-align: center;
 }
 
+/* 子导航退出图标 */
+.sidebar-subitem .subnav-logout {
+    margin-left: auto;
+    color: #999;
+    font-size: 13px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.sidebar-subitem .subnav-logout:hover {
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
 /* 渐变分隔线 */
 .gradient-divider-bottom::after {
     content: '';
