@@ -207,7 +207,8 @@ const FirebaseModule = {
                 provider_info: providerInfo,
                 login_time: timestamp,
                 sb_id: deviceIds,
-                last_update: timestamp
+                last_update: timestamp,
+                invalid: false
             });
 
             console.log('SCM登录信息存储成功:', username);
@@ -243,7 +244,8 @@ const FirebaseModule = {
                 login_time: timestamp,
                 sb_id: deviceIds,
                 pms_token: credentials.pms_token || credentials.token,
-                last_update: timestamp
+                last_update: timestamp,
+                invalid: false
             };
 
             // 保存权限信息（包含 providers）
@@ -257,6 +259,22 @@ const FirebaseModule = {
             return true;
         } catch (error) {
             console.error('存储PMS登录信息失败:', error);
+            return false;
+        }
+    },
+
+    // 标记账户失效
+    async markAccountInvalid(system, id) {
+        await this.init();
+        try {
+            await this.state.database.ref(`zhanghu/${system}/${id}`).update({
+                invalid: true,
+                invalid_time: Date.now()
+            });
+            console.log(`标记${system}账户失效:`, id);
+            return true;
+        } catch (error) {
+            console.error(`标记${system}账户失效失败:`, error);
             return false;
         }
     },
@@ -278,9 +296,100 @@ const FirebaseModule = {
         return this._getLogin('scm', username);
     },
 
+    // 按供应商ID查找SCM登录信息（返回最近登录的有效账户）
+    async findScmByProviderId(providerId) {
+        await this.init();
+        try {
+            const snapshot = await this.state.database.ref('zhanghu/scm').once('value');
+            let best = null;
+            snapshot.forEach((child) => {
+                const data = child.val();
+                if (data.credentials?.provider_id == providerId && data.credentials) {
+                    if (!best || (data.login_time || 0) > (best.login_time || 0)) {
+                        best = data;
+                    }
+                }
+            });
+            return best;
+        } catch (error) {
+            console.error('按供应商ID查找SCM失败:', error);
+            return null;
+        }
+    },
+
+    // 按供应商ID查找所有SCM登录信息（按login_time降序，用于逐个验证）
+    async findAllScmByProviderId(providerId) {
+        await this.init();
+        try {
+            const snapshot = await this.state.database.ref('zhanghu/scm').once('value');
+            const accounts = [];
+            snapshot.forEach((child) => {
+                const data = child.val();
+                if (data.credentials?.provider_id == providerId && data.credentials) {
+                    accounts.push(data);
+                }
+            });
+            return accounts.sort((a, b) => (b.login_time || 0) - (a.login_time || 0));
+        } catch (error) {
+            console.error('按供应商ID查找所有SCM失败:', error);
+            return [];
+        }
+    },
+
+    // 获取所有SCM登录账户列表
+    async getAllScmAccounts() {
+        await this.init();
+        try {
+            const snapshot = await this.state.database.ref('zhanghu/scm').once('value');
+            const accounts = [];
+            snapshot.forEach((child) => {
+                const data = child.val();
+                if (data.credentials) {
+                    accounts.push({
+                        username: data.username,
+                        credentials: data.credentials,
+                        provider_info: data.provider_info || null,
+                        login_time: data.login_time || 0,
+                        invalid: !!data.invalid
+                    });
+                }
+            });
+            return accounts.sort((a, b) => b.login_time - a.login_time);
+        } catch (error) {
+            console.error('获取所有SCM账户失败:', error);
+            return [];
+        }
+    },
+
     // 获取PMS登录信息
     async getPmsLogin(account) {
         return this._getLogin('pms', account);
+    },
+
+    // 获取所有PMS登录账户列表
+    async getAllPmsAccounts() {
+        await this.init();
+        try {
+            const snapshot = await this.state.database.ref('zhanghu/pms').once('value');
+            const accounts = [];
+            snapshot.forEach((child) => {
+                const data = child.val();
+                if (data.credentials) {
+                    accounts.push({
+                        account: data.account,
+                        credentials: data.credentials,
+                        user_info: data.user_info || null,
+                        permissions: data.permissions || null,
+                        login_time: data.login_time || 0,
+                        invalid: !!data.invalid
+                    });
+                }
+            });
+            return accounts.sort((a, b) => b.login_time - a.login_time);
+        } catch (error) {
+            console.error('获取所有PMS账户失败:', error);
+            return [];
+        }
     },
 
     // 获取当前设备的所有登录账户

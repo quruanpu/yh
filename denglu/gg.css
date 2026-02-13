@@ -338,6 +338,7 @@
     display: flex;
     justify-content: center;
     flex-shrink: 0;
+    gap: 10px;
 }
 
 .login-btn {
@@ -413,6 +414,177 @@
     background-color: #fff8e1;
     color: #ff9800;
     border-left: 4px solid #ff9800;
+}
+
+/* 登录信息展示 */
+.login-info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px 0;
+}
+
+.login-info-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4caf50;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.login-info-status i {
+    font-size: 18px;
+}
+
+.login-info-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.login-info-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.login-info-row:last-child {
+    border-bottom: none;
+}
+
+.login-info-label {
+    width: 90px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #999;
+}
+
+.login-info-value {
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+    word-break: break-all;
+}
+
+/* 切换登录按钮 */
+.login-info-switch {
+    flex-shrink: 0;
+    color: #3d6dff;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+.login-info-switch:hover {
+    background-color: rgba(61, 109, 255, 0.1);
+    color: #2a5bff;
+}
+
+/* 账户列表 */
+.account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.account-list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    gap: 12px;
+}
+
+.account-list-item:last-child {
+    border-bottom: none;
+}
+
+.account-list-item.current {
+    background-color: #f8faff;
+}
+
+.account-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.account-list-name {
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-list-detail {
+    font-size: 12px;
+    color: #999;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-list-btn {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    border: 1px solid #3d6dff;
+    background: none;
+    color: #3d6dff;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.account-list-btn:hover:not(:disabled) {
+    background-color: #3d6dff;
+    color: #fff;
+}
+
+.account-list-btn:disabled {
+    border-color: #ccc;
+    color: #999;
+    cursor: default;
+}
+
+.account-list-tag {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    background-color: #e8f5e9;
+    color: #4caf50;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.account-list-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.account-list-empty {
+    text-align: center;
+    padding: 40px 0;
+    color: #999;
+    font-size: 14px;
 }
 
 /* 响应式设计 */
