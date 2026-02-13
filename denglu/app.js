@@ -197,7 +197,7 @@ const LoginModule = {
                 <div class="spinner" style="width:32px;height:32px;border-width:3px;"></div>
                 <div class="success-message">
                     <h4>正在检查登录状态...</h4>
-                    <p>请稍候</p>
+                    <p>请稍候...</p>
                 </div>
             </div>
         `;
@@ -1425,3 +1425,4 @@ window.addEventListener('load', () => {
 
 // 导出模块
 window.LoginModule = LoginModule;
+
