@@ -9,6 +9,7 @@ const GxYewu = {
     activityData: null,
     activityId: null,
     areaProvinces: null,
+    providerId: null,
     _operationInProgress: false,
 
     // 判断共享是否处于开启状态：有活动且未被禁用
@@ -31,13 +32,21 @@ const GxYewu = {
 
     // ========== 生命周期 ==========
 
-    show(coupon) {
+    async show(coupon) {
         this.currentCoupon = coupon;
         this.shareData = null;
         this.activityList = null;
         this.activityData = null;
         this.activityId = null;
         this.areaProvinces = null;
+
+        // 获取当前供应商ID（路径隔离用）
+        const creds = await window.LoginModule?.getScmCredentials();
+        this.providerId = creds?.provider_id || null;
+        if (!this.providerId) {
+            console.error('无法获取供应商ID，共享功能不可用');
+            return;
+        }
 
         // 立即渲染弹窗
         this.render();
@@ -69,6 +78,7 @@ const GxYewu = {
         this.activityData = null;
         this.activityId = null;
         this.areaProvinces = null;
+        this.providerId = null;
     },
 
     // ========== Firebase 监听 ==========
@@ -79,7 +89,7 @@ const GxYewu = {
             if (!this.currentCoupon) return;
 
             const db = firebase.database();
-            const couponRef = db.ref(`yhq_gx/${this.currentCoupon.id}`);
+            const couponRef = db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`);
 
             this.shareListener = couponRef.on('value', (snapshot) => {
                 this.shareData = snapshot.val();
@@ -97,7 +107,7 @@ const GxYewu = {
         if (this.shareListener && this.currentCoupon) {
             try {
                 const db = firebase.database();
-                db.ref(`yhq_gx/${this.currentCoupon.id}`).off('value', this.shareListener);
+                db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).off('value', this.shareListener);
                 this.shareListener = null;
             } catch (error) {
                 console.error('清理共享状态监听失败:', error);
@@ -151,7 +161,7 @@ const GxYewu = {
     async loadShareData() {
         try {
             const db = firebase.database();
-            const firebasePromise = db.ref(`yhq_gx/${this.currentCoupon.id}`).once('value');
+            const firebasePromise = db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).once('value');
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Firebase 连接超时')), 8000)
             );
@@ -329,7 +339,7 @@ const GxYewu = {
                     </div>
                     <div class="yhquan-gx-info-row">
                         <span class="yhquan-gx-info-label">详情：</span>
-                        <span class="yhquan-gx-info-value">${escape(coupon.note || '暂无使用说明')}</span>
+                        <span class="yhquan-gx-info-value">${YhquanGongju.getCouponDetail(coupon)}</span>
                     </div>
                     <div class="yhquan-gx-info-row">
                         <span class="yhquan-gx-info-label">有效期：</span>
@@ -741,6 +751,9 @@ const GxYewu = {
                 if (!this.activityData) this.activityData = {};
                 this.activityData.isClose = 0;
 
+                // 强制同步本地活动列表（防止API返回延迟导致状态不一致）
+                this.forceActivityState(this.activityId, 0);
+
                 // 新创建活动时刷新表单区域
                 if (isNewlyCreated) {
                     this.refreshFormSections();
@@ -750,7 +763,7 @@ const GxYewu = {
 
             // 2. Firebase：无条件写 shifenggongxiang + guanjianzi
             const db = firebase.database();
-            await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+            await db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).update({
                 shifenggongxiang: true,
                 guanjianzi: form.keyword
             });
@@ -786,13 +799,16 @@ const GxYewu = {
             // 刷新活动列表下拉（获取最新状态）
             await this.refreshActivitySelect();
 
+            // 强制同步本地活动列表（防止API返回延迟导致状态不一致）
+            this.forceActivityState(this.activityId, 1);
+
             // 2. 检查是否还有其他启用的活动
             const hasEnabledActivity = (this.activityList || []).some(a => a.isClose === 0);
 
             // 仅当没有任何启用的活动时，才写 shifenggongxiang: false
             if (!hasEnabledActivity) {
                 const db = firebase.database();
-                await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+                await db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).update({
                     shifenggongxiang: false
                 });
             }
@@ -828,7 +844,7 @@ const GxYewu = {
         try {
             // 1. Firebase：只同步 guanjianzi（不改变 shifenggongxiang）
             const db = firebase.database();
-            await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+            await db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).update({
                 guanjianzi: this.currentCoupon.name
             });
 
@@ -902,7 +918,7 @@ const GxYewu = {
 
             // 1. Firebase：只同步 guanjianzi（不改变 shifenggongxiang）
             const db = firebase.database();
-            await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+            await db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).update({
                 guanjianzi: form.keyword
             });
 
@@ -981,7 +997,7 @@ const GxYewu = {
             const hasEnabled = (this.activityList || []).some(a => a.isClose === 0);
             if (!hasEnabled) {
                 const db = firebase.database();
-                await db.ref(`yhq_gx/${this.currentCoupon.id}`).update({
+                await db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).update({
                     shifenggongxiang: false
                 });
             }
@@ -1062,6 +1078,25 @@ const GxYewu = {
             }
         } catch (err) {
             console.error('刷新活动下拉失败:', err);
+        }
+    },
+
+    // 强制同步本地活动状态并刷新下拉（防止API返回延迟）
+    forceActivityState(activityId, isClose) {
+        if (!activityId) return;
+        const item = (this.activityList || []).find(a => String(a.id) === String(activityId));
+        if (item && item.isClose !== isClose) {
+            item.isClose = isClose;
+            // 重新渲染下拉框
+            const selectEl = document.getElementById('yhquan-gx-activity-select');
+            if (selectEl) {
+                selectEl.innerHTML = (this.activityList || []).map(a => {
+                    const sel = String(a.id) === String(this.activityId) ? ' selected' : '';
+                    const tag = a.isClose === 0 ? '启用' : '禁用';
+                    const name = YhquanGongju.escapeHtml(a.eventName || '未命名活动');
+                    return `<option value="${a.id}"${sel}>[${tag}] ${name}</option>`;
+                }).join('');
+            }
         }
     },
 

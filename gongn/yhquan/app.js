@@ -14,7 +14,8 @@ const YhquanModule = {
         isSearching: false,
         allCoupons: [],
         hasAutoSearched: false,
-        sharingListener: null
+        sharingListener: null,
+        providerId: null
     },
 
     async init() {
@@ -99,9 +100,17 @@ const YhquanModule = {
             const db = window.FirebaseModule.state.database;
             if (!db) return;
 
+            // 获取当前供应商ID
+            const creds = await window.LoginModule?.getScmCredentials();
+            this.state.providerId = creds?.provider_id || null;
+            if (!this.state.providerId) {
+                console.warn('无法获取供应商ID，跳过共享状态监听');
+                return;
+            }
+
             let isFirstCallback = true;
 
-            this.state.sharingListener = db.ref('yhq_gx').on('value', (snapshot) => {
+            this.state.sharingListener = db.ref(`yhq_gx/${this.state.providerId}`).on('value', (snapshot) => {
                 const sharingData = snapshot.val() || {};
 
                 const changedCoupons = [];
@@ -191,7 +200,7 @@ const YhquanModule = {
             await Promise.all(invalidIds.map(async (couponId) => {
                 try {
                     // 1. Firebase 关闭共享状态
-                    await db.ref(`yhq_gx/${couponId}`).update({
+                    await db.ref(`yhq_gx/${this.state.providerId}/${couponId}`).update({
                         shifenggongxiang: false
                     });
 
@@ -225,8 +234,8 @@ const YhquanModule = {
         if (this.state.sharingListener) {
             try {
                 const db = window.FirebaseModule?.state?.database;
-                if (db) {
-                    db.ref('yhq_gx').off('value', this.state.sharingListener);
+                if (db && this.state.providerId) {
+                    db.ref(`yhq_gx/${this.state.providerId}`).off('value', this.state.sharingListener);
                 }
                 this.state.sharingListener = null;
             } catch (error) {
