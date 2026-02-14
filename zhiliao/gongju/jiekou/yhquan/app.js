@@ -154,7 +154,14 @@ const YhquanToolModule = {
             throw new Error('数据库连接失败');
         }
 
-        const snapshot = await db.ref('yhq_gx').once('value');
+        // 获取当前供应商ID（路径隔离）
+        const creds = await window.LoginModule?.getScmCredentials();
+        const providerId = creds?.provider_id;
+        if (!providerId) {
+            throw new Error('无法获取供应商ID');
+        }
+
+        const snapshot = await db.ref(`yhq_gx/${providerId}`).once('value');
         const data = snapshot.val() || {};
 
         const sharedCoupons = [];
