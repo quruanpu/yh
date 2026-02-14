@@ -1,0 +1,215 @@
+/**
+ * 优惠券模块 - 效期弹窗样式
+ */
+const XqYangshi = {
+    styleId: 'yhquan-xq-styles',
+
+    getStyles() {
+        return `
+/* 模态框 */
+.yhquan-xq-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 遮罩层 */
+.yhquan-xq-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* 弹窗内容 */
+.yhquan-xq-content {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    width: 85%;
+    max-width: 400px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* 弹窗头部 */
+.yhquan-xq-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.yhquan-xq-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.yhquan-xq-title i {
+    color: #3b82f6;
+}
+
+.yhquan-xq-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #f3f4f6;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.yhquan-xq-close:hover {
+    background: #e5e7eb;
+}
+
+.yhquan-xq-close i {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* 弹窗主体 */
+.yhquan-xq-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+/* 区块 */
+.yhquan-xq-section {
+    margin-bottom: 12px;
+}
+
+.yhquan-xq-section:last-child {
+    margin-bottom: 0;
+}
+
+.yhquan-xq-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+/* 优惠券信息 */
+.yhquan-xq-info-grid {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.yhquan-xq-info-row {
+    display: flex;
+    margin-bottom: 5px;
+    font-size: 11px;
+}
+
+.yhquan-xq-info-row:last-child {
+    margin-bottom: 0;
+}
+
+.yhquan-xq-info-label {
+    color: #6b7280;
+    min-width: 50px;
+    flex-shrink: 0;
+}
+
+.yhquan-xq-info-value {
+    color: #111827;
+    flex: 1;
+}
+
+/* 日期输入 */
+.yhquan-xq-date-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+    background: white;
+    box-sizing: border-box;
+}
+
+.yhquan-xq-date-input:focus {
+    border-color: #3b82f6;
+}
+
+.yhquan-xq-date-input:hover {
+    border-color: #9ca3af;
+}
+
+/* 弹窗底部 */
+.yhquan-xq-footer {
+    padding: 10px 14px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.yhquan-xq-btn {
+    height: 28px;
+    padding: 0 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.yhquan-xq-btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.yhquan-xq-btn-primary:hover {
+    background: #2563eb;
+}
+
+.yhquan-xq-btn-primary:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* 手机端适配 */
+@media (max-width: 768px) {
+    .yhquan-xq-content {
+        width: 85%;
+        max-height: 85vh;
+    }
+}
+        `;
+    },
+
+    inject() {
+        if (document.getElementById(this.styleId)) return;
+        const style = document.createElement('style');
+        style.id = this.styleId;
+        style.textContent = this.getStyles();
+        document.head.appendChild(style);
+    }
+};
+
+window.XqYangshi = XqYangshi;
