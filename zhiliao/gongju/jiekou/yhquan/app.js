@@ -121,7 +121,7 @@ const YhquanToolModule = {
             if (loadingDiv) loadingDiv.remove();
 
             if (coupons.length === 0) {
-                return { success: true, count: 0, message: '暂无共享优惠券' };
+                return { success: true, count: 0, message: '暂无共享优惠券！' };
             }
 
             if (window.YhquanYsModule) {
@@ -204,9 +204,9 @@ const YhquanToolModule = {
                     YhquanYsModule.addUserMessage(`@活动 ${content}`);
                 }
                 if (parseContainer) {
-                    parseContainer.innerHTML = '<p>暂无共享优惠券可用</p>';
+                    parseContainer.innerHTML = '<p>暂无共享优惠券！可用</p>';
                 }
-                return { success: false, message: '暂无共享优惠券' };
+                return { success: false, message: '暂无共享优惠券！' };
             }
 
             // 使用解析模块匹配关键字
