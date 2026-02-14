@@ -27,9 +27,10 @@ const ZhiLiaoJiaohuModule = {
         // 输入框自动调整高度
         textarea?.addEventListener('input', () => this.autoResizeTextarea(textarea));
 
-        // 回车发送消息
+        // 回车发送消息（电脑端Enter发送/Shift+Enter换行，手机端Enter换行/按钮发送）
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         textarea?.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !window.AppFramework?.isMobile && !e.shiftKey) {
+            if (e.key === 'Enter' && !isMobileDevice && !e.shiftKey) {
                 // 如果指令菜单可见，让指令系统处理回车
                 if (window.ZhiLiaoCaidanModule?.state?.isMenuVisible) {
                     return;
