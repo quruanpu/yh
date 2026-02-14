@@ -1,0 +1,624 @@
+/* 登录弹窗样式 */
+
+/* 登录弹窗遮罩层 */
+.login-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.login-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 弹窗容器 - 固定大小,完全居中 */
+.login-container {
+    position: relative;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    width: 380px;
+    max-height: 90vh;
+    overflow: hidden;
+    transform: scale(0.9);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.login-container.active {
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* 关闭按钮 */
+.login-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.login-close:hover {
+    background-color: #f5f5f5;
+    color: #666;
+}
+
+/* 主内容区域 */
+.login-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* 头部 */
+.login-header {
+    padding: 16px 20px 10px;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+}
+
+.login-header h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: #333;
+    text-align: left;
+}
+
+/* 主体 */
+.login-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+}
+
+/* 登录表单 */
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #3d6dff;
+    box-shadow: 0 0 0 2px rgba(61, 109, 255, 0.1);
+}
+
+/* 验证码行 */
+.captcha-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.captcha-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.captcha-image {
+    width: 110px;
+    height: 40px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.captcha-image:hover {
+    border-color: #3d6dff;
+    box-shadow: 0 0 0 2px rgba(61, 109, 255, 0.1);
+}
+
+.captcha-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.captcha-loading {
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    padding: 0 8px;
+}
+
+/* 二维码容器 */
+.qrcode-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+
+.qrcode-title {
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+}
+
+.qrcode-image {
+    width: 200px;
+    height: 200px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.qrcode-image:hover {
+    border-color: #3d6dff;
+    box-shadow: 0 0 0 2px rgba(61, 109, 255, 0.1);
+}
+
+.qrcode-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.qrcode-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+.qrcode-overlay i {
+    font-size: 64px;
+    color: #4caf50;
+}
+
+.qrcode-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #666;
+}
+
+.qrcode-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    color: #f44336;
+    padding: 20px;
+    text-align: center;
+}
+
+.qrcode-error i {
+    font-size: 32px;
+}
+
+/* 状态显示 */
+.qrcode-status {
+    width: 100%;
+    text-align: center;
+}
+
+.status-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #666;
+    font-size: 14px;
+}
+
+.status-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #f44336;
+    font-size: 14px;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #3d6dff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 成功页面 */
+.success-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px 0;
+}
+
+.success-icon {
+    width: 64px;
+    height: 64px;
+    background-color: #4caf50;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 32px;
+}
+
+.success-message {
+    text-align: center;
+}
+
+.success-message h4 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.success-message p {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+}
+
+/* 底部 */
+.login-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+    gap: 10px;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.login-btn.primary {
+    background-color: #3d6dff;
+    color: white;
+}
+
+.login-btn.primary:hover:not(:disabled) {
+    background-color: #2a5bff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(61, 109, 255, 0.3);
+}
+
+.login-btn.primary:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.login-btn.primary:disabled {
+    background-color: #a0b4ff;
+    cursor: not-allowed;
+}
+
+/* 消息提示 */
+.login-message {
+    margin: 0 24px 16px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-message.info {
+    background-color: #e8f0ff;
+    color: #3d6dff;
+    border-left: 4px solid #3d6dff;
+}
+
+.login-message.success {
+    background-color: #e8f5e9;
+    color: #4caf50;
+    border-left: 4px solid #4caf50;
+}
+
+.login-message.error {
+    background-color: #ffebee;
+    color: #f44336;
+    border-left: 4px solid #f44336;
+}
+
+.login-message.warning {
+    background-color: #fff8e1;
+    color: #ff9800;
+    border-left: 4px solid #ff9800;
+}
+
+/* 登录信息展示 */
+.login-info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px 0;
+}
+
+.login-info-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4caf50;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.login-info-status i {
+    font-size: 18px;
+}
+
+.login-info-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.login-info-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.login-info-row:last-child {
+    border-bottom: none;
+}
+
+.login-info-label {
+    width: 90px;
+    flex-shrink: 0;
+    font-size: 13px;
+    color: #999;
+}
+
+.login-info-value {
+    flex: 1;
+    font-size: 14px;
+    color: #333;
+    word-break: break-all;
+}
+
+/* 切换登录按钮 */
+.login-info-switch {
+    flex-shrink: 0;
+    color: #3d6dff;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+.login-info-switch:hover {
+    background-color: rgba(61, 109, 255, 0.1);
+    color: #2a5bff;
+}
+
+/* 账户列表 */
+.account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.account-list-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    gap: 12px;
+}
+
+.account-list-item:last-child {
+    border-bottom: none;
+}
+
+.account-list-item.current {
+    background-color: #f8faff;
+}
+
+.account-list-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.account-list-name {
+    font-size: 14px;
+    color: #333;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-list-detail {
+    font-size: 12px;
+    color: #999;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-list-btn {
+    flex-shrink: 0;
+    padding: 4px 12px;
+    border: 1px solid #3d6dff;
+    background: none;
+    color: #3d6dff;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.account-list-btn:hover:not(:disabled) {
+    background-color: #3d6dff;
+    color: #fff;
+}
+
+.account-list-btn:disabled {
+    border-color: #ccc;
+    color: #999;
+    cursor: default;
+}
+
+.account-list-tag {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    background-color: #e8f5e9;
+    color: #4caf50;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.account-list-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.account-list-empty {
+    text-align: center;
+    padding: 40px 0;
+    color: #999;
+    font-size: 14px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .login-container {
+        width: 90vw;
+        max-height: 90vh;
+    }
+
+    .system-menu {
+        width: 100%;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .qrcode-image {
+        width: 180px;
+        height: 180px;
+    }
+}
+
+/* 滚动条样式 */
+.login-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.login-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.login-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.login-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

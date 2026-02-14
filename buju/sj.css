@@ -1,0 +1,77 @@
+/* 主框架手机端样式 */
+body {
+    background-color: #fcfcfc;
+}
+
+.main-wrapper {
+    max-width: 100%;
+    width: 100%;
+    box-shadow: none;
+    height: 100%;
+}
+
+/* 正常手机屏幕 - 1/3 */
+.sidebar {
+    width: 33.33%;
+    max-width: none;
+}
+
+/* 超窄屏幕 - 1/2 */
+@media (max-width: 480px) {
+    .sidebar {
+        width: 50%;
+    }
+}
+
+/* 更窄屏幕 - 2/3 */
+@media (max-width: 360px) {
+    .sidebar {
+        width: 66.67%;
+    }
+}
+
+.sidebar-header {
+    height: 44px;
+    min-height: 44px;
+}
+
+.sidebar-title {
+    font-size: 0.875rem;
+}
+
+.sidebar-close {
+    font-size: 1.25rem;
+}
+
+.sidebar-item {
+    padding: 12px 16px;
+    gap: 12px;
+}
+
+.sidebar-item i {
+    width: 20px;
+    font-size: 0.9rem;
+}
+
+.sidebar-item span {
+    font-size: 0.875rem;
+}
+
+/* 子导航项样式 - 与主导航项完全一致 */
+.sidebar-subitem {
+    padding: 12px 16px;
+    gap: 12px;
+}
+
+.sidebar-subitem i {
+    width: 20px;
+    font-size: 0.9rem;
+}
+
+.sidebar-subitem span {
+    font-size: 0.875rem;
+}
+
+.dev-placeholder span {
+    font-size: 0.875rem;
+}
