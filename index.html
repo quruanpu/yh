@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>运小助</title>
+    <link rel="icon" type="image/svg+xml" href="logo/yunxiaozhu-ai.svg">
+    <link rel="stylesheet" href="buju/wb/tailwind.css">
+    <link rel="stylesheet" href="buju/wb/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="buju/sj.css" media="(max-width: 768px)">
+    <link rel="stylesheet" href="buju/zm.css" media="(min-width: 769px)">
+    <link rel="stylesheet" href="denglu/gg.css">
+</head>
+<body>
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">导航</span>
+            <button id="sidebar-close" class="sidebar-close">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="sidebar-menu custom-scrollbar" id="nav-menu">
+            <!-- 导航项由模块注册动态生成 -->
+        </div>
+        <div class="sidebar-footer">
+            <div class="sidebar-item" id="user-info">
+                <i class="fa-solid fa-user" id="user-icon"></i>
+                <span id="user-text">登录账户</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-wrapper flex flex-col h-full">
+        <header class="relative flex justify-between items-center pl-3 pr-4 py-2 gradient-divider-bottom flex-shrink-0">
+            <button id="menu-button" class="text-2xl text-gray-700">
+                <img src="logo/cd.svg" alt="菜单" class="w-8 h-8">
+            </button>
+            <div></div>
+            <div class="text-xs text-gray-600 text-right leading-tight">
+                <div class="text-gray-500"><span id="location-text"></span><span id="device-code">------</span></div>
+                <div id="current-date" class="text-gray-500 mt-0.5">--/--/--</div>
+            </div>
+        </header>
+
+        <!-- 模块内容容器 -->
+        <main id="module-container" class="flex-grow flex flex-col overflow-hidden min-h-0">
+            <!-- 模块页面由动态加载 -->
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <!-- 通知系统 -->
+    <script src="tongzhi/yangshi.js"></script>
+    <script src="tongzhi/app.js"></script>
+    <!-- 登录校验与 BI 代理发现所需的轻量配置/工具 -->
+    <script src="gongn/yhquan/config.js"></script>
+    <script src="gongn/yhquan/background.js"></script>
+    <script src="gongn/chaxun/config.js"></script>
+    <script src="gongn/yunying/config.js"></script>
+    <script src="gongn/yunying/gongju.js"></script>
+    <!-- 登录模块 -->
+    <script src="denglu/app.js"></script>
+    <!-- 智聊模块 -->
+    <script src="zhiliao/loader.js"></script>
+</body>
+</html>

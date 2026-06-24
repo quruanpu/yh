@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le享の优惠</title>
+<link rel="icon" type="image/png" href="yhq.png">
+<link rel="stylesheet" href="../buju/wb/fontawesome/css/all.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --bg: #ffffff;
+    --card-bg: #fff;
+    --border: #e8e8e8;
+    --text-1: #1a1a1a;
+    --text-2: #666;
+    --text-3: #999;
+    --accent: #4f8cff;
+    --accent-light: #eef4ff;
+    --radius: 12px;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text-1);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Section */
+.hero {
+    text-align: center;
+    padding: 2.8vh 16px 9px;
+    background: var(--card-bg);
+    flex-shrink: 0;
+}
+
+.hero-logo {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: 2px;
+}
+
+.hero-logo span {
+    color: var(--accent);
+}
+
+.hero-sub {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-3);
+}
+
+.hero-loc {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--text-3);
+}
+
+.hero-loc .week {
+    font-size: 13px;
+    margin-left: 4px;
+    opacity: 1;
+}
+
+/* Section */
+.search-bar {
+    position: relative;
+    z-index: 100;
+    background: var(--card-bg);
+    border-bottom: none;
+    padding: 8px 16px 11px;
+    flex-shrink: 0;
+}
+
+.search-bar::after {
+    content: '';
+    display: block;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+.search-inner {
+    width: 50%;
+    margin: 0 auto;
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    height: 42px;
+}
+
+.search-input-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input {
+    width: 100%;
+    height: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0 36px 0 14px;
+    font-size: 14px;
+    color: var(--text-1);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    border-color: var(--accent);
+}
+
+.search-input::placeholder {
+    color: var(--text-3);
+}
+
+.search-clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: var(--border);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 10px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.search-clear.show { display: flex; }
+
+/* Section */
+.dropdown {
+    position: relative;
+    min-width: 110px;
+    max-width: 180px;
+    height: 100%;
+}
+
+.dropdown-trigger {
+    width: 100%;
+    height: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0 26px 0 10px;
+    font-size: 13px;
+    color: var(--text-1);
+    background: var(--bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border-color 0.2s;
+    user-select: none;
+    position: relative;
+}
+
+.dropdown-trigger::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #999;
+    transition: transform 0.2s;
+}
+
+.dropdown.open .dropdown-trigger {
+    border-color: var(--accent);
+}
+
+.dropdown.open .dropdown-trigger::after {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+.dropdown-list {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 100%;
+    max-height: 260px;
+    overflow-y: auto;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    z-index: 200;
+    padding: 4px;
+}
+
+.dropdown.open .dropdown-list { display: block; }
+
+.dropdown-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text-1);
+    text-align: center;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.15s;
+}
+
+.dropdown-item:hover { background: var(--bg); }
+.dropdown-item.active { color: var(--accent); font-weight: 600; }
+
+/* Section */
+.content {
+    flex: 1;
+    overflow-y: auto;
+    width: calc(100% - 20px);
+    margin: 0 10px;
+    padding: 24px 8px 40px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(107,114,128,0.9) rgba(148,163,184,0.22);
+}
+
+/* Section */
+.content > #result-count,
+.content > #grid,
+.content > #state {
+    max-width: 1200px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Section */
+.content::-webkit-scrollbar {
+    width: 10px;
+}
+
+.content::-webkit-scrollbar-track {
+    background: rgba(148,163,184,0.22);
+    border-radius: 999px;
+}
+
+.content::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+    border-radius: 999px;
+    border: 2px solid rgba(148,163,184,0.22);
+    background-clip: padding-box;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #7f8ea3 0%, #4b5563 100%);
+}
+
+/* Section */
+.state-box {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-3);
+    font-size: 14px;
+}
+
+.state-box i {
+    display: block;
+    font-size: 36px;
+    margin-bottom: 14px;
+    opacity: 0.35;
+}
+
+.spinner-sm {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Section */
+.qr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.qr-card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+/* Section */
+.qr-code-area {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: #fff;
+}
+
+.qr-code-area canvas,
+.qr-code-area img {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Section */
+.qr-top {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    gap: 6px;
+}
+
+.qr-top-info {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--text-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.qr-top-info .name {
+    font-weight: 600;
+    color: var(--text-1);
+}
+
+.qr-top-info .sep {
+    margin: 0 4px;
+    color: var(--border);
+}
+
+.qr-actions {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.qr-action-btn,
+.qr-visit {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    font-size: 11px;
+    color: var(--text-3);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.qr-action-btn:hover:not(:disabled),
+.qr-visit:hover { color: var(--accent); }
+
+.qr-action-btn:disabled {
+    pointer-events: none;
+    opacity: 0.3;
+}
+
+.qr-action-btn.copying {
+    color: #10b981;
+    opacity: 1;
+}
+
+/* Section */
+.qr-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-3);
+    gap: 8px;
+}
+
+.qr-countdown {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.qr-provider {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+}
+
+.qr-countdown.urgent { color: #e74c3c; }
+.qr-countdown.ended { color: var(--text-3); }
+
+/* Section */
+.hl { background: #fff3b0; border-radius: 2px; }
+
+/* Section */
+.result-count {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-bottom: 14px;
+}
+
+/* Section */
+
+/* Section */
+.area-fab {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    box-shadow: 0 2px 8px rgba(79,140,255,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+}
+
+.area-fab i { font-size: 14px; }
+
+.area-popup {
+    display: none;
+    position: fixed;
+    bottom: 52px;
+    right: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    z-index: 302;
+    min-width: 120px;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.area-popup.open { display: block; }
+
+.area-item {
+    padding: 6px 12px;
+    font-size: 11px;
+    color: #4b5563;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.area-item:hover { background: #f3f4f6; }
+.area-item.active { background: var(--accent-light); color: var(--accent); font-weight: 500; }
+
+/* Section */
+.qr-code-area { position: relative; }
+
+.qr-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-3);
+    line-height: 1.4;
+    z-index: 1;
+}
+
+.qr-visit.disabled {
+    pointer-events: none;
+    opacity: 0.3;
+}
+
+.share-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translateX(-50%) translateY(10px);
+    z-index: 999;
+    max-width: calc(100% - 32px);
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(26,26,26,0.86);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.share-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.share-toast.success { background: rgba(16,185,129,0.92); }
+.share-toast.error { background: rgba(231,76,60,0.92); }
+
+@media (max-width: 600px) {
+    .hero { padding: 2.1vh 12px 8px; }
+    .hero-logo { font-size: 21px; }
+    .hero-sub { font-size: 12px; }
+    .hero-loc { font-size: 12px; }
+    .hero-loc .week { font-size: 12px; }
+    .search-bar { padding: 7px 12px 8px; }
+    .search-inner { width: 90%; height: 38px; gap: 6px; }
+    .search-input { font-size: 13px; padding: 0 32px 0 12px; }
+    .dropdown { min-width: 64px; max-width: 100px; }
+    .dropdown-trigger { font-size: 12px; }
+    .dropdown-item { font-size: 12px; }
+    .content {
+        width: calc(100% - 20px);
+        margin: 0 10px;
+        padding: 14px 8px 32px;
+    }
+    .qr-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .qr-code-area { padding: 12px; }
+    .qr-top { padding: 8px 10px; }
+    .qr-top-info { font-size: 11px; }
+    .qr-action-btn,
+    .qr-visit { font-size: 12px; }
+    .qr-bottom { padding: 8px 10px; font-size: 11px; }
+}
+
+@media (min-width: 601px) and (max-width: 1024px) {
+    .search-inner { width: 66%; }
+}
+
+@media (min-width: 900px) {
+    .qr-grid {
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+    <div class="hero-logo">🎁Le享<span>の</span>优惠🌍</div>
+    <div class="hero-sub">扫码即领，实时共享</div>
+    <div class="hero-loc" id="hero-loc"></div>
+</div>
+
+<div class="search-bar">
+    <div class="search-inner">
+        <div class="search-input-wrap">
+            <input type="text" class="search-input" id="search-input" placeholder="搜索优惠券..." autocomplete="off">
+            <button class="search-clear" id="search-clear"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="dropdown" id="dropdown">
+            <div class="dropdown-trigger" id="dropdown-trigger">加载中...</div>
+            <div class="dropdown-list" id="dropdown-list"></div>
+        </div>
+    </div>
+</div>
+
+<div class="content">
+    <div id="result-count" class="result-count" style="display:none"></div>
+    <div id="grid" class="qr-grid"></div>
+    <div id="state" class="state-box">
+        <div class="spinner-sm"></div>
+        <div>正在加载......</div>
+    </div>
+</div>
+
+<button class="area-fab" id="area-fab"><i class="fa-solid fa-location-dot"></i></button>
+<div class="area-popup" id="area-popup"></div>
+
+<script>
+(function () {
+    'use strict';
+
+    const UA = navigator.userAgent || '';
+    const IS_WECHAT = /MicroMessenger/i.test(UA);
+    const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(UA);
+    const INDEX_INIT_TIMEOUT_MS = IS_MOBILE ? 65000 : 20000;
+    const SCRIPT_LOAD_TIMEOUT_MS = IS_MOBILE ? 12000 : 8000;
+    const QR_MAX_PER_ROUND = 5;
+    const QR_STEP_DELAY_MS = 16;
+
+    const $bootState = document.getElementById('state');
+    function showBootError(msg) {
+        if (!$bootState) return;
+        $bootState.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i><div>' + String(msg || '') + '</div>';
+        $bootState.style.display = '';
+    }
+    function markScriptLoaded(script) {
+        if (!script) return;
+        if (script.dataset) {
+            script.dataset.loaded = '1';
+        } else {
+            script.setAttribute('data-loaded', '1');
+        }
+    }
+    function isScriptLoaded(script) {
+        if (!script) return false;
+        if (script.dataset && script.dataset.loaded === '1') return true;
+        return script.getAttribute('data-loaded') === '1';
+    }
+    function loadScript(url) {
+        return new Promise((resolve, reject) => {
+            const existed = Array.from(document.scripts).find(s => s.src === url);
+            const script = existed || document.createElement('script');
+            let settled = false;
+            let timer = null;
+
+            function cleanup() {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+                script.removeEventListener('load', onLoad);
+                script.removeEventListener('error', onError);
+            }
+
+            function done(err) {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                if (err) reject(err);
+                else resolve();
+            }
+
+            function onLoad() {
+                markScriptLoaded(script);
+                done();
+            }
+
+            function onError() {
+                done(new Error('script load failed: ' + url));
+            }
+
+            if (isScriptLoaded(script)) {
+                resolve();
+                return;
+            }
+
+            const rs = script.readyState;
+            if (existed && (rs === 'loaded' || rs === 'complete')) {
+                markScriptLoaded(script);
+                resolve();
+                return;
+            }
+
+            script.addEventListener('load', onLoad);
+            script.addEventListener('error', onError);
+            timer = setTimeout(() => {
+                done(new Error('script load timeout: ' + url));
+            }, SCRIPT_LOAD_TIMEOUT_MS);
+
+            if (!existed) {
+                script.src = url;
+                script.async = false;
+                document.head.appendChild(script);
+            }
+        });
+    }
+
+    async function loadFromCandidates(urls, isReady) {
+        if (isReady()) return;
+        let lastError = null;
+        for (const url of urls) {
+            try {
+                await loadScript(url);
+                if (isReady()) return;
+            } catch (err) {
+                lastError = err;
+            }
+        }
+        throw lastError || new Error('resource load failed');
+    }
+
+    async function ensureBaseDeps() {
+        await loadFromCandidates(
+            [
+                'https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js',
+                'https://cdn.bootcdn.net/ajax/libs/firebase/8.10.0/firebase-app.min.js'
+            ],
+            () => !!window.firebase && typeof window.firebase.initializeApp === 'function'
+        );
+
+        await loadFromCandidates(
+            [
+                'https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js',
+                'https://cdn.bootcdn.net/ajax/libs/firebase/8.10.0/firebase-database.min.js'
+            ],
+            () => !!window.firebase && typeof window.firebase.database === 'function'
+        );
+
+    }
+
+    let qrLibPromise = null;
+    function ensureQRCodeLib() {
+        if (window.QRCode) return Promise.resolve();
+        if (qrLibPromise) return qrLibPromise;
+        qrLibPromise = loadFromCandidates(
+            [
+                'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js',
+                'https://cdn.bootcdn.net/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
+            ],
+            () => !!window.QRCode
+        ).catch((err) => {
+            qrLibPromise = null;
+            throw err;
+        });
+        return qrLibPromise;
+    }
+
+    let d2iLibPromise = null;
+    function ensureDomToImageLib() {
+        if (window.domtoimage) return Promise.resolve();
+        if (d2iLibPromise) return d2iLibPromise;
+        d2iLibPromise = loadFromCandidates(
+            [
+                'https://cdnjs.cloudflare.com/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js',
+                'https://cdn.bootcdn.net/ajax/libs/dom-to-image/2.6.0/dom-to-image.min.js'
+            ],
+            () => !!window.domtoimage
+        ).catch((err) => {
+            d2iLibPromise = null;
+            throw err;
+        });
+        return d2iLibPromise;
+    }
+
+    function initFirebaseAndDb() {
+        const config = {
+            apiKey: "AIzaSyAbBSiwBNgBsVfwt5bHORpNTvSthMIaeM0",
+            authDomain: "ai-moxing.firebaseapp.com",
+            databaseURL: "https://ai-moxing-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "ai-moxing",
+            storageBucket: "ai-moxing.firebasestorage.app",
+            messagingSenderId: "295148076780",
+            appId: "1:295148076780:web:c777bca192d4ea54cbefc9"
+        };
+        const apps = Array.isArray(firebase.apps) ? firebase.apps : [];
+        if (apps.length === 0) {
+            firebase.initializeApp(config);
+        }
+
+        const dbInternal = firebase && firebase.database && firebase.database.INTERNAL;
+        if (IS_WECHAT && IS_MOBILE && dbInternal && typeof dbInternal.forceLongPolling === 'function') {
+            try {
+                firebase.database.INTERNAL.forceLongPolling();
+                console.log('[共享页] Mobile WeChat 环境启用 RTDB long-polling');
+            } catch (err) {
+                console.warn('[共享页] 强制 long-polling 失败:', err);
+            }
+        }
+
+        return firebase.database();
+    }
+
+    let db = null;
+
+    // Section
+    const state = {
+        providers: {},
+        selectedPid: '',
+        cache: {},
+        keyword: '',
+        providerListeners: {},
+        providerLoaded: {},
+        indexReady: false,
+        indexReadyAt: 0,
+        emptyDecisionTimer: null,
+        indexInitTimer: null,
+        selectedProvince: ''
+    };
+    const EMPTY_PROVIDER_GRACE_MS = 1200;
+
+    // ===== DOM =====
+    const $input = document.getElementById('search-input');
+    const $clear = document.getElementById('search-clear');
+    const $dropdown = document.getElementById('dropdown');
+    const $trigger = document.getElementById('dropdown-trigger');
+    const $list = document.getElementById('dropdown-list');
+    const $grid = document.getElementById('grid');
+    const $state = document.getElementById('state');
+    const $count = document.getElementById('result-count');
+    let qrRenderToken = 0;
+
+    // Section
+    function esc(s) {
+        if (s == null) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function parseTimeMs(value) {
+        const text = String(value || '').trim();
+        if (!text) return NaN;
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+            return new Date(text.replace(/-/g, '/') + ' 23:59:59').getTime();
+        }
+
+        const normalized = text.replace('T', ' ').replace(/-/g, '/');
+        const timestamp = new Date(normalized).getTime();
+        if (!isNaN(timestamp)) return timestamp;
+
+        const datePart = text.split(' ')[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+            return new Date(datePart.replace(/-/g, '/') + ' 23:59:59').getTime();
+        }
+        return NaN;
+    }
+
+    function isExpired(dateStr) {
+        const timestamp = parseTimeMs(dateStr);
+        return !isNaN(timestamp) && timestamp < Date.now();
+    }
+
+    function normalizeActivities(info) {
+        const activities = info && info.activities;
+        if (!activities || typeof activities !== 'object') return {};
+
+        const normalized = {};
+        Object.entries(activities).forEach(([activityId, activity]) => {
+            if (activity && typeof activity === 'object') {
+                normalized[activityId] = activity;
+            }
+        });
+        return normalized;
+    }
+
+    function normalizeArea(activity) {
+        const area = activity && activity.area;
+        if (!area || typeof area !== 'object') {
+            return { isLimitArea: false, areaNames: [] };
+        }
+
+        const areaNames = Array.isArray(area.names)
+            ? area.names.filter(Boolean).map(name => String(name))
+            : [];
+        const isLimitArea = area.is_limit === 1 || area.is_limit === true || String(area.is_limit) === '1';
+        return { isLimitArea, areaNames };
+    }
+
+    function normalizeProvinceName(name) {
+        return String(name || '').trim()
+            .replace(/(\u7279\u522b\u884c\u653f\u533a|\u58ee\u65cf\u81ea\u6cbb\u533a|\u56de\u65cf\u81ea\u6cbb\u533a|\u7ef4\u543e\u5c14\u81ea\u6cbb\u533a|\u81ea\u6cbb\u533a|\u7701|\u5e02)$/u, '');
+    }
+
+    function areaMatchesProvince(card, province) {
+        if (!card || !card.isLimitArea) return true;
+        const target = normalizeProvinceName(province);
+        if (!target) return false;
+        return (card.areaNames || []).some(name => {
+            return name === province || normalizeProvinceName(name) === target;
+        });
+    }
+
+    function highlight(text, kw) {
+        if (!kw) return esc(text);
+        const escaped = esc(text);
+        const kwEsc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return escaped.replace(new RegExp(kwEsc, 'gi'), m => '<span class="hl">' + m + '</span>');
+    }
+
+    // Section
+    function showState(icon, msg) {
+        $grid.innerHTML = '';
+        $count.style.display = 'none';
+        $state.innerHTML = (icon ? '<i class="fa-solid ' + icon + '"></i>' : '<div class="spinner-sm"></div>') +
+            '<div>' + esc(msg) + '</div>';
+        $state.style.display = '';
+    }
+
+    // Section
+    function parseCoupons(pid, providerName, data) {
+        const cards = [];
+        if (!data || typeof data !== 'object') return cards;
+
+        for (const [couponId, info] of Object.entries(data)) {
+            if (!info || typeof info !== 'object') continue;
+            const couponExpireAt = info.coupon_expire_at || '';
+            if (isExpired(couponExpireAt)) continue;
+
+            const activities = normalizeActivities(info);
+            Object.entries(activities).forEach(([activityId, activity]) => {
+                const activityUrl = String(activity.activity_url || '').trim();
+                if (!activityUrl) return;
+
+                const grabTime = activity.grab_time && typeof activity.grab_time === 'object'
+                    ? activity.grab_time
+                    : {};
+                const beginTime = grabTime.begin || '';
+                const endTime = grabTime.end || '';
+                if (!endTime) return;
+                if (isExpired(endTime)) return;
+
+                const areaInfo = normalizeArea(activity);
+                const activityName = String(activity.activity_name || '').trim() || '\u672A\u547D\u540D\u6D3B\u52A8';
+                const storeLimit = Number(activity.store_limit) || 0;
+                const totalLimit = Number(activity.total_limit) || 0;
+
+                cards.push({
+                    pid,
+                    providerName,
+                    couponId,
+                    activityId,
+                    activityName,
+                    storeLimit,
+                    totalLimit,
+                    beginTime,
+                    endTime,
+                    url: activityUrl,
+                    areaNames: areaInfo.areaNames,
+                    isLimitArea: areaInfo.isLimitArea,
+                    _searchText: [
+                        activityName,
+                        providerName,
+                        storeLimit ? '单店' + storeLimit : '',
+                        totalLimit ? '总量' + totalLimit : '',
+                        areaInfo.areaNames.join(' ')
+                    ].filter(Boolean).join(' ').toLowerCase()
+                });
+            });
+        }
+        return cards;
+    }
+
+    // Section
+    function attachProviderListener(pid) {
+        if (state.providerListeners[pid]) return;
+        state.providerLoaded[pid] = false;
+
+        const ref = db.ref('yhq_gx/' + pid);
+        const cb = ref.on('value', snap => {
+            const providerName = (state.providers[pid] && state.providers[pid].name) || pid;
+            state.cache[pid] = parseCoupons(pid, providerName, snap.val());
+            state.providerLoaded[pid] = true;
+            applyFilter();
+        });
+        state.providerListeners[pid] = { ref, cb };
+    }
+
+    // Section
+    function detachProviderListener(pid) {
+        const entry = state.providerListeners[pid];
+        if (!entry) return;
+        entry.ref.off('value', entry.cb);
+        delete state.providerListeners[pid];
+        delete state.cache[pid];
+        delete state.providerLoaded[pid];
+    }
+
+    // Section
+    function syncProviderListeners(newProviders) {
+        const newPids = new Set(Object.keys(newProviders));
+        const oldPids = new Set(Object.keys(state.providerListeners));
+
+        // Section
+        for (const pid of oldPids) {
+            if (!newPids.has(pid)) {
+                detachProviderListener(pid);
+            }
+        }
+
+        // Section
+        for (const pid of newPids) {
+            attachProviderListener(pid);
+        }
+    }
+
+    // Section
+    function renderProviderSelect() {
+        const list = Object.entries(state.providers)
+            .map(([id, info]) => ({ id, name: info.name, ts: info.ts }))
+            .sort((a, b) => b.ts - a.ts);
+
+        const prevPid = state.selectedPid;
+
+        if (list.length === 0) {
+            $trigger.textContent = '\u6682\u65E0\u4F9B\u5E94\u5546';
+            $list.innerHTML = '';
+        } else {
+            const allActive = !prevPid ? ' active' : '';
+            $list.innerHTML = '<div class="dropdown-item' + allActive + '" data-value="">\u5168\u90E8</div>' +
+                list.map(p => {
+                    const act = prevPid === p.id ? ' active' : '';
+                    return '<div class="dropdown-item' + act + '" data-value="' + esc(p.id) + '">' + esc(p.name) + '</div>';
+                }).join('');
+
+            if (prevPid && state.providers[prevPid]) {
+                $trigger.textContent = state.providers[prevPid].name;
+            } else {
+                $trigger.textContent = '\u5168\u90E8';
+                state.selectedPid = '';
+            }
+        }
+    }
+
+    // Section
+    function watchProviderIndex() {
+        state.indexReady = false;
+        state.indexReadyAt = 0;
+        if (state.indexInitTimer) {
+            clearTimeout(state.indexInitTimer);
+            state.indexInitTimer = null;
+        }
+        if (state.emptyDecisionTimer) {
+            clearTimeout(state.emptyDecisionTimer);
+            state.emptyDecisionTimer = null;
+        }
+        showState('', '\u6B63\u5728\u52A0\u8F7D......');
+        state.indexInitTimer = setTimeout(() => {
+            if (!state.indexReady) {
+                showState('fa-wifi', '\u8FDE\u63A5\u8D85\u65F6\uFF0C\u8BF7\u5237\u65B0\u6216\u5728\u7CFB\u7EDF\u6D4F\u89C8\u5668\u6253\u5F00');
+            }
+        }, INDEX_INIT_TIMEOUT_MS);
+
+        db.ref('yhq_gx_index').on('value', snap => {
+            const data = snap.val() || {};
+            const newProviders = {};
+
+            for (const [id, info] of Object.entries(data)) {
+                newProviders[id] = {
+                    name: (info && info.provider_name) || id,
+                    ts: (info && info.last_update) || 0
+                };
+            }
+
+            if (!state.indexReady) {
+                state.indexReady = true;
+                state.indexReadyAt = Date.now();
+                if (state.indexInitTimer) {
+                    clearTimeout(state.indexInitTimer);
+                    state.indexInitTimer = null;
+                }
+            }
+            state.providers = newProviders;
+            renderProviderSelect();
+            syncProviderListeners(newProviders);
+            applyFilter();
+
+        }, (err) => {
+            console.error('[共享页] 监听供应商索引失败:', err);
+            if (state.indexInitTimer) {
+                clearTimeout(state.indexInitTimer);
+                state.indexInitTimer = null;
+            }
+            showState('fa-triangle-exclamation', '\u6570\u636E\u52A0\u8F7D\u5931\u8D25\uFF0C\u8BF7\u5237\u65B0\u91CD\u8BD5');
+        });
+    }
+
+    // Section
+    function applyFilter() {
+        if (!state.indexReady) {
+            showState('', '\u6B63\u5728\u52A0\u8F7D......');
+            if (countdownTimer) clearInterval(countdownTimer);
+            return;
+        }
+
+        if (Object.keys(state.providers).length === 0) {
+            const waitMs = EMPTY_PROVIDER_GRACE_MS - (Date.now() - state.indexReadyAt);
+            if (waitMs > 0) {
+                showState('', '\u6B63\u5728\u52A0\u8F7D......');
+                if (countdownTimer) clearInterval(countdownTimer);
+                if (!state.emptyDecisionTimer) {
+                    state.emptyDecisionTimer = setTimeout(() => {
+                        state.emptyDecisionTimer = null;
+                        applyFilter();
+                    }, waitMs);
+                }
+                return;
+            }
+        }
+        if (state.emptyDecisionTimer) {
+            clearTimeout(state.emptyDecisionTimer);
+            state.emptyDecisionTimer = null;
+        }
+
+        const pid = state.selectedPid;
+        const kw = state.keyword.toLowerCase().trim();
+        const selProv = state.selectedProvince;
+        const activePids = pid ? (state.providers[pid] ? [pid] : []) : Object.keys(state.providers);
+
+        let cards = [];
+        if (pid) {
+            cards = state.cache[pid] || [];
+        } else {
+            for (const arr of Object.values(state.cache)) {
+                cards = cards.concat(arr);
+            }
+        }
+
+        if (activePids.length > 0) {
+            const hasPending = activePids.some(p => state.providerLoaded[p] !== true);
+            if (hasPending && cards.length === 0) {
+                showState('', '\u6B63\u5728\u52A0\u8F7D......');
+                if (countdownTimer) clearInterval(countdownTimer);
+                return;
+            }
+        }
+
+        if (kw) {
+            cards = cards.filter(c => c._searchText.includes(kw));
+        }
+
+        if (selProv) {
+            cards = cards.filter(c => areaMatchesProvince(c, selProv));
+        }
+
+        cards = cards.map(c => {
+            const blocked = c.isLimitArea && !areaMatchesProvince(c, locProvince);
+            return Object.assign({}, c, { _blocked: blocked });
+        });
+
+        renderCards(cards, state.keyword.trim());
+    }
+
+    // Section
+    let countdownTimer = null;
+
+    function calcCountdown(endTimeStr) {
+        if (!endTimeStr) return '';
+        const end = parseTimeMs(endTimeStr);
+        if (isNaN(end)) return '';
+        const now = Date.now();
+        const diff = end - now;
+        if (diff <= 0) return 'ended';
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        if (d > 0) return d + '\u5929' + h + '\u65F6' + m + '\u5206' + s + '\u79D2';
+        return h + '\u65F6' + m + '\u5206' + s + '\u79D2';
+    }
+
+    function updateCountdowns() {
+        document.querySelectorAll('.qr-countdown[data-end]').forEach(el => {
+            const end = el.dataset.end;
+            const result = calcCountdown(end);
+            if (!result) {
+                el.textContent = '\u23F3 --';
+                el.className = 'qr-countdown';
+                return;
+            }
+            if (result === 'ended') {
+                el.textContent = '\u5DF2\u7ED3\u675F';
+                el.className = 'qr-countdown ended';
+            } else {
+                el.textContent = '\u23F3 ' + result;
+                const endTs = parseTimeMs(end);
+                el.className = 'qr-countdown' + ((endTs - Date.now() < 3600000) ? ' urgent' : '');
+            }
+        });
+    }
+
+    function startCountdown() {
+        if (countdownTimer) clearInterval(countdownTimer);
+        updateCountdowns();
+        countdownTimer = setInterval(updateCountdowns, 1000);
+    }
+
+    function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function buildQRCode(el, url) {
+        if (!el || !url) return true;
+        try {
+            el.innerHTML = '';
+            new QRCode(el, {
+                text: url,
+                width: 210,
+                height: 210,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            return true;
+        } catch (err) {
+            console.warn('[共享页] 二维码生成失败:', err);
+            return false;
+        }
+    }
+
+    let toastTimer = null;
+    function notify(message, type) {
+        let toast = document.getElementById('share-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'share-toast';
+            toast.className = 'share-toast';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = String(message || '');
+        toast.className = 'share-toast' + (type ? ' ' + type : '');
+        requestAnimationFrame(() => toast.classList.add('show'));
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    async function copyText(text) {
+        const value = String(text || '').trim();
+        if (!value) throw new Error('\u6CA1\u6709\u53EF\u590D\u5236\u7684\u94FE\u63A5');
+
+        try {
+            if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+                throw new Error('clipboard unavailable');
+            }
+            await navigator.clipboard.writeText(value);
+        } catch (err) {
+            const ta = document.createElement('textarea');
+            ta.value = value;
+            ta.setAttribute('readonly', '');
+            ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand('copy');
+            ta.remove();
+            if (!ok) throw err;
+        }
+    }
+
+    function sanitizeFileName(name) {
+        return String(name || '\u4F18\u60E0\u5238\u4E8C\u7EF4\u7801')
+            .replace(/[\\/:*?"<>|]+/g, '_')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 80) || '\u4F18\u60E0\u5238\u4E8C\u7EF4\u7801';
+    }
+
+    function downloadBlobFallback(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = filename || '\u4F18\u60E0\u5238\u4E8C\u7EF4\u7801.png';
+        link.href = url;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        notify('\u56FE\u7247\u5DF2\u4FDD\u5B58', 'success');
+    }
+
+    function copyCanvasesToClone(source, clone) {
+        const sourceCanvases = source.querySelectorAll('canvas');
+        const cloneCanvases = clone.querySelectorAll('canvas');
+        sourceCanvases.forEach((canvas, i) => {
+            const target = cloneCanvases[i];
+            if (!target) return;
+            target.width = canvas.width;
+            target.height = canvas.height;
+            const ctx = target.getContext('2d');
+            if (ctx) ctx.drawImage(canvas, 0, 0);
+        });
+    }
+
+    async function ensureCardQRCode(card) {
+        const qrArea = card && card.querySelector('.qr-code-area');
+        const url = card && card.dataset ? card.dataset.url : '';
+        if (!qrArea || !url || qrArea.querySelector('canvas,img')) return;
+        await ensureQRCodeLib();
+        if (!buildQRCode(qrArea, url)) {
+            throw new Error('\u4E8C\u7EF4\u7801\u751F\u6210\u5931\u8D25');
+        }
+    }
+
+    async function copyOrDownloadCardImage(card) {
+        if (!card) throw new Error('\u672A\u627E\u5230\u4E8C\u7EF4\u7801\u5361\u7247');
+        await ensureCardQRCode(card);
+        await ensureDomToImageLib();
+
+        let wrapper = null;
+        const filename = sanitizeFileName(card.dataset.title) + '.png';
+        try {
+            const clone = card.cloneNode(true);
+            copyCanvasesToClone(card, clone);
+            clone.querySelectorAll('.qr-actions').forEach(el => { el.style.display = 'none'; });
+
+            wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none;z-index:-1;';
+            clone.style.width = card.offsetWidth + 'px';
+            clone.style.minWidth = card.offsetWidth + 'px';
+            clone.style.maxWidth = 'none';
+            clone.style.maxHeight = 'none';
+            clone.style.overflow = 'hidden';
+            wrapper.appendChild(clone);
+            document.body.appendChild(wrapper);
+
+            const scale = 2;
+            const blob = await domtoimage.toBlob(clone, {
+                bgcolor: '#ffffff',
+                width: clone.offsetWidth * scale,
+                height: clone.offsetHeight * scale,
+                style: {
+                    transform: 'scale(' + scale + ')',
+                    transformOrigin: 'top left',
+                    opacity: '1'
+                }
+            });
+
+            if (!blob) throw new Error('\u56FE\u7247\u751F\u6210\u5931\u8D25');
+
+            if (window.innerWidth <= 768 || !navigator.clipboard || !window.ClipboardItem || typeof navigator.clipboard.write !== 'function') {
+                downloadBlobFallback(blob, filename);
+                return;
+            }
+
+            try {
+                await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
+                notify('\u5DF2\u590D\u5236\u56FE\u7247', 'success');
+            } catch {
+                downloadBlobFallback(blob, filename);
+            }
+        } finally {
+            if (wrapper) wrapper.remove();
+        }
+    }
+
+    async function renderQRCodesByQueue(cards) {
+        const token = ++qrRenderToken;
+
+        try {
+            await ensureQRCodeLib();
+        } catch (err) {
+            if (token !== qrRenderToken) return;
+            console.error('[共享页] 二维码库加载失败:', err);
+            return;
+        }
+
+        let cursor = 0;
+        while (cursor < cards.length) {
+            let done = 0;
+            while (cursor < cards.length && done < QR_MAX_PER_ROUND) {
+                if (token !== qrRenderToken) return;
+                const c = cards[cursor];
+                const currentIndex = cursor;
+                cursor++;
+                if (c._blocked) continue;
+                const el = document.getElementById('qr-' + currentIndex);
+                if (!el) continue;
+
+                let ok = buildQRCode(el, c.url);
+                if (!ok) {
+                    await wait(QR_STEP_DELAY_MS);
+                    if (token !== qrRenderToken) return;
+                    ok = buildQRCode(el, c.url);
+                    if (!ok) continue;
+                }
+                done++;
+            }
+            await wait(QR_STEP_DELAY_MS);
+        }
+    }
+
+    // Section
+    function renderCards(cards, kw) {
+        $state.style.display = 'none';
+
+        if (cards.length === 0) {
+            qrRenderToken++;
+            if (kw) {
+                showState('fa-magnifying-glass', '\u672A\u627E\u5230\u5339\u914D\u7684\u4F18\u60E0\u5238');
+            } else if (Object.keys(state.providers).length === 0) {
+                showState('fa-box-open', '\u6682\u65E0\u5171\u4EAB\u4F9B\u5E94\u5546');
+            } else {
+                showState('fa-box-open', '\u6682\u65E0\u53EF\u7528\u7684\u5171\u4EAB\u4F18\u60E0\u5238');
+            }
+            if (countdownTimer) clearInterval(countdownTimer);
+            return;
+        }
+
+        $count.style.display = 'none';
+
+        $grid.innerHTML = cards.map((c, i) => {
+            const name = kw ? highlight(c.activityName, kw) : esc(c.activityName);
+            const providerName = c.providerName || c.pid || '';
+            const providerText = providerName ? (kw ? highlight(providerName, kw) : esc(providerName)) : '';
+            const endForCountdown = c.endTime || '';
+            const ok = !c._blocked;
+            const actionHtml = ok
+                ? '<div class="qr-actions">' +
+                    '<button type="button" class="qr-action-btn qr-copy-link" title="复制链接" aria-label="复制链接"><i class="fa-solid fa-link"></i></button>' +
+                    '<button type="button" class="qr-action-btn qr-copy-img" title="复制图片" aria-label="复制图片"><i class="fa-regular fa-image"></i></button>' +
+                    '<a class="qr-visit" href="' + esc(c.url) + '" target="_blank" rel="noopener noreferrer" title="访问链接" aria-label="访问链接"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>' +
+                '</div>'
+                : '<div class="qr-actions">' +
+                    '<button type="button" class="qr-action-btn" disabled title="复制链接"><i class="fa-solid fa-link"></i></button>' +
+                    '<button type="button" class="qr-action-btn" disabled title="复制图片"><i class="fa-regular fa-image"></i></button>' +
+                    '<span class="qr-visit disabled"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>' +
+                '</div>';
+            const qrInner = ok ? '' : '<div class="qr-mask"><div>区域</div><div>不可用</div></div>';
+
+            return '<div class="qr-card" data-url="' + esc(c.url) + '" data-title="' + esc(c.activityName || '\u6D3B\u52A8\u4E8C\u7EF4\u7801') + '">' +
+                '<div class="qr-top">' +
+                    '<div class="qr-top-info">\u{1F9E7} <span class="name">' + name + '</span>' +
+                    '</div>' +
+                    actionHtml +
+                '</div>' +
+                '<div class="qr-code-area" id="qr-' + i + '">' + qrInner + '</div>' +
+                '<div class="qr-bottom">' +
+                    '<span class="qr-countdown" data-end="' + esc(endForCountdown) + '"></span>' +
+                    '<span class="qr-provider">' + providerText + '</span>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+
+        startCountdown();
+        renderQRCodesByQueue(cards);
+    }
+
+    // Section
+    let searchTimer = null;
+
+    $input.addEventListener('input', () => {
+        $clear.classList.toggle('show', !!$input.value);
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            state.keyword = $input.value;
+            applyFilter();
+        }, 200);
+    });
+
+    $clear.addEventListener('click', () => {
+        $input.value = '';
+        $clear.classList.remove('show');
+        state.keyword = '';
+        applyFilter();
+        $input.focus();
+    });
+
+    $trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        $dropdown.classList.toggle('open');
+    });
+
+    $list.addEventListener('click', (e) => {
+        const item = e.target.closest('.dropdown-item');
+        if (!item) return;
+        const val = item.dataset.value;
+        state.selectedPid = val;
+        $trigger.textContent = item.textContent;
+        $list.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+        item.classList.add('active');
+        $dropdown.classList.remove('open');
+        applyFilter();
+    });
+
+    $grid.addEventListener('click', async (e) => {
+        const linkBtn = e.target.closest('.qr-copy-link');
+        const imageBtn = e.target.closest('.qr-copy-img');
+        if (!linkBtn && !imageBtn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const btn = linkBtn || imageBtn;
+        const card = btn.closest('.qr-card');
+        if (!card || btn.disabled) return;
+
+        btn.disabled = true;
+        btn.classList.add('copying');
+        try {
+            if (linkBtn) {
+                await copyText(card.dataset.url);
+                notify('\u5DF2\u590D\u5236\u94FE\u63A5', 'success');
+            } else {
+                await copyOrDownloadCardImage(card);
+            }
+        } catch (err) {
+            console.error('[共享页] 复制失败:', err);
+            notify((linkBtn ? '\u590D\u5236\u94FE\u63A5\u5931\u8D25: ' : '\u590D\u5236\u56FE\u7247\u5931\u8D25: ') + (err && err.message ? err.message : '\u672A\u77E5\u9519\u8BEF'), 'error');
+        }
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.classList.remove('copying');
+        }, 1000);
+    });
+
+    document.addEventListener('click', () => {
+        $dropdown.classList.remove('open');
+        $areaPopup.classList.remove('open');
+    });
+    const $loc = document.getElementById('hero-loc');
+    const $fab = document.getElementById('area-fab');
+    const $areaPopup = document.getElementById('area-popup');
+    const weekdays = [
+        '\u661F\u671F\u65E5',
+        '\u661F\u671F\u4E00',
+        '\u661F\u671F\u4E8C',
+        '\u661F\u671F\u4E09',
+        '\u661F\u671F\u56DB',
+        '\u661F\u671F\u4E94',
+        '\u661F\u671F\u516D'
+    ];
+    let locProvince = '';
+
+    const PROVINCES = [
+        '\u5317\u4EAC\u5E02', '\u5929\u6D25\u5E02', '\u4E0A\u6D77\u5E02', '\u91CD\u5E86\u5E02',
+        '\u6CB3\u5317\u7701', '\u5C71\u897F\u7701', '\u8FBD\u5B81\u7701', '\u5409\u6797\u7701', '\u9ED1\u9F99\u6C5F\u7701',
+        '\u6C5F\u82CF\u7701', '\u6D59\u6C5F\u7701', '\u5B89\u5FBD\u7701', '\u798F\u5EFA\u7701', '\u6C5F\u897F\u7701', '\u5C71\u4E1C\u7701',
+        '\u6CB3\u5357\u7701', '\u6E56\u5317\u7701', '\u6E56\u5357\u7701', '\u5E7F\u4E1C\u7701', '\u6D77\u5357\u7701',
+        '\u56DB\u5DDD\u7701', '\u8D35\u5DDE\u7701', '\u4E91\u5357\u7701', '\u9655\u897F\u7701', '\u7518\u8083\u7701', '\u9752\u6D77\u7701',
+        '\u53F0\u6E7E\u7701', '\u5185\u8499\u53E4\u81EA\u6CBB\u533A', '\u5E7F\u897F\u58EE\u65CF\u81EA\u6CBB\u533A', '\u897F\u85CF\u81EA\u6CBB\u533A',
+        '\u5B81\u590F\u56DE\u65CF\u81EA\u6CBB\u533A', '\u65B0\u7586\u7EF4\u543E\u5C14\u81EA\u6CBB\u533A',
+        '\u9999\u6E2F\u7279\u522B\u884C\u653F\u533A', '\u6FB3\u95E8\u7279\u522B\u884C\u653F\u533A'
+    ];
+
+    function renderAreaPopup() {
+        const prov = state.selectedProvince;
+        $areaPopup.innerHTML = '<div class="area-item' + (!prov ? ' active' : '') + '" data-prov="">全部地区</div>' +
+            PROVINCES.map(p => '<div class="area-item' + (prov === p ? ' active' : '') + '" data-prov="' + esc(p) + '">' + esc(p) + '</div>').join('');
+    }
+
+    $fab.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = $areaPopup.classList.toggle('open');
+        if (isOpen) renderAreaPopup();
+    });
+
+    $areaPopup.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const item = e.target.closest('.area-item');
+        if (!item) return;
+        state.selectedProvince = item.dataset.prov;
+        $areaPopup.classList.remove('open');
+        applyFilter();
+    });
+
+    function updateLocTime() {
+        const now = new Date();
+        const y = now.getFullYear();
+        const mo = String(now.getMonth() + 1).padStart(2,'0');
+        const d = String(now.getDate()).padStart(2,'0');
+        const h = String(now.getHours()).padStart(2,'0');
+        const mi = String(now.getMinutes()).padStart(2,'0');
+        const s = String(now.getSeconds()).padStart(2,'0');
+        const week = weekdays[now.getDay()];
+        const datetime = y + '/' + mo + '/' + d + ' ' + h + ':' + mi + ':' + s;
+        $loc.innerHTML = (locProvince ? locProvince + ' · ' : '') + datetime + ' <span class="week">' + week + '</span>';
+    }
+
+    (function initLocation() {
+        const cb = '_qqMapCb_' + Date.now();
+        const script = document.createElement('script');
+        const timeout = setTimeout(() => { delete window[cb]; script.remove(); }, 5000);
+        window[cb] = (res) => {
+            clearTimeout(timeout);
+            delete window[cb];
+            script.remove();
+            if (res.status === 0 && res.result && res.result.ad_info) {
+                locProvince = res.result.ad_info.province || '';
+            }
+            if (locProvince) {
+                state.selectedProvince = locProvince;
+                applyFilter();
+            }
+            updateLocTime();
+        };
+        script.src = 'https://apis.map.qq.com/ws/location/v1/ip?key=HITBZ-I5IC3-4QR3L-RXGCF-SYSQ7-GSFBA&output=jsonp&callback=' + cb;
+        script.onerror = () => { clearTimeout(timeout); delete window[cb]; script.remove(); updateLocTime(); };
+        document.head.appendChild(script);
+    })();
+
+    updateLocTime();
+    setInterval(updateLocTime, 1000);
+
+    async function boot() {
+        try {
+            await ensureBaseDeps();
+            db = initFirebaseAndDb();
+            watchProviderIndex();
+        } catch (err) {
+            console.error('[共享页] 启动失败:', err);
+            showBootError('\u8D44\u6E90\u52A0\u8F7D\u5931\u8D25\uFF0C\u8BF7\u68C0\u67E5\u7F51\u7EDC\uFF0C\u5EFA\u8BAE\u5728\u7CFB\u7EDF\u6D4F\u89C8\u5668\u6253\u5F00');
+        }
+    }
+
+    // Section
+    boot();
+})();
+</script>
+
+</body>
+</html>

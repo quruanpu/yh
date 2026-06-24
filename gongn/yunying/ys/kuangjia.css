@@ -1,0 +1,313 @@
+/* BI运营查询模块 - 页面框架样式 */
+:root {
+    --yeji-primary: #4080ff;
+    --yeji-bg: #f0f2f5;
+    --yeji-card-bg: #fff;
+    --yeji-border: #e5e7eb;
+    --yeji-text: #1f2937;
+    --yeji-text-secondary: #6b7280;
+    --yeji-radius: 6px;
+}
+
+.yeji-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--yeji-bg);
+    overflow: hidden;
+    position: relative;
+}
+
+.yeji-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    gap: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.yeji-search-container {
+    flex-shrink: 0;
+    padding: 12px 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+    border-bottom: 1px solid rgba(209, 213, 219, 0.5);
+}
+
+.yeji-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.yeji-search-input-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.yeji-search-input {
+    width: 100%;
+    height: 36px;
+    padding: 0 40px 0 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    transition: border-color .2s, box-shadow .2s;
+    box-sizing: border-box;
+    outline: none;
+}
+
+.yeji-search-input::placeholder { color: #9ca3af; }
+.yeji-search-input:focus {
+    border-color: var(--yeji-primary);
+    box-shadow: 0 4px 16px rgba(64, 128, 255, 0.15);
+}
+
+.yeji-search-clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #9ca3af;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0;
+    outline: none;
+}
+.yeji-search-clear:hover { background: #f3f4f6; color: #6b7280; }
+
+.yeji-filter-toggle,
+.yeji-search-btn {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.yeji-filter-toggle {
+    border: 1.5px solid #d1d5db;
+    background: #ffffff;
+    color: #6b7280;
+    transition: border-color .2s, color .2s, background .2s;
+}
+.yeji-filter-toggle:hover {
+    border-color: var(--yeji-primary);
+    color: var(--yeji-primary);
+    background: #eef3ff;
+}
+
+.yeji-search-btn {
+    padding: 0;
+    background: var(--yeji-primary);
+    color: #fff;
+    border: none;
+    font-size: 13px;
+}
+.yeji-search-btn:hover { background: var(--yeji-primary); }
+.yeji-search-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.yeji-tpl-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+.yeji-tpl-btn {
+    height: 36px;
+    padding: 0 12px;
+    gap: 4px;
+    background: #fff;
+    color: #6b7280;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    transition: border-color .2s, color .2s, background .2s;
+}
+.yeji-tpl-btn:hover {
+    border-color: var(--yeji-primary);
+    color: var(--yeji-primary);
+}
+.yeji-tpl-btn.yeji-tpl-active {
+    border-color: var(--yeji-primary);
+    color: var(--yeji-primary);
+    background: #f0f5ff;
+}
+.yeji-tpl-clear {
+    font-size: 12px;
+    cursor: pointer;
+}
+.yeji-tpl-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    width: max-content;
+    min-width: 100%;
+    max-width: 300px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.15);
+    z-index: 9000;
+    overflow: hidden;
+}
+.yeji-tpl-list {
+    max-height: 420px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 4px 0;
+}
+.yeji-tpl-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 4px 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #333;
+    background: #f7f8fa;
+    border-radius: 6px;
+    user-select: none;
+    touch-action: pan-y;
+}
+.yeji-tpl-item[data-template-key] {
+    cursor: pointer;
+}
+.yeji-tpl-item.dragging {
+    opacity: .38;
+}
+.yeji-tpl-drag-ghost {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 12000;
+    margin: 0;
+    pointer-events: none;
+    opacity: .9;
+    background: rgba(255, 255, 255, .96);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .2);
+    transform: translate3d(-9999px, -9999px, 0);
+}
+.yeji-tpl-insert-line {
+    height: 0;
+    margin: 2px 11px;
+    border-top: 1px solid #0b63ff;
+    background: transparent;
+    flex: 0 0 auto;
+    pointer-events: none;
+}
+.yeji-tpl-item:hover { background: #e8f0fe; }
+.yeji-tpl-name {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.yeji-tpl-drag-handle {
+    flex-shrink: 0;
+    cursor: grab;
+    touch-action: none;
+}
+.yeji-tpl-drag-handle:active {
+    cursor: grabbing;
+}
+.yeji-tpl-item .yeji-tpl-del {
+    color: #ccc;
+    font-size: 11px;
+    padding: 2px 4px;
+    flex-shrink: 0;
+}
+.yeji-tpl-item .yeji-tpl-del:hover { color: #ff4d4f; }
+.yeji-tpl-empty {
+    padding: 16px;
+    text-align: center;
+    color: #999;
+    font-size: 12px;
+}
+
+.yeji-tpl-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+.yeji-tpl-dialog {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+.yeji-tpl-dialog-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+.yeji-tpl-dialog-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    outline: none;
+}
+.yeji-tpl-dialog-input:focus { border-color: var(--yeji-primary); }
+.yeji-tpl-dialog-ok {
+    padding: 0 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
+    background: var(--yeji-primary);
+    color: #fff;
+    white-space: nowrap;
+}
+
+@media screen and (max-width: 480px) {
+    .yeji-search-container { padding: 8px 10px; }
+    .yeji-search-box { gap: 6px; }
+    .yeji-search-input {
+        height: 32px;
+        font-size: 12px;
+        padding: 0 32px 0 10px;
+    }
+    .yeji-search-btn,
+    .yeji-filter-toggle {
+        width: 32px;
+        height: 32px;
+    }
+    .yeji-tpl-btn {
+        height: 32px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+    .yeji-tpl-panel { max-width: 240px; }
+}
