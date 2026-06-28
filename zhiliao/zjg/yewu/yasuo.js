@@ -284,6 +284,17 @@
                 image_url: this.sanitizeHistoryImageUrl(resolvedImageUrl)
             };
 
+            const imageRefs = Array.isArray(result.image_refs)
+                ? result.image_refs.map((item) => String(item || '').trim()).filter(Boolean)
+                : [];
+            const imageRef = String(result.image_ref || result.first_card_image_ref || '').trim();
+            if (imageRef && imageRefs.indexOf(imageRef) < 0) imageRefs.unshift(imageRef);
+            if (imageRefs.length > 0) {
+                output.image_ref = imageRefs[0];
+                output.image_refs = imageRefs.slice(0, 8);
+                output.image_pool_hint = `商品图片已登记为 ${output.image_ref}，生成/编辑图片时可传 image_ref。`;
+            }
+
             if (typeof result.matched_keyword === 'string' && result.matched_keyword.trim()) {
                 output.matched_keyword = result.matched_keyword.trim();
             }

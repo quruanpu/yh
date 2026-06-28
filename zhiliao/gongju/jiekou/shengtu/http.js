@@ -105,60 +105,80 @@
         return payload && typeof payload === 'object' ? payload : {};
     },
 
-    toDataUrl(base64Text, outputFormat) {
-        const raw = this.text(base64Text);
-        if (!raw) return '';
-        if (/^data:/i.test(raw) || /^https?:\/\//i.test(raw)) return raw;
-
-        let mime = 'image/png';
-        const fmt = this.text(outputFormat).toLowerCase();
-        if (fmt === 'jpg' || fmt === 'jpeg') mime = 'image/jpeg';
-        if (fmt === 'webp') mime = 'image/webp';
-
-        return `data:${mime};base64,${raw}`;
+    isImageUrl(value) {
+        const text = this.text(value);
+        return /^https?:\/\//i.test(text) || /^data:image\/[a-z0-9.+-]+;base64,/i.test(text);
     },
 
-    normalizeImageResponse(json = {}, requestPayload = {}) {
+    appendImageUrl(out, seen, value) {
+        const url = this.text(value);
+        if (!url || !this.isImageUrl(url) || seen.has(url)) return;
+        seen.add(url);
+        out.push(url);
+    },
+
+    appendImageItem(out, seen, value) {
+        if (!value) return;
+        if (typeof value === 'string') {
+            this.appendImageUrl(out, seen, value);
+            return;
+        }
+        if (typeof value !== 'object' || Array.isArray(value)) return;
+        this.appendImageUrl(out, seen, value.url);
+        this.appendImageUrl(out, seen, value.image_url);
+        if (value.image_url && typeof value.image_url === 'object') {
+            this.appendImageUrl(out, seen, value.image_url.url);
+        }
+    },
+
+    appendImageList(out, seen, value) {
+        if (Array.isArray(value)) {
+            value.forEach((item) => this.appendImageItem(out, seen, item));
+            return;
+        }
+        this.appendImageItem(out, seen, value);
+    },
+
+    normalizeImageResponse(json = {}) {
+        const payload = json && typeof json === 'object' ? json : {};
         const urls = [];
-        const outputFormat = this.text(requestPayload?.payload?.output_format || requestPayload.output_format).toLowerCase() || 'png';
-
-        if (Array.isArray(json?.data)) {
-            for (let i = 0; i < json.data.length; i += 1) {
-                const item = json.data[i] || {};
-                const url = this.text(item.url || item.image_url);
-                const b64 = this.text(item.b64_json || item.image_base64);
-                if (url) urls.push(url);
-                if (b64) urls.push(this.toDataUrl(b64, outputFormat));
-            }
-        }
-
-        if (Array.isArray(json?.images)) {
-            for (let i = 0; i < json.images.length; i += 1) {
-                const item = json.images[i] || {};
-                const url = this.text(item.image_url || item.url);
-                if (url) urls.push(url);
-            }
-        }
-
-        const topUrl = this.text(json?.image_url || json?.url);
-        if (topUrl) urls.push(topUrl);
-
-        const topB64 = this.text(json?.b64_json || json?.image_base64);
-        if (topB64) urls.push(this.toDataUrl(topB64, outputFormat));
-
-        const deduped = [];
         const seen = new Set();
-        for (let i = 0; i < urls.length; i += 1) {
-            const v = this.text(urls[i]);
-            if (!v || seen.has(v)) continue;
-            seen.add(v);
-            deduped.push(v);
-        }
+
+        this.appendImageUrl(urls, seen, payload.image_url);
+        this.appendImageList(urls, seen, payload.image_urls);
+        this.appendImageList(urls, seen, payload.images);
 
         return {
-            image_url: deduped[0] || '',
-            image_urls: deduped
+            image_url: urls[0] || '',
+            image_urls: urls
         };
+    },
+
+    normalizeImageTask(payload = {}) {
+        const row = payload && typeof payload === 'object' ? payload : {};
+        return {
+            task_id: this.text(row.task_id),
+            image_id: this.text(row.image_id),
+            status_url: this.text(row.status_url),
+            status: this.text(row.status)
+        };
+    },
+
+    describeResponseShape(value, depth = 0) {
+        if (depth > 2 || value === undefined || value === null) return '';
+        if (Array.isArray(value)) {
+            const first = value.length > 0 ? this.describeResponseShape(value[0], depth + 1) : '';
+            return `array(${value.length})${first ? `<${first}>` : ''}`;
+        }
+        if (typeof value !== 'object') return typeof value;
+        const keys = Object.keys(value).slice(0, 24);
+        const child = {};
+        keys.slice(0, 8).forEach((key) => {
+            const item = value[key];
+            if (item && typeof item === 'object') child[key] = this.describeResponseShape(item, depth + 1);
+        });
+        const childText = Object.keys(child).length > 0 ? ` ${JSON.stringify(child)}` : '';
+        return `object{${keys.join(',')}}${childText}`;
     },
 
     async postJson(endpoint, payload, timeoutMs) {

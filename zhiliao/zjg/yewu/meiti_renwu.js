@@ -302,6 +302,24 @@ const ZhiLiaoZjgMeitiRenwuModule = (() => {
                 textContainer.dataset.fullText = fallbackText;
             }
             const messageNode = textContainer?.closest?.('.system-message');
+            const systemText = textContainer?.closest?.('.system-text');
+            const hasRenderedContent = systemText
+                ? Array.from(systemText.children || []).some((child) => {
+                    if (child === textContainer || child === thinkingContainer) return false;
+                    return Boolean(
+                        child.matches?.('.zhiliao-cx-inline-result, .chart-result') ||
+                        String(child.textContent || '').trim() ||
+                        child.children?.length
+                    );
+                })
+                : false;
+
+            if (hasRenderedContent) {
+                thinkingContainer?.remove?.();
+                textContainer?.remove?.();
+                return;
+            }
+
             if (messageNode && messageNode.parentNode) {
                 messageNode.remove();
             }

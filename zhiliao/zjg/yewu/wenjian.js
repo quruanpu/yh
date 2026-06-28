@@ -119,6 +119,26 @@ const ZhiLiaoZjgWenjianModule = (() => {
             })}`;
         },
 
+        appendMediaReferenceHint(contentArray = [], registeredMedia = []) {
+            if (!Array.isArray(contentArray) || !Array.isArray(registeredMedia) || registeredMedia.length === 0) return;
+            const images = registeredMedia.filter(item => item?.kind === 'image');
+            const videos = registeredMedia.filter(item => item?.kind === 'video');
+            const hints = [
+                images.length ? this.buildMediaReferenceHint?.('image', images) : '',
+                videos.length ? this.buildMediaReferenceHint?.('video', videos) : ''
+            ].filter(Boolean);
+            if (hints.length === 0) return;
+
+            const hintText = hints.join('\n\n');
+            const firstTextBlock = contentArray.find(item => item?.type === 'text');
+            if (firstTextBlock) {
+                firstTextBlock.text = [firstTextBlock.text, hintText].filter(Boolean).join('\n\n');
+                return;
+            }
+
+            contentArray.unshift({ type: 'text', text: hintText });
+        },
+
         async buildMultimodalContent(userMessage, files, fileIds) {
             this.logDebug('buildMultimodalContent started', { filesCount: files.length, fileIds });
             const contentArray = [];
@@ -128,6 +148,7 @@ const ZhiLiaoZjgWenjianModule = (() => {
             const db = window.DBModule;
             if (!db) return contentArray;
 
+            const registeredMedia = [];
             for (let i = 0; i < files.length; i += 1) {
                 const file = files[i];
                 const fileId = fileIds[i];
@@ -135,13 +156,15 @@ const ZhiLiaoZjgWenjianModule = (() => {
                 const contentItem = await this.buildFileContentItem(fileData, file, fileId);
                 if (contentItem) {
                     contentArray.push(contentItem);
-                    this.registerMediaContentItem?.(contentItem, {
+                    const registered = this.registerMediaContentItem?.(contentItem, {
                         fileId,
                         name: file.name,
                         source: 'upload'
                     });
+                    if (registered) registeredMedia.push(registered);
                 }
             }
+            this.appendMediaReferenceHint(contentArray, registeredMedia);
 
             this.logDebug('buildMultimodalContent completed', { itemCount: contentArray.length });
             return contentArray;
@@ -184,18 +207,21 @@ const ZhiLiaoZjgWenjianModule = (() => {
             const db = window.DBModule;
             if (!db) return contentArray;
 
+            const registeredMedia = [];
             for (const { file, fileId } of groupFiles) {
                 const fileData = await db.getFile(fileId);
                 const contentItem = await this.buildFileContentItem(fileData, file, fileId);
                 if (contentItem) {
                     contentArray.push(contentItem);
-                    this.registerMediaContentItem?.(contentItem, {
+                    const registered = this.registerMediaContentItem?.(contentItem, {
                         fileId,
                         name: file.name,
                         source: 'upload'
                     });
+                    if (registered) registeredMedia.push(registered);
                 }
             }
+            this.appendMediaReferenceHint(contentArray, registeredMedia);
 
             return contentArray;
         },

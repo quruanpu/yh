@@ -283,6 +283,104 @@
             };
         },
 
+        sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, Math.max(0, Number(ms || 0))));
+        },
+
+        isRunningStatus(status = '') {
+            const text = this.text(status).toLowerCase();
+            if (!text) return true;
+            return ['pending', 'queued', 'queueing', 'running', 'processing', 'in_progress', 'submitted', 'created', 'starting'].includes(text);
+        },
+
+        isFailedStatus(status = '') {
+            const text = this.text(status).toLowerCase();
+            return ['failed', 'fail', 'error', 'canceled', 'cancelled', 'rejected', 'timeout', 'expired'].includes(text);
+        },
+
+        async requestImage(endpoint, requestPayload, timeoutMs) {
+            const response = await this.postJson(endpoint, requestPayload, timeoutMs);
+            if (!response.ok) {
+                const message = response.networkError || this.parseResponseMessage(response.status, response.json, response.text);
+                return {
+                    ok: false,
+                    error: message,
+                    statusCode: Number(response.status || 0),
+                    payload: {},
+                    image: { image_url: '', image_urls: [] },
+                    task: {}
+                };
+            }
+
+            const parsed = this.unwrapResponsePayload(response.json, response.text);
+            if (parsed?.success === false) {
+                return {
+                    ok: false,
+                    error: this.parseResponseMessage(response.status, parsed, response.text),
+                    statusCode: Number(response.status || 200),
+                    payload: parsed,
+                    image: { image_url: '', image_urls: [] },
+                    task: this.normalizeImageTask(parsed)
+                };
+            }
+            return {
+                ok: true,
+                statusCode: Number(response.status || 200),
+                payload: parsed,
+                image: this.normalizeImageResponse(parsed, requestPayload),
+                task: this.normalizeImageTask(parsed)
+            };
+        },
+
+        async pollImageTask(endpoint, baseRequestPayload, cfg, initialTask, outputFormat) {
+            const taskId = this.text(initialTask.task_id);
+            const imageId = this.text(initialTask.image_id);
+            if (!taskId && !imageId) return null;
+
+            const intervalMs = 3000;
+            const totalTimeoutMs = this.resolveTimeoutMs({
+                timeout_ms: baseRequestPayload.options?.timeout_ms
+            });
+            const maxRounds = Math.max(1, Math.ceil(totalTimeoutMs / intervalMs));
+            let lastResult = null;
+
+            for (let round = 0; round < maxRounds; round += 1) {
+                await this.sleep(intervalMs);
+                const queryPayload = {
+                    ...baseRequestPayload,
+                    payload: {
+                        model: cfg.model,
+                        mode: 'query',
+                        output_format: outputFormat || baseRequestPayload.payload?.output_format || 'png',
+                        ...(imageId ? { image_id: imageId } : { task_id: taskId })
+                    }
+                };
+                const result = await this.requestImage(endpoint, queryPayload, baseRequestPayload.options?.timeout_ms);
+                lastResult = result;
+                if (!result.ok) return result;
+                if (result.image?.image_url) return result;
+                if (this.isFailedStatus(result.task?.status)) return result;
+                if (!this.isRunningStatus(result.task?.status)) return result;
+            }
+
+            if (lastResult) {
+                lastResult.timedOut = true;
+                return lastResult;
+            }
+            return {
+                ok: true,
+                timedOut: true,
+                statusCode: 200,
+                payload: {},
+                image: { image_url: '', image_urls: [] },
+                task: {
+                    task_id: taskId,
+                    image_id: imageId,
+                    status: this.text(initialTask.status) || 'processing'
+                }
+            };
+        },
+
         async generateOrEditImage(params = {}) {
             this.initImagePoolState();
             const missing = this.missingDependencies();
@@ -383,18 +481,51 @@
                 requestPayload.payload.mode = 'generate';
             }
 
-            const response = await this.postJson(endpoint, requestPayload, timeoutMs);
-            if (!response.ok) {
-                const message = response.networkError || this.parseResponseMessage(response.status, response.json, response.text);
+            const created = await this.requestImage(endpoint, requestPayload, timeoutMs);
+            if (!created.ok) {
                 return {
                     success: false,
-                    error: message,
-                    status_code: Number(response.status || 0)
+                    error: created.error,
+                    status_code: created.statusCode
                 };
             }
 
-            const parsed = this.unwrapResponsePayload(response.json, response.text);
-            const image = this.normalizeImageResponse(parsed, requestPayload);
+            let parsed = created.payload;
+            let image = created.image;
+            let task = created.task;
+
+            if (!image.image_url && (task.task_id || task.image_id)) {
+                const polled = await this.pollImageTask(endpoint, requestPayload, cfg, task, businessPayload.output_format);
+                if (polled?.ok && polled.image?.image_url) {
+                    parsed = polled.payload;
+                    image = polled.image;
+                    task = polled.task;
+                } else if (polled && polled.ok === false) {
+                    return {
+                        success: false,
+                        error: polled.error,
+                        status_code: polled.statusCode
+                    };
+                } else if (polled?.task && this.isFailedStatus(polled.task.status)) {
+                    return {
+                        success: false,
+                        error: `图片任务失败：${polled.task.status}`,
+                        status_code: polled.statusCode || created.statusCode,
+                        task_id: task.task_id,
+                        image_id: task.image_id
+                    };
+                } else if (polled?.timedOut === true) {
+                    const statusText = this.text(polled.task?.status || task.status) || '处理中';
+                    return {
+                        success: false,
+                        error: `图片任务仍在生成中：${statusText}`,
+                        status_code: polled.statusCode || created.statusCode,
+                        task_id: task.task_id,
+                        image_id: task.image_id
+                    };
+                }
+            }
+
             if (image.image_url) {
                 const capturedUrls = Array.isArray(image.image_urls) && image.image_urls.length > 0
                     ? image.image_urls
@@ -404,13 +535,17 @@
                     route,
                     model: cfg.model
                 });
-                return this.buildSuccessResult(action, route, cfg, response.status, image, parsed, imageRefs, sizeMeta);
+                return this.buildSuccessResult(action, route, cfg, created.statusCode, image, parsed, imageRefs, sizeMeta);
             }
 
             return {
                 success: false,
                 error: '上游返回成功，但未解析到图片结果',
-                status_code: Number(response.status || 200)
+                status_code: Number(created.statusCode || 200),
+                task_id: task.task_id || '',
+                image_id: task.image_id || '',
+                task_status: task.status || '',
+                response_shape: this.describeResponseShape?.(parsed) || ''
             };
         },
 

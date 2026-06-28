@@ -20,6 +20,19 @@
         return list.length > 0 ? list[0] : null;
     }
 
+    function collectImageRefs(result) {
+        const refs = [];
+        const push = (value) => {
+            const ref = String(value || '').trim();
+            if (!ref || refs.includes(ref)) return;
+            refs.push(ref);
+        };
+        push(result?.first_card_image_ref);
+        push(result?.image_ref);
+        if (Array.isArray(result?.image_refs)) result.image_refs.forEach(push);
+        return refs;
+    }
+
     function parseJsonSafe(raw) {
         try {
             return JSON.parse(String(raw || ''));
@@ -160,8 +173,13 @@
         const routingText = String(context?.routingText || context?.latestUserText || '');
 
         pushCandidate(candidates, next.keyword);
-        pushCandidate(candidates, center.extractDrugKeyword(next.prompt));
-        pushCandidate(candidates, center.extractDrugKeyword(routingText));
+        if (typeof center.extractProductKeywordCandidates === 'function') {
+            center.extractProductKeywordCandidates(routingText).forEach((item) => pushCandidate(candidates, item));
+            center.extractProductKeywordCandidates(next.prompt).forEach((item) => pushCandidate(candidates, item));
+        } else {
+            pushCandidate(candidates, center.extractDrugKeyword(next.prompt));
+            pushCandidate(candidates, center.extractDrugKeyword(routingText));
+        }
 
         const fromPromptCode = extractCodeLikeCandidates(next.prompt);
         const fromRouteCode = extractCodeLikeCandidates(routingText);
@@ -191,20 +209,41 @@
             const payload = parseJsonSafe(item.content);
             if (!payload || payload.success !== true) continue;
 
-            const product = firstProduct(payload);
-            const imageUrl =
-                center.text(payload.first_card_image_url) ||
-                center.text(payload.image_url) ||
-                center.pickFirstImageUrlFromProduct(product);
-            if (!isHttpUrl(imageUrl)) continue;
-
-            return {
-                tool: toolName,
-                imageUrl,
-                product: product && typeof product === 'object' ? product : null
-            };
+            const found = buildProductContextFromResult(toolName, payload, center);
+            if (found) return found;
         }
 
+        return null;
+    }
+
+    function buildProductContextFromResult(toolName, result, center) {
+        if (toolName !== 'search_product' && toolName !== 'understand_product_image') return null;
+        if (!result || result.success !== true) return null;
+
+        const product = firstProduct(result);
+        const imageUrl =
+            center.text(result.first_card_image_url) ||
+            center.text(result.image_url) ||
+            center.pickFirstImageUrlFromProduct(product);
+        const imageRefs = collectImageRefs(result);
+        if (!isHttpUrl(imageUrl) && imageRefs.length === 0) return null;
+
+        return {
+            tool: toolName,
+            imageUrl,
+            imageRef: imageRefs[0] || '',
+            imageRefs,
+            product: product && typeof product === 'object' ? product : null
+        };
+    }
+
+    function readPriorProductContext(context, center) {
+        const list = Array.isArray(context?.priorToolResults) ? context.priorToolResults : [];
+        for (let i = list.length - 1; i >= 0; i -= 1) {
+            const item = list[i] || {};
+            const found = buildProductContextFromResult(center.text(item.functionName), item.result, center);
+            if (found) return found;
+        }
         return null;
     }
 
@@ -215,19 +254,29 @@
 
         const maxAttempts = 2;
         const timeoutMs = 3000;
+        const runWithTimeout = async (promise) => {
+            let timeoutId = null;
+            const timeout = new Promise(resolve => {
+                timeoutId = setTimeout(() => resolve(null), timeoutMs);
+            });
+            try {
+                return await Promise.race([promise, timeout]);
+            } finally {
+                if (timeoutId) clearTimeout(timeoutId);
+            }
+        };
 
         for (let i = 0; i < Math.min(candidates.length, maxAttempts); i += 1) {
             const keyword = center.text(candidates[i]);
             if (!keyword) continue;
 
-            const result = await Promise.race([
+            const result = await runWithTimeout(
                 window.ToolRegistry.executeTool(
                     'search_product',
                     { keyword, _fromAI: true, _skipSkill: true },
                     { sessionId: context?.sessionId || '', sourceTool: 'generate_or_edit_image' }
-                ),
-                new Promise(resolve => setTimeout(() => resolve(null), timeoutMs))
-            ]);
+                )
+            );
 
             if (!result || result.success !== true) continue;
 
@@ -236,12 +285,16 @@
                 center.text(result.first_card_image_url) ||
                 center.text(result.image_url) ||
                 center.pickFirstImageUrlFromProduct(product);
-            if (!isHttpUrl(imageUrl)) continue;
+            const imageRefs = collectImageRefs(result);
+            if (!isHttpUrl(imageUrl) && imageRefs.length === 0) continue;
 
             return {
                 ok: true,
                 keyword,
+                result,
                 imageUrl,
+                imageRef: imageRefs[0] || '',
+                imageRefs,
                 product: product && typeof product === 'object' ? product : null
             };
         }
@@ -289,8 +342,8 @@
 
             const isDrugIntent = center.isDrugIntentText(routingText);
             const isEditIntent = center.isImageEditIntentText(next, routingText);
-            const hasAnyImageSource = center.hasImageSource(next);
-            const hasDirectSource = hasDirectImageSource(next);
+            let hasAnyImageSource = center.hasImageSource(next);
+            let hasDirectSource = hasDirectImageSource(next);
             const refTokens = normalizeRefTokens(next);
             const hasInvalidRefOnly =
                 refTokens.length > 0 &&
@@ -300,21 +353,38 @@
             if (hasInvalidRefOnly) {
                 delete next.image_ref;
                 delete next.image_refs;
+                hasAnyImageSource = center.hasImageSource(next);
+                hasDirectSource = hasDirectImageSource(next);
             }
 
-            if (!isDrugIntent && !productImageContext) {
+            const candidates = buildLookupCandidates(next, context, center);
+            const hasProductLookupIntent = /查询|查一下|查找|搜索|检索|找一下/.test(String(routingText || '')) &&
+                posterIntent &&
+                candidates.length > 0;
+
+            if (hasAnyImageSource && !hasProductLookupIntent) {
+                if (isEditIntent || posterIntent || productImageContext) {
+                    next.action = 'edit';
+                }
+                return { params: next };
+            }
+
+            if (!isDrugIntent && !productImageContext && !hasProductLookupIntent) {
                 if (isEditIntent && hasDirectSource) return { params: next };
                 return { params: next };
             }
 
-            const recentProduct = readRecentProductContext(center);
-            if (recentProduct && isHttpUrl(recentProduct.imageUrl)) {
+            const applyProductImageContext = (source) => {
                 const merged = { ...next };
                 merged.action = 'edit';
-                merged.prompt = center.buildDrugPrompt(next.prompt, recentProduct.product);
+                merged.prompt = center.buildDrugPrompt(next.prompt, source.product);
                 const directImages = collectDirectImageItems(merged);
-                if (!directImages.some((item) => item.image_url === recentProduct.imageUrl)) {
-                    directImages.push({ image_url: recentProduct.imageUrl });
+                const imageRefs = Array.isArray(source.imageRefs) ? source.imageRefs : [];
+                if (source.imageRef || imageRefs.length > 0) {
+                    merged.image_ref = source.imageRef || imageRefs[0];
+                    if (imageRefs.length > 1) merged.image_refs = imageRefs;
+                } else if (isHttpUrl(source.imageUrl) && !directImages.some((item) => item.image_url === source.imageUrl)) {
+                    directImages.push({ image_url: source.imageUrl });
                 }
                 if (directImages.length > 0) {
                     merged.images = directImages;
@@ -322,27 +392,32 @@
                     delete merged.image_urls;
                 }
                 return { params: merged };
+            };
+
+            const priorProduct = readPriorProductContext(context, center);
+            if (priorProduct && (isHttpUrl(priorProduct.imageUrl) || priorProduct.imageRef)) {
+                return applyProductImageContext(priorProduct);
             }
 
-            const candidates = buildLookupCandidates(next, context, center);
+            const recentProduct = readRecentProductContext(center);
+            if (recentProduct && (isHttpUrl(recentProduct.imageUrl) || recentProduct.imageRef)) {
+                return applyProductImageContext(recentProduct);
+            }
+
             const lookup = await lookupProductByCandidates(candidates, context, center);
             if (lookup.ok) {
-                const merged = { ...next };
-                merged.action = 'edit';
-                merged.prompt = center.buildDrugPrompt(next.prompt, lookup.product);
-                const directImages = collectDirectImageItems(merged);
-                if (!directImages.some((item) => item.image_url === lookup.imageUrl)) {
-                    directImages.push({ image_url: lookup.imageUrl });
-                }
-                if (directImages.length > 0) {
-                    merged.images = directImages;
-                    delete merged.image_url;
-                    delete merged.image_urls;
-                }
-                return { params: merged };
+                const out = applyProductImageContext(lookup);
+                return {
+                    ...out,
+                    artifacts: [{
+                        type: 'tool_result',
+                        tool: 'search_product',
+                        result: lookup.result
+                    }]
+                };
             }
 
-            if ((isDrugIntent || productImageContext) && posterIntent && !hasAnyImageSource) {
+            if ((isDrugIntent || productImageContext || hasProductLookupIntent) && posterIntent && !hasAnyImageSource) {
                 const hint = candidates.length > 0 ? `可尝试关键词：${candidates.slice(0, 3).join('、')}` : '请提供可查询的药品编码/药品名/批准文号';
                 return {
                     blocked: true,

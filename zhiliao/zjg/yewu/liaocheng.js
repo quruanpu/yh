@@ -494,6 +494,19 @@ const ZhiLiaoZjgLiaochengModule = (() => {
             const executedToolResults = [];
             const mediaTasks = [];
             const mediaContextText = this.getMediaPolicyContextText();
+            const renderProductToolResult = async (result) => {
+                if (result?.success && result.render_cards && result.products && window.ChaxunYsModule) {
+                    ChaxunYsModule.renderCardsAt(
+                        result.products,
+                        textContainer.parentNode,
+                        textContainer
+                    );
+                    this.scrollToBottom();
+                    await this.persistDisplaySnapshot();
+                    return true;
+                }
+                return false;
+            };
 
             for (const toolCall of toolCalls) {
                 let stopStatusTimer = null;
@@ -502,14 +515,62 @@ const ZhiLiaoZjgLiaochengModule = (() => {
                     const functionArgs = this.parseToolCallArguments(toolCall);
 
                     if (this.isMediaArtifactToolName?.(functionName)) {
-                        const policy = this.buildMediaTaskPolicy?.(functionName, functionArgs, mediaContextText) || {
+                        let mediaParams = {
+                            ...functionArgs,
+                            _fromAI: true
+                        };
+
+                        if (window.ToolSkillCenterModule && typeof window.ToolSkillCenterModule.beforeExecute === 'function') {
+                            const skillResult = await window.ToolSkillCenterModule.beforeExecute(functionName, mediaParams, {
+                                sessionId: toolSessionId,
+                                source: 'media_queue_prepare',
+                                priorToolResults: executedToolResults.slice()
+                            });
+
+                            if (skillResult?.blocked) {
+                                const blockedResult = {
+                                    success: false,
+                                    error: skillResult.error || '工具调用被 skill 策略阻止',
+                                    route_blocked: true,
+                                    suggested_tool: skillResult.suggestedTool || ''
+                                };
+                                executedToolResults.push({ functionName, result: blockedResult });
+                                toolResults.push({
+                                    tool_call_id: toolCall.id,
+                                    role: 'tool',
+                                    name: functionName,
+                                    content: JSON.stringify(blockedResult)
+                                });
+                                continue;
+                            }
+
+                            if (skillResult && Object.prototype.hasOwnProperty.call(skillResult, 'params')) {
+                                mediaParams = skillResult.params;
+                            }
+
+                            if (Array.isArray(skillResult?.artifacts)) {
+                                for (const artifact of skillResult.artifacts) {
+                                    if (artifact?.type === 'tool_result' && artifact?.tool === 'search_product') {
+                                        await renderProductToolResult(artifact.result);
+                                    }
+                                }
+                            }
+                        }
+
+                        mediaParams = {
+                            ...(mediaParams && typeof mediaParams === 'object' ? mediaParams : {}),
+                            _fromAI: true,
+                            _skipSkill: true
+                        };
+
+                        const policy = this.buildMediaTaskPolicy?.(functionName, mediaParams, mediaContextText) || {
                             toolName: functionName,
                             kind: this.getMediaTaskKind(functionName),
                             deliveryMode: 'card_only'
                         };
                         const queuedResult = this.enqueueMediaTask(
                             functionName,
-                            { ...functionArgs, _fromAI: true },
+                            mediaParams,
                             toolSessionId,
                             policy
                         );
@@ -579,15 +640,7 @@ const ZhiLiaoZjgLiaochengModule = (() => {
                         });
                     }
 
-                    if (result.success && result.render_cards && result.products && window.ChaxunYsModule) {
-                        ChaxunYsModule.renderCardsAt(
-                            result.products,
-                            textContainer.parentNode,
-                            textContainer
-                        );
-                        this.scrollToBottom();
-                        await this.persistDisplaySnapshot();
-                    }
+                    await renderProductToolResult(result);
 
                     toolResults.push({
                         tool_call_id: toolCall.id,
@@ -657,8 +710,15 @@ const ZhiLiaoZjgLiaochengModule = (() => {
                 mediaTasks.length === toolCalls.length &&
                 awaitMediaTasks.length === 0 &&
                 executedToolResults.every((item) => item?.result?.queued === true);
+            const hasVisibleProductAndCardMediaTasks = mediaTasks.length > 0 &&
+                awaitMediaTasks.length === 0 &&
+                mediaTasks.every((entry) => entry?.policy?.deliveryMode === 'card_only') &&
+                executedToolResults.every((item) =>
+                    item?.result?.queued === true ||
+                    (item?.functionName === 'search_product' && item?.result?.success && item?.result?.render_cards)
+                );
 
-            if (onlyQueuedMediaToolCalls) {
+            if (onlyQueuedMediaToolCalls || hasVisibleProductAndCardMediaTasks) {
                 this.removeEmptyToolMessage(
                     textContainer,
                     thinkingContainer,

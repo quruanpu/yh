@@ -14,16 +14,10 @@
     }
 
     function extractProductKeyword(center, text) {
-        const drugKeyword = center.extractDrugKeyword(text);
-        if (drugKeyword) return drugKeyword;
-
-        const activityId = String(text || '').match(/\b\d{8,10}\b/);
-        if (activityId) return activityId[0];
-
-        const productCode = String(text || '').match(/\b[A-Za-z]{1,8}\d{3,12}\b/);
-        if (productCode) return productCode[0];
-
-        return '';
+        if (typeof center.extractProductKeyword === 'function') {
+            return center.extractProductKeyword(text);
+        }
+        return center.extractDrugKeyword(text);
     }
 
     window.ToolSkillDefinitions = window.ToolSkillDefinitions || [];

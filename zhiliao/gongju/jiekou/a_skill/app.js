@@ -118,28 +118,75 @@
             );
         },
 
-        extractDrugKeyword(text) {
+        cleanProductKeywordCandidate(value) {
+            let text = this.text(value);
+            if (!text) return '';
+
+            text = text
+                .replace(/^(?:用|拿|基于|根据)\s*/g, '')
+                .replace(/^(?:药品|商品|产品|货品)?(?:主体|名称|关键词|关键字)?[为是叫:：\s]+/g, '')
+                .replace(/^(?:药品|药名|商品|品名|产品)[：:：\s]*/g, '')
+                .replace(/(?:并|然后|再)?(?:帮我|给我|请)?(?:生成|制作|做|设计|出|画)(?:一张|一个)?(?:宣传图|海报|主图|包装图|详情图|商品图|药品图|营销图|促销图).*$/g, '')
+                .replace(/(?:特价|价格|售价|活动价|到手价|卖|只要|仅需|优惠价)[：:：\s]*(?:￥|¥)?\d+(?:\.\d+)?(?:元)?/g, '')
+                .replace(/[，,。；;！!?？、\s]+$/g, '')
+                .replace(/^[，,。；;！!?？、\s]+/g, '')
+                .trim();
+
+            if (!text || text.length < 2 || text.length > 40) return '';
+            if (/^(?:宣传图|海报|主图|包装图|详情图|商品图|药品图|营销图|促销图)$/i.test(text)) return '';
+            return text;
+        },
+
+        extractProductKeywordCandidates(text) {
             const t = this.text(text);
-            if (!t) return '';
+            const candidates = [];
+            const push = (value) => {
+                const item = this.cleanProductKeywordCandidate(value);
+                if (!item || candidates.includes(item)) return;
+                candidates.push(item);
+            };
 
-            const approvalMatch = t.match(/国药准字[0-9a-zA-Z]+/i);
-            if (approvalMatch) return approvalMatch[0];
+            if (!t) return candidates;
 
-            const codeMatch = t.match(/\bSP\d{4,}\b/i);
-            if (codeMatch) return codeMatch[0];
+            const approvalMatches = t.match(/国药准字[0-9a-zA-Z]+/ig) || [];
+            approvalMatches.forEach(push);
 
-            const labeledMatch = t.match(/(?:药品|药名|商品|品名)[：:：\s]*([\u4e00-\u9fa5A-Za-z0-9()（）-]{2,40})/);
-            if (labeledMatch && labeledMatch[1]) return labeledMatch[1].trim();
+            const codeMatches = t.match(/\b[A-Za-z]{1,8}\d{3,12}\b/g) || [];
+            codeMatches.forEach(push);
 
-            const medicineMatches = t.match(/[\u4e00-\u9fa5A-Za-z0-9]{2,30}(片|胶囊|颗粒|口服液|滴眼液|注射液|软膏|乳膏|喷雾剂|糖浆)/g);
-            if (medicineMatches && medicineMatches.length > 0) {
-                return medicineMatches.slice().sort((a, b) => b.length - a.length)[0];
-            }
+            const activityMatches = t.match(/\b\d{8,10}\b/g) || [];
+            activityMatches.forEach(push);
 
-            const quoted = t.match(/[“"「《](.{2,24})[”"」》]/);
-            if (quoted && quoted[1]) return quoted[1].trim();
+            const labeledMatches = t.matchAll(/(?:药品|药名|商品|品名|产品|货品)[：:：\s]*([\u4e00-\u9fa5A-Za-z0-9()（）\-]{2,40})/g);
+            for (const match of labeledMatches) push(match[1]);
 
-            return '';
+            const queryMatches = t.matchAll(/(?:查询|查一下|查找|搜索|检索|找一下|找)([^，,。；;！!?？\n]{2,50})/g);
+            for (const match of queryMatches) push(match[1]);
+
+            const useMatches = t.matchAll(/(?:用|拿|基于|根据)([^，,。；;！!?？\n]{2,50}?)(?:生成|制作|做|设计|出|画)/g);
+            for (const match of useMatches) push(match[1]);
+
+            const medicineMatches = t.match(/[\u4e00-\u9fa5A-Za-z0-9]{2,30}(?:片|胶囊|颗粒|口服液|滴眼液|注射液|软膏|乳膏|喷雾剂|糖浆)/g) || [];
+            medicineMatches
+                .slice()
+                .sort((a, b) => b.length - a.length)
+                .forEach(push);
+
+            const brandNameMatches = t.match(/\b[A-Za-z0-9]{2,}[\u4e00-\u9fa5]{1,16}(?:片|胶囊|颗粒|口服液|滴眼液|注射液|软膏|乳膏|喷雾剂|糖浆)?/g) || [];
+            brandNameMatches.forEach(push);
+
+            const quotedMatches = t.matchAll(/[“"「《](.{2,24})[”"」》]/g);
+            for (const match of quotedMatches) push(match[1]);
+
+            return candidates;
+        },
+
+        extractProductKeyword(text) {
+            return this.extractProductKeywordCandidates(text)[0] || '';
+        },
+
+        extractDrugKeyword(text) {
+            return this.extractProductKeyword(text);
         },
 
         pickFirstImageUrlFromProduct(product) {
@@ -275,6 +322,7 @@
             let nextParams = this.isPlainObject(params) ? { ...params } : params;
             const runtime = this.buildRuntimeContext(toolId, nextParams, context);
             const skills = this.getMatchedSkills(toolId);
+            const artifacts = [];
 
             for (let i = 0; i < skills.length; i += 1) {
                 const skill = skills[i];
@@ -300,9 +348,15 @@
                 if (Object.prototype.hasOwnProperty.call(out, 'params')) {
                     nextParams = out.params;
                 }
+
+                if (Array.isArray(out.artifacts)) {
+                    out.artifacts.forEach((item) => {
+                        if (this.isPlainObject(item)) artifacts.push(item);
+                    });
+                }
             }
 
-            return { blocked: false, params: nextParams };
+            return { blocked: false, params: nextParams, artifacts };
         },
 
         async afterExecute(toolId, params, result, context = {}) {
@@ -352,7 +406,8 @@
             '1. 先看用户消息中是否有 [图片参考]、[视频参考]、上传文件提示、file_id，或上下文中刚生成/刚上传的媒体资源。\n' +
             '2. 再判断用户目标：生成、编辑、理解、查询、发送、记录、联网、普通问答。\n' +
             '3. 选择能直接完成目标的唯一工具；多个任务彼此独立时才并行调用多个工具，否则按依赖顺序调用。\n' +
-            '4. 缺少必要参数且无法从上下文推断时，只问一个最小澄清问题。\n' +
+            '4. 同一句同时要求查询药品/商品并基于该商品生成宣传图、海报、主图或包装图时，先调用 search_product 获取商品信息和商品图，再调用 generate_or_edit_image 使用商品图生成；不要跳过查询直接生成。\n' +
+            '5. 缺少必要参数且无法从上下文推断时，只问一个最小澄清问题。\n' +
             '\n' +
             '【有图片/视频资源时】\n' +
             '- 要生成图片、编辑图片、做海报、宣传图、主图、包装图、换背景、加文字、风格化：调用 generate_or_edit_image。最近图片优先传 image_ref: "last"。\n' +
@@ -362,11 +417,12 @@
             '- 不要把媒体内容直接传给纯文本模型；图片资源通过 image_ref/image_refs 或图片 URL 参数传给图片/视频生成工具，视频资源只通过 video_ref/video_refs 或视频 URL 参数传给视频理解工具。\n' +
             '\n' +
             '【无媒体资源时】\n' +
-            '- 文字生成图片、画图、海报、宣传图、营销图、商品图：调用 generate_or_edit_image。\n' +
+            '- 纯文字生成图片、画图、海报、宣传图、营销图：调用 generate_or_edit_image。\n' +
+            '- 药品/商品查询、商品编码、国药准字、厂家、8~10 位活动 id、活动商品，或“查询某商品并生成图片”：先调用 search_product，keyword 为提取出的查询词。\n' +
             '- 文字生成视频、动画、短片、动态画面：调用 generate_video。\n' +
             '- 发券、送券、赠券，或含 7 位门店 id、K 开头门店码、11 位手机号：调用 query_coupon，keyword 必须传用户原文全文。\n' +
             '- 查看活动、活动列表、有哪些优惠券、共享优惠券：调用 query_coupon，可不传 keyword。\n' +
-            '- 查询商品、药品、商品编码、国药准字、厂家、8~10 位活动 id、活动商品：调用 search_product，keyword 为提取出的查询词。\n' +
+            '- 仅查询商品、药品、商品编码、国药准字、厂家、8~10 位活动 id、活动商品：调用 search_product，keyword 为提取出的查询词。\n' +
             '- 上传文件/附件/文档/表格/PDF 内容问题：先调用 get_file_list，再按需读文件或搜索文件内容。\n' +
             '- 记住、保存、查询、修改、删除账号密码或备忘信息：调用 manage_notebook_node。\n' +
             '- 找系统内工具、网址、入口、登录地址：先调用 manage_tool_center_item。\n' +

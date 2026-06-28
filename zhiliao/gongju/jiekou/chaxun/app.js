@@ -103,13 +103,14 @@ const ChaxunToolModule = {
         };
 
         const firstCardProduct = this.pickFirstCardProduct(products);
+        let firstCardImageUrls = [];
         if (firstCardProduct) {
             const firstCardIndex = products.indexOf(firstCardProduct);
             if (firstCardIndex >= 0) {
                 output.first_card_index = firstCardIndex;
             }
 
-            const firstCardImageUrls = this.extractImageUrls(firstCardProduct);
+            firstCardImageUrls = this.extractImageUrls(firstCardProduct);
             if (firstCardImageUrls.length > 0) {
                 output.first_card_image_url = firstCardImageUrls[0];
                 output.first_card_image_urls = firstCardImageUrls;
@@ -120,6 +121,18 @@ const ChaxunToolModule = {
         if (imageUrls.length > 0) {
             output.image_url = imageUrls[0];
             output.image_urls = imageUrls;
+        }
+
+        const productImageRefs = this.registerProductImageRefs(firstCardImageUrls.length > 0 ? firstCardImageUrls : imageUrls, {
+            keyword,
+            product: firstCardProduct || products[0] || null
+        });
+        if (productImageRefs.length > 0) {
+            output.image_ref = productImageRefs[0];
+            output.image_refs = productImageRefs;
+            if (firstCardImageUrls.length > 0) {
+                output.first_card_image_ref = productImageRefs[0];
+            }
         }
 
         return output;
@@ -162,6 +175,43 @@ const ChaxunToolModule = {
             const urls = this.extractImageUrls(products[i]);
             if (urls.length > 0) return urls;
         }
+        return [];
+    },
+
+    registerProductImageRefs(imageUrls = [], meta = {}) {
+        const urls = Array.isArray(imageUrls) ? imageUrls : [];
+        const cleanUrls = [];
+        const seen = new Set();
+        urls.forEach((item) => {
+            const url = this.normalizeKeyword(item);
+            if (!/^https?:\/\//i.test(url) || seen.has(url)) return;
+            seen.add(url);
+            cleanUrls.push(url);
+        });
+        if (cleanUrls.length === 0) return [];
+
+        const refs = [];
+        const product = meta.product && typeof meta.product === 'object' ? meta.product : {};
+        const name = this.normalizeKeyword(product.drugName || product.appName || meta.keyword);
+
+        cleanUrls.forEach((url) => {
+            const resource = window.ZhiLiaoModule?.registerMediaResource?.('image', url, {
+                source: 'search_product',
+                name
+            });
+            if (resource?.ref) refs.push(resource.ref);
+        });
+
+        if (refs.length > 0) return refs;
+
+        if (window.ShengtuToolModule?.storeImagesInPool) {
+            return window.ShengtuToolModule.storeImagesInPool(cleanUrls, {
+                action: 'search_product',
+                route: 'product_query',
+                model: 'product_image'
+            });
+        }
+
         return [];
     },
 
