@@ -54,18 +54,17 @@ const YhquanToolModule = {
         const rawKeyword = queryParams.keyword;
         const keyword = typeof rawKeyword === 'string' ? rawKeyword : rawKeyword == null ? '' : String(rawKeyword);
         const keywordForBranch = keyword.trim();
-        const fromAI = queryParams._fromAI === true;
         const selectedCoupons = this.state.selectedCoupons;
 
         if (selectedCoupons.length > 0 && keywordForBranch) {
-            return this.sendSelectedCoupons(keyword, fromAI);
+            return this.sendSelectedCoupons(keyword, queryParams._fromAI === true);
         }
 
         if (!keywordForBranch) {
-            return this.showSharedCoupons(fromAI);
+            return this.showSharedCoupons(queryParams._fromAI === true);
         }
 
-        return this.parseAndSendCoupons(keyword, fromAI);
+        return this.parseAndSendCoupons(keyword, queryParams._fromAI === true);
     },
 
     async showSharedCoupons(fromAI = false) {
@@ -77,11 +76,12 @@ const YhquanToolModule = {
                 return { success: true, count: 0, message: '暂无共享优惠券。' };
             }
 
-            if (!fromAI) window.YhquanYsModule?.renderResults?.(coupons);
-
             return {
                 success: true,
+                render_cards: true,
+                card_type: 'coupon_activity_list',
                 count: coupons.length,
+                coupons,
                 message: YHQUAN_TEXT.sharedCountMessage(coupons.length)
             };
         } catch (error) {

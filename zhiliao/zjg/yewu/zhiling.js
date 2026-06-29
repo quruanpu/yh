@@ -60,6 +60,8 @@
 
             try {
                 const result = await matchedCommand.handler(extraContent);
+                const rendered = await this.renderToolResultCards?.(matchedCommand.id, result, null);
+                if (rendered) return;
 
                 if (result && result.error) {
                     this.addSystemMessage(`执行失败：${this.extractReadableError(result.error, '未知错误')}`);

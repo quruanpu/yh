@@ -310,6 +310,34 @@
             return output;
         },
 
+        compactCouponToolResultForHistory(result) {
+            if (!result || typeof result !== 'object') return result;
+            if (result.success !== true) {
+                return {
+                    success: false,
+                    error: this.extractReadableError(result.error || result.message, '').slice(0, 220)
+                };
+            }
+
+            const coupons = Array.isArray(result.coupons) ? result.coupons : [];
+            const sampleSize = 12;
+            return {
+                success: true,
+                tool: 'query_coupon',
+                card_type: result.card_type || '',
+                count: Number(result.count || coupons.length || 0),
+                sampled_coupons: coupons.slice(0, sampleSize).map((coupon) => ({
+                    id: coupon?.id || '',
+                    name: coupon?.name || coupon?.keyword || '',
+                    keyword: coupon?.keyword || '',
+                    totalLimit: Number(coupon?.totalLimit || 0),
+                    storeLimit: Number(coupon?.storeLimit || 0),
+                    activityCount: Number(coupon?.activityCount || 0)
+                })),
+                display: '优惠券活动卡片已由前端展示；如需说明，只需简要提示用户可点选卡片后继续发券。'
+            };
+        },
+
         compactToolResultForHistory(functionName, result) {
             if (!result || typeof result !== 'object') return result;
             if (this.isChartToolName(functionName)) {
@@ -334,6 +362,9 @@
             }
             if (functionName === 'search_product' || functionName === 'understand_product_image') {
                 return this.compactProductToolResultForHistory(functionName, result);
+            }
+            if (functionName === 'query_coupon') {
+                return this.compactCouponToolResultForHistory(result);
             }
             if (this.isMediaUnderstandingToolName(functionName)) {
                 if (result.success) {

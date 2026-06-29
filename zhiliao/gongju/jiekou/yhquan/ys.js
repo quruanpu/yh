@@ -15,22 +15,43 @@ const YhquanYsModule = {
     renderResults(coupons = []) {
         const container = document.getElementById('message-container');
         if (!container) return;
+        this.renderResultsAt(coupons, container);
+    },
+
+    renderResultContent(coupons = []) {
         const sharedTitle = String(window.YHQUAN_TEXT?.SHARED_TITLE || '已共享优惠券');
-
-        const msg = document.createElement('div');
-        msg.className = 'system-message';
-
-        const cardsHtml = this.renderCouponCards(coupons);
-        msg.innerHTML = `
-            <img src="logo/ai.svg" alt="AI" class="system-avatar">
-            <div class="system-text text-gray-700">
-                <p><b>${this.escapeHtml(sharedTitle)}</b></p>
-                ${cardsHtml}
-            </div>
+        return `
+            <p><b>${this.escapeHtml(sharedTitle)}</b></p>
+            ${this.renderCouponCards(coupons)}
         `;
+    },
 
-        container.appendChild(msg);
+    renderResultsAt(coupons = [], parentElement = null, insertBefore = null) {
+        if (!parentElement) return;
+        const renderAsMessage = parentElement.id === 'message-container';
+        const wrapper = document.createElement('div');
+
+        if (renderAsMessage) {
+            wrapper.className = 'system-message';
+            wrapper.innerHTML = `
+                <img src="logo/ai.svg" alt="AI" class="system-avatar">
+                <div class="system-text text-gray-700">
+                    ${this.renderResultContent(coupons)}
+                </div>
+            `;
+        } else {
+            wrapper.className = 'zhiliao-hd-inline-result';
+            wrapper.style.marginBottom = '12px';
+            wrapper.innerHTML = this.renderResultContent(coupons);
+        }
+
+        if (insertBefore && insertBefore.parentNode === parentElement) {
+            parentElement.insertBefore(wrapper, insertBefore);
+        } else {
+            parentElement.appendChild(wrapper);
+        }
         window.ZhiLiaoModule?.scrollToBottom?.();
+        return wrapper;
     },
 
     renderCouponCards(coupons = []) {

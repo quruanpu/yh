@@ -423,6 +423,32 @@ const ZhiLiaoZjgLiaochengModule = (() => {
             return JSON.stringify(this.compactToolResultForHistory(functionName, result));
         },
 
+        async renderToolResultCards(functionName, result = {}, textContainer = null) {
+            if (!result?.success || !result.render_cards) return false;
+
+            const parentElement = textContainer?.parentNode || document.getElementById('message-container');
+            if (!parentElement) return false;
+
+            let rendered = false;
+            if (functionName === 'search_product' && Array.isArray(result.products) && window.ChaxunYsModule) {
+                ChaxunYsModule.renderCardsAt(result.products, parentElement, textContainer || null);
+                rendered = true;
+            } else if (
+                functionName === 'query_coupon' &&
+                result.card_type === 'coupon_activity_list' &&
+                Array.isArray(result.coupons) &&
+                window.YhquanYsModule
+            ) {
+                YhquanYsModule.renderResultsAt(result.coupons, parentElement, textContainer || null);
+                rendered = true;
+            }
+
+            if (!rendered) return false;
+            this.scrollToBottom();
+            await this.persistDisplaySnapshot();
+            return true;
+        },
+
         async streamToolFollowup(textContainer, thinkingContainer, sessionId = '') {
             if (!this.isActiveChatSession(sessionId, textContainer)) {
                 return { historyCommitted: true, stale: true };
@@ -494,18 +520,8 @@ const ZhiLiaoZjgLiaochengModule = (() => {
             const executedToolResults = [];
             const mediaTasks = [];
             const mediaContextText = this.getMediaPolicyContextText();
-            const renderProductToolResult = async (result) => {
-                if (result?.success && result.render_cards && result.products && window.ChaxunYsModule) {
-                    ChaxunYsModule.renderCardsAt(
-                        result.products,
-                        textContainer.parentNode,
-                        textContainer
-                    );
-                    this.scrollToBottom();
-                    await this.persistDisplaySnapshot();
-                    return true;
-                }
-                return false;
+            const renderInlineToolResult = async (toolName, result) => {
+                return this.renderToolResultCards(toolName, result, textContainer);
             };
 
             for (const toolCall of toolCalls) {
@@ -550,8 +566,8 @@ const ZhiLiaoZjgLiaochengModule = (() => {
 
                             if (Array.isArray(skillResult?.artifacts)) {
                                 for (const artifact of skillResult.artifacts) {
-                                    if (artifact?.type === 'tool_result' && artifact?.tool === 'search_product') {
-                                        await renderProductToolResult(artifact.result);
+                                    if (artifact?.type === 'tool_result') {
+                                        await renderInlineToolResult(artifact.tool, artifact.result);
                                     }
                                 }
                             }
@@ -640,7 +656,7 @@ const ZhiLiaoZjgLiaochengModule = (() => {
                         });
                     }
 
-                    await renderProductToolResult(result);
+                    await renderInlineToolResult(functionName, result);
 
                     toolResults.push({
                         tool_call_id: toolCall.id,
