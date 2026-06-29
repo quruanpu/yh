@@ -16,7 +16,6 @@
                 'resolveVideoReferenceImages',
                 'sanitizeBusinessParams',
                 'validateBusinessParams',
-                'resolveTimeoutMs',
                 'postJson',
                 'unwrapResponsePayload',
                 'normalizeVideoResponse',
@@ -74,6 +73,19 @@
             return ['failed', 'error', 'cancelled', 'canceled', 'rejected', 'timeout'].includes(text);
         },
 
+        isRetriableVideoCreateError(result = {}) {
+            const statusCode = Number(result.statusCode || result.status_code || 0);
+            const message = this.text(result.error || result.message).toLowerCase();
+            if (statusCode === 503 || statusCode === 429 || statusCode === 408 || statusCode === 524) return true;
+            return /queue is full|serviceunavailable|service unavailable|temporarily unavailable|服务繁忙|稍后重试|\"code\"\s*:\s*\"?503\"?/.test(message);
+        },
+
+        getVideoCreateBusyMessage(result = {}) {
+            return this.isRetriableVideoCreateError(result)
+                ? '上游队列已满，请稍后重试。'
+                : '';
+        },
+
         async requestVideo(endpoint, requestPayload, timeoutMs) {
             const response = await this.postJson(endpoint, requestPayload, timeoutMs);
             if (!response.ok) {
@@ -95,19 +107,39 @@
             };
         },
 
-        async pollVideoTask(endpoint, baseRequestPayload, cfg, initialVideo) {
+        isVideoPollingActive(control = {}) {
+            const taskId = this.text(control.mediaTaskId);
+            if (!taskId) return true;
+            if (!window.ZhiLiaoModule || typeof window.ZhiLiaoModule.isMediaTaskActive !== 'function') return true;
+            return window.ZhiLiaoModule.isMediaTaskActive(taskId, control.mediaSessionId || '');
+        },
+
+        async pollVideoTask(endpoint, baseRequestPayload, cfg, initialVideo, control = {}) {
             const videoId = this.text(initialVideo.video_id);
             const taskId = this.text(initialVideo.task_id);
             if (!videoId && !taskId) return null;
 
             const intervalMs = 5000;
-            const totalTimeoutMs = this.resolveTimeoutMs({
-                timeout_ms: baseRequestPayload.options?.timeout_ms
-            });
-            const maxRounds = Math.max(1, Math.ceil(totalTimeoutMs / intervalMs));
-            let lastResult = null;
-            for (let round = 0; round < maxRounds; round += 1) {
+            for (;;) {
+                if (!this.isVideoPollingActive(control)) {
+                    return {
+                        ok: false,
+                        statusCode: 0,
+                        error: '视频任务已取消',
+                        cancelled: true
+                    };
+                }
+
                 await this.sleep(intervalMs);
+                if (!this.isVideoPollingActive(control)) {
+                    return {
+                        ok: false,
+                        statusCode: 0,
+                        error: '视频任务已取消',
+                        cancelled: true
+                    };
+                }
+
                 const queryPayload = {
                     ...baseRequestPayload,
                     payload: {
@@ -116,32 +148,12 @@
                         ...(videoId ? { video_id: videoId } : { task_id: taskId })
                     }
                 };
-                const result = await this.requestVideo(endpoint, queryPayload, baseRequestPayload.options?.timeout_ms);
-                lastResult = result;
+                const result = await this.requestVideo(endpoint, queryPayload, 0);
                 if (!result.ok) return result;
                 if (result.video?.video_url) return result;
                 if (this.isFailedStatus(result.video?.status)) return result;
                 if (!this.isRunningStatus(result.video?.status)) return result;
             }
-
-            if (lastResult) {
-                lastResult.timedOut = true;
-                return lastResult;
-            }
-            return {
-                ok: true,
-                timedOut: true,
-                statusCode: 200,
-                payload: {},
-                video: {
-                    video_url: '',
-                    videos: [],
-                    video_id: videoId,
-                    task_id: taskId,
-                    status_url: '',
-                    status: this.text(initialVideo.status) || 'processing'
-                }
-            };
         },
 
         async generateVideo(params = {}) {
@@ -233,7 +245,10 @@
             const validateError = this.validateBusinessParams(businessPayload);
             if (validateError) return { success: false, error: validateError };
 
-            const timeoutMs = this.resolveTimeoutMs(params);
+            const control = {
+                mediaTaskId: this.text(params?._mediaTaskId),
+                mediaSessionId: this.text(params?._mediaSessionId)
+            };
             const requestPayload = {
                 provider: cfg.provider || 'agnes',
                 capability: 'video_generation',
@@ -245,16 +260,32 @@
                     ...businessPayload,
                     model: cfg.model
                 },
-                options: {
-                    timeout_ms: timeoutMs
-                }
+                options: {}
             };
 
-            const created = await this.requestVideo(endpoint, requestPayload, timeoutMs);
-            if (!created.ok) {
+            if (!this.isVideoPollingActive(control)) {
                 return {
                     success: false,
-                    error: created.error,
+                    cancelled: true,
+                    error: '视频任务已取消',
+                    status_code: 0
+                };
+            }
+
+            const created = await this.requestVideo(endpoint, requestPayload, 0);
+            if (!created.ok) {
+                if (created.cancelled === true) {
+                    return {
+                        success: false,
+                        cancelled: true,
+                        error: created.error || '视频任务已取消',
+                        status_code: created.statusCode
+                    };
+                }
+                return {
+                    success: false,
+                    error: this.getVideoCreateBusyMessage(created) || created.error,
+                    error_type: this.isRetriableVideoCreateError(created) ? 'upstream_queue_full' : '',
                     status_code: created.statusCode
                 };
             }
@@ -262,11 +293,19 @@
             let parsed = created.payload;
             let video = created.video;
             if (!video.video_url && (video.video_id || video.task_id)) {
-                const polled = await this.pollVideoTask(endpoint, requestPayload, cfg, video);
+                const polled = await this.pollVideoTask(endpoint, requestPayload, cfg, video, control);
                 if (polled?.ok && polled.video?.video_url) {
                     parsed = polled.payload;
                     video = polled.video;
                 } else if (polled && polled.ok === false) {
+                    if (polled.cancelled === true) {
+                        return {
+                            success: false,
+                            cancelled: true,
+                            error: polled.error || '视频任务已取消',
+                            status_code: polled.statusCode
+                        };
+                    }
                     return {
                         success: false,
                         error: polled.error,
@@ -277,17 +316,6 @@
                         success: false,
                         error: `视频任务失败：${polled.video.status}`,
                         status_code: polled.statusCode || created.statusCode
-                    };
-                }
-                if (polled?.timedOut === true) {
-                    const statusText = this.text(polled.video?.status || video.status) || '处理中';
-                    return {
-                        success: false,
-                        error: `视频任务已创建，但在等待时间内暂未返回可播放链接。当前状态：${statusText}`,
-                        status_code: polled.statusCode || created.statusCode,
-                        video_id: video.video_id,
-                        task_id: video.task_id,
-                        status: statusText
                     };
                 }
             }
@@ -362,7 +390,6 @@
                         first_frame: { type: 'string', description: '可选，首帧参考图 URL' },
                         last_frame: { type: 'string', description: '可选，尾帧参考图 URL' },
                         extra_body: { type: 'object', description: '可选，统一网关透传扩展参数；仅在明确需要模型专属参数时使用' },
-                        timeout_ms: { type: 'integer', description: '可选，上游超时毫秒，最大 300000' },
                         delivery_mode: {
                             type: 'string',
                             enum: ['card_only', 'await_then_reply'],

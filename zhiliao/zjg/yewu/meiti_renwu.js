@@ -202,9 +202,23 @@ const ZhiLiaoZjgMeitiRenwuModule = (() => {
             }
             const params = {
                 ...(task.params || {}),
-                _fromAI: true
+                _fromAI: true,
+                _mediaTaskId: task.id || '',
+                _mediaSessionId: task.sessionId || ''
             };
             return ToolRegistry.executeTool(task.toolName, params, task.sessionId);
+        },
+
+        isMediaTaskActive(taskId = '', sessionId = '') {
+            this.initMediaTaskState();
+            const id = String(taskId || '').trim();
+            if (!id) return false;
+            const expectedSessionId = String(sessionId || '').trim();
+            const currentSessionId = String(this.state.sessionId || '').trim();
+            if (expectedSessionId && currentSessionId && expectedSessionId !== currentSessionId) return false;
+            if (this.state.mediaTaskActiveId === id) return true;
+            return Array.isArray(this.state.mediaTaskQueue) &&
+                this.state.mediaTaskQueue.some((task) => task?.id === id);
         },
 
         async finishMediaTask(task, result = {}) {
@@ -284,12 +298,26 @@ const ZhiLiaoZjgMeitiRenwuModule = (() => {
 
         buildQueuedMediaToolResult(toolName, queuedResult = {}) {
             const kind = queuedResult.media_kind || this.getMediaTaskKind(toolName);
+            const deliveryMode = this.normalizeDeliveryMode?.(queuedResult.delivery_mode) ||
+                queuedResult.delivery_mode ||
+                'card_only';
+            if (deliveryMode === 'card_only') {
+                return {
+                    success: true,
+                    queued: true,
+                    media_kind: kind,
+                    delivery_mode: deliveryMode,
+                    status: queuedResult.status || 'queued',
+                    suppress_followup: true
+                };
+            }
+
             return {
                 success: true,
                 queued: true,
                 task_id: queuedResult.task_id || '',
                 media_kind: kind,
-                delivery_mode: queuedResult.delivery_mode || 'card_only',
+                delivery_mode: deliveryMode,
                 status: queuedResult.status || 'queued',
                 message: queuedResult.message || `${this.getMediaTaskLabel(kind)}生成任务已加入后台队列`
             };

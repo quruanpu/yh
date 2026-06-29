@@ -174,7 +174,11 @@
             const title = card.querySelector('.media-task-title');
             if (title) title.textContent = `${label}：${punctuatedMessage}`;
             const subtitle = card.querySelector('.media-task-subtitle');
-            if (subtitle) subtitle.textContent = '请调整提示词或模型配置后重试。';
+            if (subtitle) {
+                subtitle.textContent = /队列已满|服务繁忙|稍后重试|queue is full|service unavailable/i.test(message)
+                    ? '请稍后重试。'
+                    : '请调整提示词或模型配置后重试。';
+            }
             this.scrollToBottom();
         },
 

@@ -1,16 +1,4 @@
 const ShengshiToolCoreModule = {
-    config: {
-        defaultTimeoutMs: 300000,
-        defaults: {
-            duration: '',
-            quality: '',
-            size: '',
-            resolution: '',
-            fps: '',
-            seed: ''
-        }
-    },
-
     state: {
         registered: false
     },
@@ -23,21 +11,11 @@ const ShengshiToolCoreModule = {
         return !!value && typeof value === 'object' && !Array.isArray(value);
     },
 
-    clampInt(value, min, max, fallback) {
-        const number = Number(value);
-        if (!Number.isFinite(number)) return fallback;
-        return Math.max(min, Math.min(max, Math.floor(number)));
-    },
-
     resolveEndpoint() {
         const cloud = window.ZhiLiaoConfig?.cloudFunction || {};
         const configured = this.text(cloud.modelGatewayUrl || cloud.gatewayUrl || cloud.videoToolUrl);
         const fallback = window.ZhiLiaoMoxingChangliangModule?.defaultGatewayUrl || 'https://ai.cfdaili.top/api';
         return (configured || fallback).replace(/\/+$/, '');
-    },
-
-    resolveTimeoutMs(params = {}) {
-        return this.clampInt(params?.timeout_ms, 1, 300000, this.config.defaultTimeoutMs);
     },
 
     normalizeVideoSource(value) {

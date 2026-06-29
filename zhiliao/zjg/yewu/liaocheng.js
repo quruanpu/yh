@@ -706,19 +706,23 @@ const ZhiLiaoZjgLiaochengModule = (() => {
             this.state.messageHistory.push(assistantMessage);
             this.state.messageHistory.push(...toolResults);
 
-            const onlyQueuedMediaToolCalls = mediaTasks.length > 0 &&
-                mediaTasks.length === toolCalls.length &&
-                awaitMediaTasks.length === 0 &&
-                executedToolResults.every((item) => item?.result?.queued === true);
-            const hasVisibleProductAndCardMediaTasks = mediaTasks.length > 0 &&
+            const isQueuedCardMediaResult = (item) => {
+                if (!item?.result?.queued || !this.isMediaArtifactToolName?.(item.functionName)) return false;
+                const mode = this.normalizeDeliveryMode?.(item.result.delivery_mode) || 'card_only';
+                return mode === 'card_only' || item.result.suppress_followup === true;
+            };
+            const isRenderedProductResult = (item) =>
+                item?.functionName === 'search_product' &&
+                item?.result?.success &&
+                item?.result?.render_cards;
+            const shouldSkipToolFollowup = mediaTasks.length > 0 &&
                 awaitMediaTasks.length === 0 &&
                 mediaTasks.every((entry) => entry?.policy?.deliveryMode === 'card_only') &&
                 executedToolResults.every((item) =>
-                    item?.result?.queued === true ||
-                    (item?.functionName === 'search_product' && item?.result?.success && item?.result?.render_cards)
+                    isQueuedCardMediaResult(item) || isRenderedProductResult(item)
                 );
 
-            if (onlyQueuedMediaToolCalls || hasVisibleProductAndCardMediaTasks) {
+            if (shouldSkipToolFollowup) {
                 this.removeEmptyToolMessage(
                     textContainer,
                     thinkingContainer,
