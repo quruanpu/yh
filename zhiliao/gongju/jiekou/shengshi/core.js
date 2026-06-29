@@ -388,15 +388,59 @@ const ShengshiToolCoreModule = {
         return deduped;
     },
 
+    extractVideoErrorMessage(payload = {}, depth = 0, seen = null) {
+        if (!payload || typeof payload !== 'object' || depth > 6) return '';
+
+        const visited = seen || new WeakSet();
+        if (visited.has(payload)) return '';
+        visited.add(payload);
+
+        const direct = this.toReadableError(
+            payload.error ||
+            payload.error_message ||
+            payload.errorMessage ||
+            payload.message ||
+            payload.detail ||
+            payload.reason ||
+            payload.failure_reason ||
+            payload.failureReason ||
+            payload.fail_reason ||
+            payload.failReason ||
+            payload.status_message ||
+            payload.statusMessage
+        );
+        if (direct && !/^(failed|error|cancelled|canceled|timeout)$/i.test(direct)) {
+            return direct;
+        }
+
+        const nestedKeys = ['data', 'result', 'results', 'output', 'outputs', 'response', 'raw'];
+        for (let i = 0; i < nestedKeys.length; i += 1) {
+            const value = payload[nestedKeys[i]];
+            if (Array.isArray(value)) {
+                for (let j = 0; j < value.length; j += 1) {
+                    const found = this.extractVideoErrorMessage(value[j], depth + 1, visited);
+                    if (found) return found;
+                }
+            } else if (value && typeof value === 'object') {
+                const found = this.extractVideoErrorMessage(value, depth + 1, visited);
+                if (found) return found;
+            }
+        }
+
+        return '';
+    },
+
     normalizeVideoResponse(payload = {}) {
         const urls = this.extractVideoUrls(payload);
+        const raw = payload.raw && payload.raw !== payload ? payload.raw : {};
         return {
             video_url: urls[0] || '',
             videos: urls.map((url) => ({ url })),
-            video_id: this.text(payload.video_id || payload.videoId || payload.data?.video_id || payload.data?.videoId || payload.result?.video_id || payload.result?.videoId),
-            task_id: this.text(payload.task_id || payload.taskId || payload.id),
+            video_id: this.text(payload.video_id || payload.videoId || payload.data?.video_id || payload.data?.videoId || payload.result?.video_id || payload.result?.videoId || raw.video_id || raw.videoId || raw.data?.video_id || raw.data?.videoId || raw.result?.video_id || raw.result?.videoId),
+            task_id: this.text(payload.task_id || payload.taskId || payload.id || raw.task_id || raw.taskId || raw.id),
             status_url: this.text(payload.status_url || payload.statusUrl),
-            status: this.text(payload.status || payload.state)
+            status: this.text(payload.status || payload.state || payload.data?.status || payload.data?.state || raw.status || raw.state || raw.data?.status || raw.data?.state),
+            error_message: this.extractVideoErrorMessage(payload)
         };
     },
 

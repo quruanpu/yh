@@ -411,7 +411,7 @@
             '\n' +
             '【有图片/视频资源时】\n' +
             '- 要生成图片、编辑图片、做海报、宣传图、主图、包装图、换背景、加文字、风格化：调用 generate_or_edit_image。最近图片优先传 image_ref: "last"。\n' +
-            '- 要生成视频、动画、短片、动态画面、让图片动起来、图生视频：调用 generate_video。图生视频使用 image_ref/image_url/images；最近图片优先传 image_ref: "last"。视频资源仅用于 understand_video，除非后续明确支持视频转视频。\n' +
+            '- 要生成视频、动画、短片、动态画面：调用 generate_video。纯文字生成视频不要传 image_ref/image_url/images/first_frame/last_frame；只有用户明确要求“让这张图动起来、基于刚上传/刚生成图片、图生视频、用参考图”时才传图片引用，最近图片可用 image_ref: "last"。视频资源仅用于 understand_video，除非后续明确支持视频转视频。\n' +
             '- 要识别药品、商品、药盒、批准文号、商品编码，或要匹配商品数据：调用 understand_product_image。\n' +
             '- 只是描述、分析、问图片内容：调用 understand_image。只是描述、分析、问视频内容：调用 understand_video。\n' +
             '- 不要把媒体内容直接传给纯文本模型；图片资源通过 image_ref/image_refs 或图片 URL 参数传给图片/视频生成工具，视频资源只通过 video_ref/video_refs 或视频 URL 参数传给视频理解工具。\n' +

@@ -182,14 +182,6 @@
                 hasExplicitImageRef ||
                 this.text(normalizedParams.first_frame) ||
                 this.text(normalizedParams.last_frame);
-            if (!hasExplicitImageInput && normalizedParams._fromAI === true) {
-                const latestImage = window.ZhiLiaoModule?.getLatestMediaResource?.('image') ||
-                    window.ShengtuToolModule?.state?.imagePool?.slice?.(-1)?.[0] ||
-                    null;
-                if (latestImage?.ref || latestImage?.image_url || latestImage?.url) {
-                    normalizedParams.image_ref = latestImage.ref || 'last';
-                }
-            }
             const explicitImages = this.mergeVideoImages(
                 this.normalizeVideoImages(normalizedParams.images),
                 this.normalizeVideoImages([
@@ -312,10 +304,15 @@
                         status_code: polled.statusCode
                     };
                 } else if (polled?.video && this.isFailedStatus(polled.video.status)) {
+                    const statusText = this.text(polled.video.status) || 'failed';
+                    const failureReason = this.text(polled.video.error_message || polled.video.error);
                     return {
                         success: false,
-                        error: `视频任务失败：${polled.video.status}`,
-                        status_code: polled.statusCode || created.statusCode
+                        error: failureReason ? `视频任务失败：${failureReason}` : `视频任务失败：${statusText}`,
+                        status_code: polled.statusCode || created.statusCode,
+                        status: statusText,
+                        video_id: polled.video.video_id || video.video_id,
+                        task_id: polled.video.task_id || video.task_id
                     };
                 }
             }
