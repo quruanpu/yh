@@ -656,14 +656,6 @@ const YejiModule = {
         }
     },
 
-    updateProxyStatus() {
-        const connectionState = this.getConnectionState();
-        this.setConnectionState({
-            proxyReady: !!localStorage.getItem('bi_proxy_url'),
-            tokenValid: connectionState.tokenValid
-        });
-    },
-
     setQueryBusy(isBusy) {
         const btn = document.getElementById('yeji-search-btn');
         if (btn) {

@@ -1,119 +1,88 @@
-// BI运营模块工具：代理发现、Token校验、观远接口转发。
+// BI运营模块工具：固定代理探活、Token校验、观远接口转发。
 const YejiGongju = {
     get cfg() { return window.YejiConfig || {}; },
 
-    _nodes: [],
-    _activeUrl: '',
-    _nodeFailures: {},
     _401count: 0,
     _401fired: false,
     _proxyDownFired: false,
-    _watching: false,
-    _retrying: false,
+    _proxySessionId: '',
 
     getProxyUrl() {
-        return this._activeUrl || localStorage.getItem('bi_proxy_url') || this.cfg.api?.url || '';
+        return String(this.cfg.api?.url || '').trim();
     },
 
-    getConfiguredProxyUrls() {
-        const urls = [
-            this.cfg.api?.url,
-            ...(Array.isArray(this.cfg.api?.fallbackUrls) ? this.cfg.api.fallbackUrls : [])
-        ];
-        return [...new Set(urls.map(url => String(url || '').trim()).filter(Boolean))];
+    _normalizeProxyUrl(url) {
+        return String(url || '').trim().replace(/\/+$/, '');
     },
 
-    _activateNode(url) {
-        this._activeUrl = url || '';
-        if (url) {
-            localStorage.setItem('bi_proxy_url', url);
-            this._proxyDownFired = false;
+    getProxySessionHeaders() {
+        return this._proxySessionId
+            ? { 'X-BI-Proxy-Session': this._proxySessionId }
+            : {};
+    },
+
+    _rememberProxySession(sessionId) {
+        const normalized = String(sessionId || '').trim();
+        if (!this._proxySessionId && /^[A-Za-z0-9_-]{32,128}$/.test(normalized)) {
+            this._proxySessionId = normalized;
         }
     },
 
-    async autoDiscoverProxy() {
-        if (!window.FirebaseModule) return '';
-        try {
-            const cachedUrl = localStorage.getItem('bi_proxy_url') || this._activeUrl || '';
-            if (cachedUrl) {
-                const status = await this.checkProxy(cachedUrl, 5000);
-                if (status?.code === 0) {
-                    this._activateNode(cachedUrl);
-                    return cachedUrl;
-                }
-                if (this._activeUrl === cachedUrl) this._activeUrl = '';
+    async _fetchProxy(url, path, options = {}, timeout = null) {
+        const baseUrl = this._normalizeProxyUrl(url);
+        if (!baseUrl) throw new Error('BI代理地址为空');
+
+        const requestOptions = {
+            ...options,
+            headers: {
+                ...(options.headers || {}),
+                ...this.getProxySessionHeaders()
             }
+        };
+        let timer = null;
+        if (timeout != null && Number.isFinite(Number(timeout))) {
+            const ctrl = new AbortController();
+            requestOptions.signal = ctrl.signal;
+            timer = setTimeout(() => ctrl.abort(), Number(timeout));
+        }
+        try {
+            const response = await fetch(`${baseUrl}${path}`, requestOptions);
+            this._rememberProxySession(
+                response.headers?.get?.('X-BI-Proxy-Session'));
+            return response;
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    },
 
-            const nodes = await FirebaseModule.getVpnNodes();
-            this._nodes = Array.isArray(nodes) ? nodes : [];
-            const firebaseUrl = await this._tryNodeList(this._nodes);
-            if (firebaseUrl) return firebaseUrl;
-
-            return await this._tryNodeList(this.getConfiguredProxyUrls().map(url => ({ url })));
+    async ensureProxy(timeout = 10000) {
+        const fixedUrl = this.getProxyUrl();
+        if (!fixedUrl) return '';
+        try {
+            const status = await this.checkProxy(fixedUrl, timeout);
+            if (status?.code !== 0) {
+                return '';
+            }
+            this._proxyDownFired = false;
+            return fixedUrl;
         } catch (error) {
-            console.warn('[yeji] BI代理发现失败:', error);
+            console.warn('[yeji] 固定BI代理连接失败:', error);
             return '';
         }
-    },
-
-    async _tryNodeList(nodes) {
-        for (const node of nodes || []) {
-            if (!node?.url || node.invalid) continue;
-
-            const status = await this.checkProxy(node.url, 10000);
-            if (status?.code === 0) {
-                this._activateNode(node.url);
-                if (window.FirebaseModule && node.id) {
-                    FirebaseModule.clearVpnNodeFailCount(node.id);
-                }
-                return node.url;
-            }
-
-            if (window.FirebaseModule && node.id) {
-                await FirebaseModule.incrementVpnNodeFailCount(node.id);
-            }
-        }
-        return '';
-    },
-
-    startWatching() {
-        if (this._watching || !window.FirebaseModule?.watchVpnNodes) return;
-        this._watching = true;
-        let isFirst = true;
-        FirebaseModule.watchVpnNodes(nodes => {
-            if (isFirst) {
-                isFirst = false;
-                this._nodes = Array.isArray(nodes) ? nodes : [];
-                const hasActiveProxy = !!(this._activeUrl || localStorage.getItem('bi_proxy_url'));
-                if (!hasActiveProxy && !this._retrying) this._retryNodes();
-                return;
-            }
-            this._nodes = Array.isArray(nodes) ? nodes : [];
-            if (!this._retrying) this._retryNodes();
-        });
-    },
-
-    async _retryNodes() {
-        this._retrying = true;
-        const previousUrl = this._activeUrl || localStorage.getItem('bi_proxy_url') || '';
-        const nextUrl = await this._tryNodeList(this._nodes);
-        if (nextUrl && nextUrl !== previousUrl && this._onProxyChanged) {
-            this._onProxyChanged(nextUrl);
-        }
-        this._retrying = false;
     },
 
     async checkProxy(url, timeout = 10000) {
         if (!url) return null;
         try {
-            const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), timeout);
-            const resp = await fetch(`${url.replace(/\/+$/, '')}/--api/status`, {
-                method: 'GET',
-                signal: ctrl.signal
-            });
-            clearTimeout(timer);
-            return await resp.json();
+            const resp = await this._fetchProxy(
+                url,
+                '/--api/status',
+                { method: 'GET' },
+                timeout
+            );
+            const status = await resp.json();
+            this._rememberProxySession(status?.sessionId);
+            return status;
         } catch {
             return null;
         }
@@ -124,14 +93,13 @@ const YejiGongju = {
             const bi = window.LoginModule?.getLocalLogin?.('bi') || {};
             if (!bi.token) return false;
 
-            let proxyUrl = this.getProxyUrl();
-            if (!proxyUrl) proxyUrl = await this.autoDiscoverProxy();
+            const proxyUrl = await this.ensureProxy();
             if (!proxyUrl) return false;
 
             const headers = { Accept: 'application/json' };
             headers['X-BI-Token'] = bi.tokenSig ? `${bi.token}|${bi.tokenSig}` : bi.token;
 
-            const resp = await fetch(`${proxyUrl.replace(/\/+$/, '')}/api/validate-token`, {
+            const resp = await this._fetchProxy(proxyUrl, '/api/validate-token', {
                 method: 'GET',
                 headers,
                 credentials: 'include'
@@ -170,34 +138,20 @@ const YejiGongju = {
             // 没有登录信息时让接口自然失败，由上层处理。
         }
 
-        const activeUrl = this._activeUrl || localStorage.getItem('bi_proxy_url') || '';
-        const otherNodes = this._nodes.filter(node => node.url && node.url !== activeUrl && !node.invalid);
-        const candidates = activeUrl
-            ? [{ url: activeUrl, id: this._nodes.find(node => node.url === activeUrl)?.id }, ...otherNodes]
-            : otherNodes;
-
-        const configuredUrls = this.getConfiguredProxyUrls();
-        for (const url of configuredUrls) {
-            if (!candidates.some(node => node.url === url)) candidates.push({ url, id: null });
-        }
-        if (!candidates.length) return null;
+        const proxyUrl = this.getProxyUrl();
+        if (!proxyUrl) return null;
 
         for (let round = 0; round < 3; round += 1) {
-            for (const node of candidates) {
-                const result = await this._postOnce(path, body, headers, node.url);
-                if (result === '__401__') {
-                    this._401count += 1;
-                    continue;
-                }
-                if (result !== null) {
-                    this._401count = 0;
-                    this._401fired = false;
-                    this._proxyDownFired = false;
-                    this._activateNode(node.url);
-                    if (node.id) this._nodeFailures[node.id] = 0;
-                    return result;
-                }
-                if (node.id) this._nodeFailures[node.id] = (this._nodeFailures[node.id] || 0) + 1;
+            const result = await this._postOnce(path, body, headers, proxyUrl);
+            if (result === '__401__') {
+                this._401count += 1;
+                continue;
+            }
+            if (result !== null) {
+                this._401count = 0;
+                this._401fired = false;
+                this._proxyDownFired = false;
+                return result;
             }
         }
 
@@ -210,16 +164,8 @@ const YejiGongju = {
             return null;
         }
 
-        for (const node of candidates) {
-            if (node.id && this._nodeFailures[node.id] >= 3) {
-                await this._markNodeInvalid(node.id);
-                delete this._nodeFailures[node.id];
-            }
-        }
-
-        const stillReachable = await this.confirmAnyProxyReachable(candidates);
+        const stillReachable = await this.ensureProxy(3000);
         if (stillReachable) {
-            this._activateNode(stillReachable);
             return null;
         }
 
@@ -230,50 +176,20 @@ const YejiGongju = {
         return null;
     },
 
-    async confirmAnyProxyReachable(candidates = []) {
-        const activeUrl = this._activeUrl || localStorage.getItem('bi_proxy_url') || '';
-        const urls = [
-            activeUrl,
-            ...candidates.map(node => node.url),
-            ...this.getConfiguredProxyUrls()
-        ].map(url => String(url || '').trim()).filter(Boolean);
-        for (const url of [...new Set(urls)]) {
-            const status = await this.checkProxy(url, 3000);
-            if (status?.code === 0) return url;
-        }
-        return '';
-    },
-
     async _postOnce(path, body, headers, proxyUrl) {
         if (!proxyUrl) return null;
         try {
-            const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), Number(this.cfg.api?.timeout || 30000));
-            const resp = await fetch(`${proxyUrl.replace(/\/+$/, '')}${path}`, {
+            const resp = await this._fetchProxy(proxyUrl, path, {
                 method: 'POST',
                 headers,
                 credentials: 'include',
-                body: JSON.stringify(body),
-                signal: ctrl.signal
+                body: JSON.stringify(body)
             });
-            clearTimeout(timer);
             if (resp.status === 401) return '__401__';
             if (!resp.ok) return null;
             return await resp.json();
         } catch {
             return null;
-        }
-    },
-
-    async _markNodeInvalid(nodeId) {
-        if (!window.FirebaseModule?.markVpnNodeInvalid) return false;
-        try {
-            const ok = await FirebaseModule.markVpnNodeInvalid(nodeId);
-            const node = this._nodes.find(item => item.id === nodeId);
-            if (ok && node) node.invalid = true;
-            return ok;
-        } catch {
-            return false;
         }
     },
 

@@ -1,12 +1,7 @@
 // BI运营模块共享配置：仅保留登录、代理和Ultra查询仍使用的公共信息。
 window.YejiConfig = {
     api: {
-        url: 'https://scope-dialog-concentrate-assumptions.trycloudflare.com',
-        fallbackUrls: [
-            'https://focused-power-beverage-jamie.trycloudflare.com'
-        ],
-        biUrl: 'https://bi.leyopharm.com',
-        timeout: 30000
+        url: 'https://bi.cfdaili.top'
     },
     headers: {
         'x-dom-id': 'Z3VhbmJp',

@@ -31,9 +31,16 @@ const BiLoginModule = {
 
     // 代理地址
     _proxyBase() {
-        const url = localStorage.getItem('bi_proxy_url');
+        const url = window.YejiGongju?.getProxyUrl?.() || window.YejiConfig?.api?.url || '';
         if (!url) throw new Error('代理地址未配置');
         return url.replace(/\/+$/, '');
+    },
+
+    _proxyHeaders(headers = {}) {
+        return {
+            ...headers,
+            ...(window.YejiGongju?.getProxySessionHeaders?.() || {})
+        };
     },
 
     // 1. 获取二维码 key（通过代理访问企微）
@@ -44,19 +51,12 @@ const BiLoginModule = {
 
             // 确保代理已连通
             console.log('[BI手动登录] 步骤0: 确保代理连通');
-            if (!localStorage.getItem('bi_proxy_url')) {
-                console.log('[BI手动登录] 代理未配置，尝试发现代理...');
-                if (window.YejiGongju) {
-                    const proxyUrl = await YejiGongju.autoDiscoverProxy();
-                    if (!proxyUrl) {
-                        console.log('[BI手动登录] 代理发现失败');
-                        throw new Error('代理地址未配置，请先启动代理');
-                    }
-                    console.log('[BI手动登录] 代理发现成功:', proxyUrl);
-                } else {
-                    throw new Error('YejiGongju未加载');
-                }
+            const proxyUrl = await window.YejiGongju?.ensureProxy?.();
+            if (!proxyUrl) {
+                console.log('[BI手动登录] 固定代理探活失败');
+                throw new Error('固定 BI 代理不可用，请先启动后端代理。');
             }
+            console.log('[BI手动登录] 固定代理已连通:', proxyUrl);
 
             const base = this._proxyBase();
             console.log('[BI手动登录] 步骤1: 获取二维码');
@@ -73,7 +73,9 @@ const BiLoginModule = {
                 state: 'SCAN',
                 lang: 'zh'
             });
-            const resp = await fetch(`${base}/wx/wwopen/sso/qrConnect?${params}`);
+            const resp = await fetch(`${base}/wx/wwopen/sso/qrConnect?${params}`, {
+                headers: this._proxyHeaders()
+            });
             const html = await resp.text();
 
             // 从 HTML 中提取 QR key（与原版 Python 一致）
@@ -135,7 +137,9 @@ const BiLoginModule = {
                     });
                     if (this.state.lastStatus) params.set('lastStatus', this.state.lastStatus);
 
-                    const resp = await fetch(`${base}/wx/wwopen/sso/l/qrConnect?${params}`);
+                    const resp = await fetch(`${base}/wx/wwopen/sso/l/qrConnect?${params}`, {
+                        headers: this._proxyHeaders()
+                    });
                     const text = await resp.text();
 
                     // 解析 JSONP: cb({...})
@@ -200,7 +204,11 @@ const BiLoginModule = {
             appid: this.config.corpId
         });
         try {
-            await fetch(`${base}/?${oauthParams}`, { method: 'GET', redirect: 'manual' });
+            await fetch(`${base}/?${oauthParams}`, {
+                method: 'GET',
+                redirect: 'manual',
+                headers: this._proxyHeaders()
+            });
             console.log('[BI手动登录] OAuth回调已发送');
         } catch (e) {
             console.log('[BI手动登录] OAuth回调异常（正常，代理会捕获token）:', e.message);
@@ -209,7 +217,9 @@ const BiLoginModule = {
         // 3b. 从代理获取捕获的 token
         console.log('[BI手动登录] 步骤3b: 从代理获取Token');
         let tokenData;
-        const tokenResp = await fetch(`${base}/--api/get-token`);
+        const tokenResp = await fetch(`${base}/--api/get-token`, {
+            headers: this._proxyHeaders()
+        });
         tokenData = await tokenResp.json();
         console.log('[BI手动登录] 第一次get-token结果:', { ok: tokenData.ok, hasToken: !!tokenData.token });
 
@@ -219,10 +229,10 @@ const BiLoginModule = {
             try {
                 await fetch(`${base}/api/user/token`, {
                     method: 'POST',
-                    headers: {
+                    headers: this._proxyHeaders({
                         'Content-Type': 'application/json',
                         'x-dom-id': 'Z3VhbmJp'
-                    },
+                    }),
                     body: JSON.stringify({
                         code: authCode, provider: 'wechatwork',
                         corpId: this.config.corpId, agentId: this.config.agentId,
@@ -234,7 +244,9 @@ const BiLoginModule = {
                 console.log('[BI手动登录] POST异常（正常）:', e.message);
             }
             // 再次获取代理捕获的 token
-            const tokenResp2 = await fetch(`${base}/--api/get-token`);
+            const tokenResp2 = await fetch(`${base}/--api/get-token`, {
+                headers: this._proxyHeaders()
+            });
             tokenData = await tokenResp2.json();
             console.log('[BI手动登录] 第二次get-token结果:', { ok: tokenData.ok, hasToken: !!tokenData.token });
         }

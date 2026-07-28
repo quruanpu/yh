@@ -217,7 +217,15 @@ async queryBatchRowForInput(tpl, row, input = {}) {
             context.fieldConfig = this.getBatchQueryFieldConfig(context.queryPlan.metricFields);
             body = this.buildUltraRequestBody({ context, offset: 0, limit: 1 });
         }
-        const queryResult = await this.queryBatchBodyWithLargeInFallback(body, context);
+        let queryResult;
+        try {
+            queryResult = await this.queryBatchBodyWithLargeInFallback(body, context);
+        } catch {
+            console.warn('[yeji] BI批量查询模板首次失败，独立重查一次', tpl?.name);
+            const retryBody = this.clonePlain(body);
+            retryBody.taskRequestId = this.makeTaskId();
+            queryResult = await this.queryBatchBodyWithLargeInFallback(retryBody, context);
+        }
         const grandData = queryResult.grandData;
         row.valuesByKey = grandData.valuesByKey;
         row.formatsByKey = grandData.formatsByKey;
@@ -278,17 +286,15 @@ buildBatchLargeInChunkBodies(body = {}, largeFilter = null) {
 async queryBatchBodyWithLargeInFallback(body = {}, context = {}) {
     const largeFilter = this.findBatchLargeInFilter(body);
     if (!largeFilter) {
-        const json = await YejiGongju._post(`/api/card/${this.ultra.cardId}/data`, body);
         return {
-            grandData: this.extractGrandMetricValues(json, context)
+            grandData: await this.queryBatchGrandData(body, context)
         };
     }
 
     const chunkBodies = this.buildBatchLargeInChunkBodies(body, largeFilter);
     if (chunkBodies.length <= 1) {
-        const json = await YejiGongju._post(`/api/card/${this.ultra.cardId}/data`, body);
         return {
-            grandData: this.extractGrandMetricValues(json, context)
+            grandData: await this.queryBatchGrandData(body, context)
         };
     }
 
@@ -299,15 +305,26 @@ async queryBatchBodyWithLargeInFallback(body = {}, context = {}) {
     };
 },
 
+async queryBatchGrandData(body = {}, context = {}) {
+    const json = await YejiGongju._post(`/api/card/${this.ultra.cardId}/data`, body);
+    return this.parseBatchResponse(json, context);
+},
+
 async queryBatchLargeInChunks(chunkBodies = [], context = {}) {
     return Promise.all(chunkBodies.map(async chunkBody => {
-        const json = await YejiGongju._post(`/api/card/${this.ultra.cardId}/data`, chunkBody);
-        const grandData = this.extractGrandMetricValues(json, context);
+        const grandData = await this.queryBatchGrandData(chunkBody, context);
         return {
             valuesByKey: grandData.valuesByKey,
             formatsByKey: grandData.formatsByKey
         };
     }));
+},
+
+parseBatchResponse(json, context = {}) {
+    if (!json?.response?.chartMain) {
+        throw new Error('BI批量查询未返回有效数据。');
+    }
+    return this.extractGrandMetricValues(json, context);
 },
 
 aggregateBatchChunkGrandData(chunkRows = [], context = {}) {

@@ -290,13 +290,12 @@ const LoginCredentialVerifier = {
 
         try {
             options.host?._saveLocal?.('bi_login', local);
-            let proxyUrl = window.YejiGongju.getProxyUrl?.() || '';
-            if (!proxyUrl) proxyUrl = await window.YejiGongju.autoDiscoverProxy?.();
+            const proxyUrl = await window.YejiGongju.ensureProxy?.();
             if (!proxyUrl) return this.proxyUnavailable('bi', 'BI 代理未就绪。');
 
             const headers = { Accept: 'application/json' };
             headers['X-BI-Token'] = tokenInfo.tokenSig ? `${tokenInfo.token}|${tokenInfo.tokenSig}` : tokenInfo.token;
-            const response = await fetch(`${proxyUrl.replace(/\/+$/, '')}/api/validate-token`, {
+            const response = await window.YejiGongju._fetchProxy(proxyUrl, '/api/validate-token', {
                 method: 'GET',
                 headers,
                 credentials: 'include'

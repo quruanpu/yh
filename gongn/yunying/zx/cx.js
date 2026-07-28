@@ -25,13 +25,7 @@ async runBiConnectionCheck(options = {}) {
             return;
         }
 
-        YejiGongju.startWatching?.();
-        YejiGongju._onProxyChanged = (newUrl) => {
-            localStorage.setItem('bi_proxy_url', newUrl);
-            this.setConnectionState({ proxyReady: true });
-        };
         YejiGongju._onProxyDown = () => {
-            localStorage.removeItem('bi_proxy_url');
             this.setConnectionState({ proxyReady: false, tokenValid: false });
             this.showQueryStateMessage('BI代理已断开。', { hasCurrentData: this.hasVisibleTableData?.() || false });
         };
@@ -41,14 +35,12 @@ async runBiConnectionCheck(options = {}) {
             if (window.LoginModule) LoginModule.open('bi');
         };
 
-        let proxyUrl = options.forceRediscover ? '' : localStorage.getItem('bi_proxy_url');
-        if (options.forceRediscover) localStorage.removeItem('bi_proxy_url');
-        if (!proxyUrl) proxyUrl = await YejiGongju.autoDiscoverProxy();
+        let proxyUrl = await YejiGongju.ensureProxy();
 
         if (!proxyUrl) {
             this.setConnectionState({ proxyReady: false, tokenValid: false });
-            this.showQueryStateMessage('未发现可用BI代理节点。', { hasCurrentData });
-            if (options.showToast) this._showToast('未发现可用 BI 代理节点。', 'error');
+            this.showQueryStateMessage('固定 BI 代理不可用。', { hasCurrentData });
+            if (options.showToast) this._showToast('固定 BI 代理不可用。', 'error');
             return;
         }
 
@@ -57,13 +49,7 @@ async runBiConnectionCheck(options = {}) {
             const reason = status
                 ? (status.message || status.msg || status.error || `状态码 ${status.code ?? '异常'}`)
                 : '状态接口无响应';
-            proxyUrl = await YejiGongju.autoDiscoverProxy();
-            if (!proxyUrl) {
-                const stillReachable = await YejiGongju.confirmAnyProxyReachable?.([{ url: localStorage.getItem('bi_proxy_url') || '' }]);
-                if (stillReachable) {
-                    proxyUrl = stillReachable;
-                }
-            }
+            proxyUrl = await YejiGongju.ensureProxy(3000);
             if (!proxyUrl) {
                 this.setConnectionState({ proxyReady: false, tokenValid: false });
                 this.showQueryStateMessage(`BI代理不可用：${reason}`, { hasCurrentData });
@@ -72,8 +58,6 @@ async runBiConnectionCheck(options = {}) {
             }
         }
 
-        YejiGongju._activeUrl = proxyUrl;
-        localStorage.setItem('bi_proxy_url', proxyUrl);
         this.setConnectionState({ proxyReady: true, tokenValid: false });
 
         let tokenValid = false;
@@ -112,7 +96,7 @@ async tryRecoverBiLoginSilently() {
         const result = await window.LoginModule?.requireCredentials?.('bi', { silent: true });
         if (!result?.ok) return false;
         const tokenValid = await YejiGongju.isTokenValid();
-        this.setConnectionState({ proxyReady: !!YejiGongju.getProxyUrl?.(), tokenValid });
+        this.setConnectionState({ proxyReady: !!(await YejiGongju.ensureProxy?.(3000)), tokenValid });
         return tokenValid;
     } catch (error) {
         console.warn('[yeji] BI登录态自动恢复失败', error);
@@ -533,7 +517,7 @@ async biGet(path) {
     const bi = this.getBiLogin();
     if (bi?.token) headers['X-BI-Token'] = bi.tokenSig ? `${bi.token}|${bi.tokenSig}` : bi.token;
 
-    const resp = await fetch(`${proxyUrl.replace(/\/+$/, '')}${path}`, {
+    const resp = await window.YejiGongju._fetchProxy(proxyUrl, path, {
         method: 'GET',
         headers,
         credentials: 'include'

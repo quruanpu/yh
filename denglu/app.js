@@ -526,18 +526,16 @@ const LoginModule = {
         return null;
     },
 
-    // BI代理发现（失败可重试）
+      // 固定 BI 代理探活（失败可重试）
     _ensureBiProxy() {
         if (this._proxyPromise) return this._proxyPromise;
         this._proxyPromise = (async () => {
             if (!window.YejiGongju) return false;
-            const url = await YejiGongju.autoDiscoverProxy();
+            const url = await YejiGongju.ensureProxy();
             if (url) return true;
-            YejiGongju.startWatching();
             return await this._waitForBiProxy(8000);
         })().then(ok => {
             if (!ok) this._proxyPromise = null;
-            if (window.YejiGongju) YejiGongju.startWatching();
             return ok;
         });
         return this._proxyPromise;
@@ -546,7 +544,7 @@ const LoginModule = {
     async _waitForBiProxy(timeout = 8000) {
         const started = Date.now();
         while (Date.now() - started < timeout) {
-            const proxyUrl = window.YejiGongju?.getProxyUrl?.() || localStorage.getItem('bi_proxy_url') || '';
+            const proxyUrl = window.YejiGongju?.getProxyUrl?.() || '';
             if (proxyUrl) {
                 const status = await YejiGongju.checkProxy(proxyUrl, 3000);
                 if (status?.code === 0) return true;
