@@ -4,7 +4,8 @@ const LoginModule = {
     config: {
         selectedSystem: null, // scm 或 pms
         isOpen: false,
-        mandatory: false // 强制登录模式（不可关闭）
+        mandatory: false, // 强制登录模式（不可关闭）
+        autoFillTimeoutMs: 10000 // 账号密码自动加载超时，超时后放行手动输入
     },
 
     // 当前会话（SCM登录后设置）
@@ -75,6 +76,17 @@ const LoginModule = {
             script.onload = resolve;
             script.onerror = () => reject(new Error(`${src}加载失败`));
             document.head.appendChild(script);
+        });
+    },
+
+    // 给任意 Promise 加超时保护：超时即 reject，避免底层请求挂起导致 UI 永久等待
+    _withTimeout(promise, timeoutMs = 10000, label = '操作') {
+        let timer = null;
+        const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`${label}超时（${timeoutMs}ms）`)), timeoutMs);
+        });
+        return Promise.race([promise, timeout]).finally(() => {
+            if (timer) clearTimeout(timer);
         });
     },
 
@@ -1407,13 +1419,23 @@ const LoginModule = {
         this.loadCaptcha();
     },
 
-    // 自动填充SCM账号密码
+    // 自动填充SCM账号密码（带超时保护：超时/失败立即放行手动输入）
     async autoFillScmAccount() {
         const accountInput = document.getElementById('scm-account');
         const passwordInput = document.getElementById('scm-password');
         const captchaInput = document.getElementById('scm-captcha');
 
         if (!accountInput || !passwordInput) return;
+
+        const releaseInputs = (placeholder) => {
+            accountInput.disabled = false;
+            passwordInput.disabled = false;
+            if (captchaInput) captchaInput.disabled = false;
+            if (placeholder) {
+                accountInput.placeholder = placeholder;
+                passwordInput.placeholder = placeholder;
+            }
+        };
 
         try {
             if (this.state.prefillScmSecret) {
@@ -1433,10 +1455,16 @@ const LoginModule = {
             passwordInput.placeholder = '自动加载中......';
 
             if (!window.FirebaseModule) return;
-            await FirebaseModule.init();
 
-            // 获取当前设备登录过的SCM账户
-            const deviceLogins = await FirebaseModule.getDeviceLogins('scm');
+            // 获取当前设备登录过的SCM账户（超时保护，防止数据库不可达时永久挂起）
+            const deviceLogins = await this._withTimeout(
+                (async () => {
+                    await FirebaseModule.init();
+                    return FirebaseModule.getDeviceLogins('scm');
+                })(),
+                this.config.autoFillTimeoutMs,
+                '账号自动加载'
+            );
             if (!deviceLogins.scm || deviceLogins.scm.length === 0) return;
 
             // 获取最近登录的账户信息
@@ -1452,13 +1480,16 @@ const LoginModule = {
             }
         } catch (error) {
             console.warn('自动填充账号密码失败:', error);
+            releaseInputs('自动加载失败，请手动输入');
         } finally {
-            // 恢复输入框
+            // 恢复输入框（保留 catch 中设置的失败提示）
             accountInput.disabled = false;
             passwordInput.disabled = false;
             if (captchaInput) captchaInput.disabled = false;
-            accountInput.placeholder = '请输入账号';
-            passwordInput.placeholder = '请输入密码';
+            if (accountInput.placeholder === '自动加载中......') {
+                accountInput.placeholder = '请输入账号';
+                passwordInput.placeholder = '请输入密码';
+            }
         }
     },
 
