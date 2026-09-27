@@ -36,6 +36,15 @@ const SjkModule = {
         console.warn(`[sjk] ${label} failed:`, error && error.message ? error.message : error);
     },
 
+    // 本地立即唤醒：写成功后调用，写入者 ~1 RTT 内见到自己的变更（不依赖推送回路）
+    _notifyLocal(collection) {
+        try {
+            if (window.SjkRealtime && typeof window.SjkRealtime.wakeCollection === 'function') {
+                window.SjkRealtime.wakeCollection(collection);
+            }
+        } catch (e) { /* ignore */ }
+    },
+
     async init() {
         if (this.state.initPromise) return this.state.initPromise;
         this.state.initPromise = (async () => {
@@ -96,35 +105,47 @@ const SjkModule = {
 
     async add(collection, data) {
         await this.init();
-        return this._call('add', { collection, data: data || {} });
+        const result = await this._call('add', { collection, data: data || {} });
+        this._notifyLocal(collection);
+        return result;
     },
 
     async set(collection, docId, data) {
         await this.init();
-        return this._call('set', { collection, docId: String(docId), data: data || {} });
+        const result = await this._call('set', { collection, docId: String(docId), data: data || {} });
+        this._notifyLocal(collection);
+        return result;
     },
 
     async update(collection, docId, patch) {
         await this.init();
-        return this._call('update', { collection, docId: String(docId), patch: patch || {} });
+        const result = await this._call('update', { collection, docId: String(docId), patch: patch || {} });
+        this._notifyLocal(collection);
+        return result;
     },
 
     async upsert(collection, docId, patch) {
         await this.init();
-        return this._call('upsert', { collection, docId: String(docId), patch: patch || {} });
+        const result = await this._call('upsert', { collection, docId: String(docId), patch: patch || {} });
+        this._notifyLocal(collection);
+        return result;
     },
 
     async remove(collection, docId) {
         await this.init();
-        return this._call('remove', { collection, docId: String(docId) });
+        const result = await this._call('remove', { collection, docId: String(docId) });
+        this._notifyLocal(collection);
+        return result;
     },
 
     async updateWhere(collection, docId, patch, wherePath, whereValue) {
         await this.init();
-        return this._call('updateWhere', {
+        const result = await this._call('updateWhere', {
             collection, docId: String(docId), patch: patch || {},
             wherePath: String(wherePath || ''), whereValue
         });
+        this._notifyLocal(collection);
+        return result;
     },
 
     // ---------- realtime subscriptions (delegated to zhongxin/dy) ----------

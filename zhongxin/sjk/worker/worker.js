@@ -38,18 +38,22 @@ function tokenValid(request, env) {
   return token !== '' && token === String(env.YH_TOKEN || '');
 }
 
-// Realtime notify: internal call to the DO (best effort; alarm self-check covers failures)
+// Realtime notify: internal call to the DO (best effort; one retry + alarm self-check covers failures)
 async function notifyCollection(env, collection) {
-  try {
-    const id = env.YH_NOTIFY.idFromName('global');
-    const stub = env.YH_NOTIFY.get(id);
-    await stub.fetch('https://yh-gateway.internal/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-yh-token': String(env.YH_TOKEN || '') },
-      body: JSON.stringify({ collection })
-    });
-  } catch (e) {
-    console.warn('[notify] failed (alarm will cover):', e && e.message);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const id = env.YH_NOTIFY.idFromName('global');
+      const stub = env.YH_NOTIFY.get(id);
+      await stub.fetch('https://yh-gateway.internal/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-yh-token': String(env.YH_TOKEN || '') },
+        body: JSON.stringify({ collection })
+      });
+      return;
+    } catch (e) {
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 300));
+      else console.warn('[notify] failed after retry (alarm will cover):', e && e.message);
+    }
   }
 }
 
@@ -206,9 +210,13 @@ export class YhNotifyDO {
   }
 
   async webSocketMessage(ws, message) {
-    // subscription update: {"subscribe": ["col1","col2"]}
+    // subscription update: {"subscribe": ["col1","col2"]} | heartbeat: {"ping":1} -> {"type":"pong"}
     try {
       const msg = JSON.parse(message);
+      if (msg && msg.ping) {
+        try { ws.send(JSON.stringify({ type: 'pong' })); } catch (e) { }
+        return;
+      }
       if (Array.isArray(msg.subscribe)) {
         const tags = msg.subscribe.filter(c => ALLOWED.has(c));
         this.state.setTags(ws, tags);
