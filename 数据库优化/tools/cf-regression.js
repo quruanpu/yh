@@ -32,7 +32,9 @@ async function main() {
       ready: async () => ({ deviceId: 'device_CFTEST01', deviceInfo: { device_name: 'CF-TestPC' } })
     }
   };
-  new Function('window', fs.readFileSync(path.join(root, 'sjk/app.js'), 'utf8'))(w);
+  new Function('window', fs.readFileSync(path.join(root, 'zhongxin/dy/realtime.js'), 'utf8'))(w);
+  w.SjkRealtime.config.pollMs = 2000;   // 测试加速：兜底轮询 2s（产品默认 60s 不变）
+  new Function('window', fs.readFileSync(path.join(root, 'zhongxin/sjk/app.js'), 'utf8'))(w);
   const Sjk = w.SjkModule;
   Sjk.config.gatewayUrl = GW;
   Sjk.config.requestTimeoutMs = 15000;

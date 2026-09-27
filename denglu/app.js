@@ -137,7 +137,8 @@ const LoginModule = {
         if (this.state.dependencyPromise) return this.state.dependencyPromise;
 
         const scripts = [
-            'sjk/app.js',
+            'zhongxin/dy/realtime.js',
+            'zhongxin/sjk/app.js',
             'denglu/zhanghu.js',
             'denglu/yw/scm.js',
             'denglu/yw/pms.js',
@@ -152,6 +153,7 @@ const LoginModule = {
         ).then(() => {
             const missing = [
                 ['DeviceModule', window.DeviceModule],
+                ['SjkRealtime', window.SjkRealtime],
                 ['SjkModule', window.SjkModule],
                 ['ZhanghuModule', window.ZhanghuModule],
                 ['ScmLoginModule', window.ScmLoginModule],

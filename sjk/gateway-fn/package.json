@@ -1,9 +1,0 @@
-{
-  "name": "yh-data-gateway",
-  "version": "1.0.0",
-  "description": "yunxiaozhu data gateway (SjkModule HTTP backend)",
-  "main": "index.js",
-  "dependencies": {
-    "@cloudbase/node-sdk": "^2.4.4"
-  }
-}

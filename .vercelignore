@@ -1,7 +1,7 @@
 数据库优化/
 测试区/
-sjk/worker/
-sjk/gateway-fn/
+zhongxin/sjk/worker/
 *.cmd
 *.log
 .gitignore
+.dev.vars

@@ -203,15 +203,20 @@ const GongjuzxGongju = {
     },
 
     async subscribeItems(onChange, onError) {
-        const sjk = await this.ensureDatabase();
-        const provider = await this.getProviderInfo();
+        await this.ensureDatabase();
 
-        const handleValue = ({ docs }) => {
-            const list = this.normalizeList(this._docsToRawMap(docs), provider.provider_id);
-            if (typeof onChange === 'function') onChange(list);
+        // fetcher: pull + provider filter (provider resolved per pull; engine retries if empty)
+        const fetcher = async () => {
+            const provider = await this.getProviderInfo();
+            const docs = await window.SjkModule.getAll('gongju_items');
+            if (!provider.provider_id) return [];
+            return this.normalizeList(this._docsToRawMap(docs), provider.provider_id);
+        };
+        const handle = ({ docs }) => {
+            if (typeof onChange === 'function') onChange(Array.isArray(docs) ? docs : []);
         };
 
-        return sjk.watchCollection('gongju_items', handleValue);
+        return window.SjkRealtime.subscribe('gongju_items|*', 'gongju_items', fetcher, handle);
     },
 
     async createItem(raw = {}) {

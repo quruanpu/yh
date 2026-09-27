@@ -21,9 +21,8 @@ Get-ChildItem $src | Where-Object { $topExclude -notcontains $_.Name } | ForEach
     Copy-Item $_.FullName -Destination $dst -Recurse -Force
 }
 
-# inside sjk: exclude Worker & gateway-fn sources (deployed via wrangler, not static)
-if (Test-Path "$dst\sjk\worker") { Remove-Item "$dst\sjk\worker" -Recurse -Force }
-if (Test-Path "$dst\sjk\gateway-fn") { Remove-Item "$dst\sjk\gateway-fn" -Recurse -Force }
+# inside zhongxin/sjk: exclude Worker sources (deployed via wrangler, not static)
+if (Test-Path "$dst\zhongxin\sjk\worker") { Remove-Item "$dst\zhongxin\sjk\worker" -Recurse -Force }
 
 # strip stray cmd/log files (guard against empty pipeline)
 $stray = Get-ChildItem $dst -Recurse -Include *.cmd, *.log -ErrorAction SilentlyContinue

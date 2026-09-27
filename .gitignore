@@ -1,12 +1,15 @@
 node_modules/
 .dev.vars
+.wrangler/
 *.log
 .DS_Store
 Thumbs.db
 
 # 测试区（本地测试脚本，不入库不部署）
 测试区/
-
-# 一次性批处理脚本
 *.cmd
-.wrangler/
+
+# 部署版快照（仓库外，双保险）
+部署版/
+
+# 数据库优化（记录文档，入库但 Vercel 不公开）
