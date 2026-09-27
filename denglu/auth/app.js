@@ -173,8 +173,8 @@ const LoginAuthModule = {
             }
         }
 
-        if (!window.FirebaseModule) return { context, results };
-        await FirebaseModule.init();
+        if (!window.ZhanghuModule) return { context, results };
+        await ZhanghuModule.init();
 
         for (const system of list) {
             if (results[system]) continue;
@@ -223,7 +223,7 @@ const LoginAuthModule = {
     },
 
     async tryDevice(host, system) {
-        const deviceLogins = await FirebaseModule.getDeviceLogins(system);
+        const deviceLogins = await ZhanghuModule.getDeviceLogins(system);
         const accounts = this.sortAccounts(deviceLogins?.[system] || []);
         return this.tryAccounts(host, system, accounts, 'device');
     },
@@ -339,9 +339,9 @@ const LoginAuthModule = {
         const localProvider = this.resolveProviderFromLocal(host);
         if (localProvider?.provider_id) return localProvider;
 
-        if (!window.FirebaseModule) return null;
-        await FirebaseModule.init();
-        const deviceLogins = await FirebaseModule.getDeviceLogins();
+        if (!window.ZhanghuModule) return null;
+        await ZhanghuModule.init();
+        const deviceLogins = await ZhanghuModule.getDeviceLogins();
         for (const system of this.systems) {
             const account = this.sortAccounts(deviceLogins?.[system] || [])
                 .find(item => this.providerId(item));
@@ -374,17 +374,17 @@ const LoginAuthModule = {
     },
 
     async findByProvider(system, providerId) {
-        if (!providerId || !window.FirebaseModule) return [];
-        if (system === 'scm') return FirebaseModule.findAllScmByProviderId(providerId);
-        if (system === 'pms') return FirebaseModule.findAllPmsByProviderId(providerId);
-        return FirebaseModule.findAllBiByProviderId(providerId);
+        if (!providerId || !window.ZhanghuModule) return [];
+        if (system === 'scm') return ZhanghuModule.findAllScmByProviderId(providerId);
+        if (system === 'pms') return ZhanghuModule.findAllPmsByProviderId(providerId);
+        return ZhanghuModule.findAllBiByProviderId(providerId);
     },
 
     async markInvalid(system, info) {
-        if (!window.FirebaseModule) return;
+        if (!window.ZhanghuModule) return;
         const providerId = this.providerId(info);
         const account = this.accountId(system, info);
-        if (providerId && account) await FirebaseModule.markAccountInvalid(system, providerId, account);
+        if (providerId && account) await ZhanghuModule.markAccountInvalid(system, providerId, account);
     }
 };
 

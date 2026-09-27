@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/sjk", "destination": "https://yh-data-gateway.cqytxy001.workers.dev" },
+    { "source": "/api/sjk-ws", "destination": "https://yh-data-gateway.cqytxy001.workers.dev/connect" }
+  ]
+}

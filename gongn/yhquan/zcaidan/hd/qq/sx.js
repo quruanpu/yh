@@ -165,12 +165,33 @@ const YhquanHdTimeRefreshModule = {
         alert(message);
     },
 
-    async getDatabase() {
-        if (window.FirebaseModule?.init) {
-            await window.FirebaseModule.init();
-            return window.FirebaseModule.state?.database || null;
+    async ensureSjk() {
+        if (window.SjkModule?.init) {
+            await window.SjkModule.init();
+            return window.SjkModule;
         }
-        return window.firebase?.database?.() || null;
+        return null;
+    },
+
+    _normalizeId(value) {
+        return String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
+    },
+
+    _couponDocId(providerId, couponId) {
+        return `${this._normalizeId(providerId)}::${this._normalizeId(couponId)}`;
+    },
+
+    _toSharingMap(docs = []) {
+        return docs.reduce((acc, doc) => {
+            const couponId = doc.couponId || String(doc._id || '').split('::')[1] || '';
+            if (!couponId) return acc;
+            const node = { ...doc };
+            delete node.provider_id;
+            delete node.couponId;
+            delete node._id;
+            acc[couponId] = node;
+            return acc;
+        }, {});
     },
 
     async getProviderId() {
@@ -314,7 +335,7 @@ const YhquanHdTimeRefreshModule = {
         return tasks;
     },
 
-    async refreshOneTask(db, providerId, task) {
+    async refreshOneTask(providerId, task) {
         const coupon = {
             id: task.couponId,
             name: task.couponNode?.coupon_name || task.activityNode?.activity_name || '',
@@ -333,7 +354,13 @@ const YhquanHdTimeRefreshModule = {
         await window.EwmYewu.editActivity(task.activityId, payload);
 
         const now = Date.now();
-        await db.ref(`yhq_gx/${providerId}/${task.couponId}/activities/${task.activityId}`).update({
+        const docId = this._couponDocId(providerId, task.couponId);
+        const doc = await window.SjkModule.get('coupons', docId);
+        if (!doc) return { skipped: true, range };
+
+        const activities = { ...(doc.activities || {}) };
+        activities[String(task.activityId)] = {
+            ...(activities[String(task.activityId)] || {}),
             grab_time: {
                 begin: `${payload.beginTimeDate} ${payload.beginTimeHms || '00:00:00'}`,
                 end: `${payload.endTimeDate} ${payload.endTimeHms || '23:59:59'}`
@@ -344,8 +371,8 @@ const YhquanHdTimeRefreshModule = {
             [this.field]: this.autoValue,
             updated_at: now,
             time_refresh_updated_at: now
-        });
-        await db.ref(`yhq_gx/${providerId}/${task.couponId}`).update({ updated_at: now });
+        };
+        await window.SjkModule.update('coupons', docId, { activities, updated_at: now });
 
         return { skipped: false, range };
     },
@@ -359,17 +386,17 @@ const YhquanHdTimeRefreshModule = {
             if (!ready) return;
 
             const providerId = await this.getProviderId();
-            const db = await this.getDatabase();
-            if (!providerId || !db) return;
+            const sjk = await this.ensureSjk();
+            if (!providerId || !sjk) return;
 
-            const snapshot = await db.ref(`yhq_gx/${providerId}`).once('value');
-            const tasks = this.collectAutoRefreshTasks(snapshot.val() || {});
+            const docs = await sjk.getWhere('coupons', 'provider_id', '==', providerId);
+            const tasks = this.collectAutoRefreshTasks(this._toSharingMap(docs));
             if (tasks.length === 0) return;
 
             const results = [];
             for (const task of tasks) {
                 try {
-                    const result = await this.refreshOneTask(db, providerId, task);
+                    const result = await this.refreshOneTask(providerId, task);
                     results.push({ couponId: task.couponId, activityId: task.activityId, ...result });
                 } catch (error) {
                     console.error('自动刷新抢券时间失败：', {

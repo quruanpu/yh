@@ -1,0 +1,7 @@
+数据库优化/
+测试区/
+sjk/worker/
+sjk/gateway-fn/
+*.cmd
+*.log
+.gitignore

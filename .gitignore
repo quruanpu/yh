@@ -1,0 +1,12 @@
+node_modules/
+.dev.vars
+*.log
+.DS_Store
+Thumbs.db
+
+# 测试区（本地测试脚本，不入库不部署）
+测试区/
+
+# 一次性批处理脚本
+*.cmd
+.wrangler/

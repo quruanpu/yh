@@ -129,9 +129,14 @@ const HdYewu = {
             : '选择公共共享后可设置';
     },
 
-    getCouponRef(couponId = this.currentCoupon?.id) {
-        if (!this.providerId || !couponId) return null;
-        return firebase.database().ref(`yhq_gx/${this.providerId}/${couponId}`);
+    // ---------- 共享券存储（sjk 中控：coupons / coupon_index 集合） ----------
+
+    _normalizeId(value) {
+        return String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
+    },
+
+    _couponDocId(couponId) {
+        return `${this._normalizeId(this.providerId)}::${this._normalizeId(couponId)}`;
     },
 
     getActivityUrl(activityId = this.activityId) {
@@ -176,7 +181,8 @@ const HdYewu = {
     async syncProviderIndex() {
         const providerName = window.LoginModule?.session?.providerInfo?.provider_name || '';
         if (!providerName || !this.providerId) return;
-        await firebase.database().ref(`yhq_gx_index/${this.providerId}`).update({
+        await window.SjkModule.upsert('coupon_index', this._normalizeId(this.providerId), {
+            provider_id: this.providerId,
             provider_name: providerName,
             last_update: Date.now()
         });
@@ -184,22 +190,20 @@ const HdYewu = {
 
     async cleanupProviderIndexIfEmpty() {
         if (!this.providerId) return;
-        const db = firebase.database();
-        const providerSnap = await db.ref(`yhq_gx/${this.providerId}`).once('value');
-        if (!providerSnap.exists()) {
-            await db.ref(`yhq_gx_index/${this.providerId}`).remove();
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', this.providerId);
+        if (docs.length === 0) {
+            await window.SjkModule.remove('coupon_index', this._normalizeId(this.providerId));
         }
     },
 
     async upsertSelectedSharedActivity(form) {
         if (!this.currentCoupon?.id || !this.activityId) return;
-        const couponRef = this.getCouponRef();
-        if (!couponRef) return;
+        if (!window.SjkModule || !this.providerId) return;
 
-        const activitiesSnap = await couponRef.child('activities').once('value');
-        const tasksSnap = await couponRef.child('tasks').once('value');
-        const existingActivities = activitiesSnap.val();
-        const existingTasks = tasksSnap.val();
+        const docId = this._couponDocId(this.currentCoupon.id);
+        const doc = await window.SjkModule.get('coupons', docId);
+        const existingActivities = doc?.activities;
+        const existingTasks = doc?.tasks;
         const activities = {};
         if (existingActivities && typeof existingActivities === 'object') {
             Object.entries(existingActivities).forEach(([id, node]) => {
@@ -208,7 +212,9 @@ const HdYewu = {
         }
         activities[String(this.activityId)] = this.buildActivityShareNode(form, this.activityId);
 
-        await couponRef.set({
+        await window.SjkModule.set('coupons', docId, {
+            provider_id: this.providerId,
+            couponId: this.currentCoupon.id,
             coupon_name: this.currentCoupon.name || '',
             coupon_expire_at: this.currentCoupon.endTime || '',
             updated_at: Date.now(),
@@ -220,13 +226,12 @@ const HdYewu = {
 
     async removeSharedActivity(activityId = this.activityId) {
         if (!activityId) return;
-        const couponRef = this.getCouponRef();
-        if (!couponRef) return;
+        if (!window.SjkModule || !this.providerId) return;
 
-        const activitiesSnap = await couponRef.child('activities').once('value');
-        const tasksSnap = await couponRef.child('tasks').once('value');
-        const existingActivities = activitiesSnap.val();
-        const existingTasks = tasksSnap.val();
+        const docId = this._couponDocId(this.currentCoupon?.id);
+        const doc = await window.SjkModule.get('coupons', docId);
+        const existingActivities = doc?.activities;
+        const existingTasks = doc?.tasks;
         const activities = {};
         if (existingActivities && typeof existingActivities === 'object') {
             Object.entries(existingActivities).forEach(([id, node]) => {
@@ -236,12 +241,14 @@ const HdYewu = {
         delete activities[String(activityId)];
 
         if (!activities || Object.keys(activities).length === 0) {
-            await couponRef.remove();
+            await window.SjkModule.remove('coupons', docId);
             await this.cleanupProviderIndexIfEmpty();
             return;
         }
 
-        await couponRef.set({
+        await window.SjkModule.set('coupons', docId, {
+            provider_id: this.providerId,
+            couponId: this.currentCoupon?.id,
             coupon_name: this.currentCoupon?.name || '',
             coupon_expire_at: this.currentCoupon?.endTime || '',
             updated_at: Date.now(),
@@ -346,13 +353,11 @@ const HdYewu = {
 
     async loadShareData() {
         try {
-            const db = firebase.database();
-            const firebasePromise = db.ref(`yhq_gx/${this.providerId}/${this.currentCoupon.id}`).once('value');
+            const dataPromise = window.SjkModule.get('coupons', this._couponDocId(this.currentCoupon.id));
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Firebase 连接超时')), 8000)
+                setTimeout(() => reject(new Error('数据库连接超时')), 8000)
             );
-            const snapshot = await Promise.race([firebasePromise, timeoutPromise]);
-            this.shareData = snapshot.val();
+            this.shareData = await Promise.race([dataPromise, timeoutPromise]);
         } catch (error) {
             console.error('加载共享数据失败：', error);
             this.shareData = null;

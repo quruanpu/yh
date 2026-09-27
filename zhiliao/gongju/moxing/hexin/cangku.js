@@ -53,14 +53,13 @@ const ZhiLiaoMoxingHexinCangkuModule = {
         return Math.floor(num);
     },
 
-    async ensureFirebase() {
-        if (!window.FirebaseModule && window.LoginModule?.ensureDependencies) {
+    async ensureSjk() {
+        if (!window.SjkModule && window.LoginModule?.ensureDependencies) {
             await window.LoginModule.ensureDependencies();
         }
-        if (!window.FirebaseModule) throw new Error('Firebase 模块未加载。');
-        await window.FirebaseModule.init();
-        if (!window.FirebaseModule.state.database) throw new Error('Firebase 数据库不可用。');
-        return window.FirebaseModule.state.database;
+        if (!window.SjkModule) throw new Error('数据中控未加载。');
+        await window.SjkModule.init();
+        return window.SjkModule;
     },
 
     sortModelItems(models = {}) {
@@ -168,18 +167,11 @@ const ZhiLiaoMoxingHexinCangkuModule = {
     async migrateModelConfigSchema() {
         if (this.state.migrationPromise) return this.state.migrationPromise;
         this.state.migrationPromise = (async () => {
-            const database = await this.ensureFirebase();
-            const ref = database.ref(this.config.dbPath);
-            const snapshot = await ref.once('value');
-            const data = snapshot.val() || {};
-            const updates = {};
-            Object.entries(data).forEach(([id, item]) => {
-                if (!this.needsMigration(item || {})) return;
-                updates[id] = this.buildMigratedNode(item || {});
-            });
-            if (Object.keys(updates).length) {
-                await ref.update(updates);
-            }
+            const sjk = await this.ensureSjk();
+            const docs = await sjk.getAll('model_configs');
+            const pending = docs.filter((doc) => this.needsMigration(doc || {}));
+            const updates = pending.map((doc) => ({ id: doc._id, node: this.buildMigratedNode(doc || {}) }));
+            await Promise.all(updates.map(({ id, node }) => sjk.set('model_configs', id, node)));
         })().finally(() => {
             this.state.migrationPromise = null;
         });
@@ -211,23 +203,29 @@ const ZhiLiaoMoxingHexinCangkuModule = {
 
     async listConfigs() {
         await this.migrateModelConfigSchema();
-        const database = await this.ensureFirebase();
-        const snapshot = await database.ref(this.config.dbPath).once('value');
-        return this.toConfigList(snapshot.val() || {});
+        const sjk = await this.ensureSjk();
+        const docs = await sjk.getAll('model_configs');
+        return this.toConfigList(this._docsToRawMap(docs));
     },
 
     async subscribeConfigs(onChange, onError) {
         await this.migrateModelConfigSchema();
-        const database = await this.ensureFirebase();
-        const ref = database.ref(this.config.dbPath);
-        const handle = (snapshot) => {
-            const list = this.toConfigList(snapshot.val() || {});
+        const sjk = await this.ensureSjk();
+        const handle = ({ docs }) => {
+            const list = this.toConfigList(this._docsToRawMap(docs));
             if (typeof onChange === 'function') onChange(list);
         };
-        ref.on('value', handle, (error) => {
-            if (typeof onError === 'function') onError(error);
-        });
-        return () => ref.off('value', handle);
+        return sjk.watchCollection('model_configs', handle);
+    },
+
+    _docsToRawMap(docs = []) {
+        return docs.reduce((acc, doc) => {
+            const item = { ...doc };
+            const id = doc._id;
+            delete item._id;
+            acc[id] = item;
+            return acc;
+        }, {});
     },
 
     async saveConfig(configId, rawConfig) {
@@ -235,10 +233,10 @@ const ZhiLiaoMoxingHexinCangkuModule = {
         const validation = validator.validateAndNormalize(rawConfig);
         if (!validation.valid) throw new Error(validation.errors.join('；'));
 
-        const database = await this.ensureFirebase();
+        const sjk = await this.ensureSjk();
         const now = Date.now();
         if (configId) {
-            await database.ref(`${this.config.dbPath}/${configId}`).set({
+            await sjk.set('model_configs', configId, {
                 ...validation.data,
                 sortOrder: this.toFiniteNumberOrNull(rawConfig.sortOrder) || null,
                 created_at: rawConfig.created_at || 0,
@@ -250,14 +248,15 @@ const ZhiLiaoMoxingHexinCangkuModule = {
 
         const current = await this.listConfigs();
         const maxOrder = current.reduce((max, item) => Math.max(max, Number(item.sortOrder || 0)), 0);
-        const ref = await database.ref(this.config.dbPath).push({
+        const newId = `mc${Date.now()}${Math.floor(Math.random() * 10000)}`;
+        await sjk.set('model_configs', newId, {
             ...validation.data,
             sortOrder: maxOrder + 1,
             created_at: now,
             updated_at: now,
-            created_by: window.FirebaseModule?.state?.deviceId || 'unknown'
+            created_by: window.DeviceModule?.state?.deviceId || 'unknown'
         });
-        return ref.key;
+        return newId;
     },
 
     async createConfig(rawConfig) {
@@ -272,26 +271,24 @@ const ZhiLiaoMoxingHexinCangkuModule = {
 
     async deleteConfig(configId) {
         if (!configId) throw new Error('Config ID is required.');
-        const database = await this.ensureFirebase();
-        await database.ref(`${this.config.dbPath}/${configId}`).remove();
+        const sjk = await this.ensureSjk();
+        await sjk.remove('model_configs', configId);
     },
 
     async setConfigEnabled(configId, enabled) {
         if (!configId) throw new Error('Config ID is required.');
-        const database = await this.ensureFirebase();
-        await database.ref(`${this.config.dbPath}/${configId}`).update({ enabled: !!enabled });
+        const sjk = await this.ensureSjk();
+        await sjk.update('model_configs', configId, { enabled: !!enabled });
     },
 
     async reorderConfigs(configIds = []) {
         if (!Array.isArray(configIds) || !configIds.length) return;
-        const updates = {};
-        configIds.forEach((id, index) => {
+        const sjk = await this.ensureSjk();
+        await Promise.all(configIds.map((id, index) => {
             const key = String(id || '').trim();
-            if (key) updates[`${key}/sortOrder`] = index + 1;
-        });
-        if (!Object.keys(updates).length) return;
-        const database = await this.ensureFirebase();
-        await database.ref(this.config.dbPath).update(updates);
+            if (!key) return Promise.resolve();
+            return sjk.update('model_configs', key, { sortOrder: index + 1 });
+        }));
     },
 
     createAutoSelection() {

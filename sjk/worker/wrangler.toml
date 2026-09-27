@@ -1,0 +1,20 @@
+name = "yh-data-gateway"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "yh-data"
+database_id = "bb763ad8-2653-40d7-8a49-75e4253211e0"
+
+[[durable_objects.bindings]]
+name = "YH_NOTIFY"
+class_name = "YhNotifyDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["YhNotifyDO"]
+
+[vars]
+ORIGIN_ALLOWLIST = "ly.cqytyy.top,cqytyy.top,localhost,127.0.0.1"
+TOKEN_REQUIRED = "true"

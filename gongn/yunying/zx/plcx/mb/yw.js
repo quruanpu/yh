@@ -1,16 +1,55 @@
 // BI summary target business: upload, database sync, target picker, and target columns.
 const YejiPlcxMbYewu = {
+// ---------- 目标存储（sjk 中控：yeji_targets 集合，ranges 内嵌与原结构同构） ----------
+
+_targetsDocId(pid) {
+    const text = String(pid ?? '').trim();
+    return text.replace(/[.#$/[\]]/g, '_') || 'unknown';
+},
+
+async fetchTargets(pid) {
+    const doc = await window.SjkModule.get('yeji_targets', this._targetsDocId(pid));
+    return doc || null;
+},
+
+async saveTargetRange(pid, rangeKey, payload) {
+    const docId = this._targetsDocId(pid);
+    const doc = (await window.SjkModule.get('yeji_targets', docId)) || {};
+    const ranges = { ...(doc.ranges || {}) };
+    ranges[rangeKey] = payload;
+    await window.SjkModule.set('yeji_targets', docId, {
+        version: 1,
+        module: 'ultra',
+        ranges,
+        updatedAt: Date.now()
+    });
+},
+
+async removeTargetRange(pid, rangeKey) {
+    const docId = this._targetsDocId(pid);
+    const doc = await window.SjkModule.get('yeji_targets', docId);
+    if (!doc) return;
+    const ranges = { ...(doc.ranges || {}) };
+    delete ranges[rangeKey];
+    await window.SjkModule.set('yeji_targets', docId, {
+        version: doc.version || 1,
+        module: doc.module || 'ultra',
+        ranges,
+        updatedAt: Date.now()
+    });
+},
+
 async ensureBatchTargetsLoaded({ force = false, showToast = false } = {}) {
     if (this.state.batchQueryTargetsLoaded && !force) return this.state.batchQueryTargets || {};
     const pid = this.getTemplateProviderId();
-    if (!pid || !window.FirebaseModule?.getYejiTargets) {
+    if (!pid || !window.SjkModule) {
         this.state.batchQueryTargets = { ranges: {} };
         this.state.batchQueryTargetsLoaded = true;
         return this.state.batchQueryTargets;
     }
 
     try {
-        const data = await FirebaseModule.getYejiTargets(pid);
+        const data = await this.fetchTargets(pid);
         this.state.batchQueryTargets = data || { ranges: {} };
         this.state.batchQueryTargets.ranges = this.state.batchQueryTargets.ranges || {};
         this.state.batchQueryTargetsLoaded = true;
@@ -346,8 +385,8 @@ async uploadBatchTargetFile() {
         const parsed = await window.YejiPlcxMbGongju.readWorkbook(file);
         const payload = this.buildBatchTargetPayload(parsed);
         const pid = this.getTemplateProviderId();
-        if (!pid || !window.FirebaseModule?.saveYejiTargetRange) throw new Error('目标数据库未就绪');
-        await FirebaseModule.saveYejiTargetRange(pid, parsed.rangeKey, payload);
+        if (!pid || !window.SjkModule) throw new Error('目标数据库未就绪');
+        await this.saveTargetRange(pid, parsed.rangeKey, payload);
         await this.ensureBatchTargetsLoaded({ force: true });
         this.state.batchTargetFile = null;
         this.state.batchQueryTargetUploading = false;
@@ -437,9 +476,9 @@ getBatchMergeableTargetNames(templates = []) {
 getBatchTargetUpdater() {
     try {
         const bi = window.LoginModule?.getLocalLogin?.('bi') || {};
-        return bi.account || bi.username || bi.provider_id || window.FirebaseModule?.state?.deviceId || '';
+        return bi.account || bi.username || bi.provider_id || window.DeviceModule?.state?.deviceId || '';
     } catch {
-        return window.FirebaseModule?.state?.deviceId || '';
+        return window.DeviceModule?.state?.deviceId || '';
     }
 },
 
@@ -451,9 +490,9 @@ async deleteBatchTargetRange(rangeKey) {
     if (!confirmed) return;
 
     const pid = this.getTemplateProviderId();
-    if (!pid || !window.FirebaseModule?.deleteYejiTargetRange) return;
+    if (!pid || !window.SjkModule) return;
     try {
-        await FirebaseModule.deleteYejiTargetRange(pid, rangeKey);
+        await this.removeTargetRange(pid, rangeKey);
         if (this.state.batchQueryActiveTargetKey === rangeKey) this.state.batchQueryActiveTargetKey = '';
         await this.ensureBatchTargetsLoaded({ force: true });
         if (this.state.batchQueryOpen) this.renderBatchQueryBody();
@@ -632,7 +671,7 @@ async commitBatchTargetCellEdit(cell, value) {
 async updateBatchTargetValue(rangeKey, rowKey, rowName, metricName, value) {
     if (!rangeKey || !rowKey || !metricName) throw new Error('目标字段信息不完整');
     const pid = this.getTemplateProviderId();
-    if (!pid || !window.FirebaseModule?.saveYejiTargetRange) throw new Error('目标数据库未就绪');
+    if (!pid || !window.SjkModule) throw new Error('目标数据库未就绪');
     const targetRoot = this.state.batchQueryTargets || { ranges: {} };
     const range = targetRoot.ranges?.[rangeKey];
     if (!range) throw new Error('目标区间不存在');
@@ -646,7 +685,7 @@ async updateBatchTargetValue(rangeKey, rowKey, rowName, metricName, value) {
     nextRange.updatedAt = Date.now();
     nextRange.updatedBy = this.getBatchTargetUpdater();
 
-    await FirebaseModule.saveYejiTargetRange(pid, rangeKey, nextRange);
+    await this.saveTargetRange(pid, rangeKey, nextRange);
     this.state.batchQueryTargets.ranges[rangeKey] = nextRange;
 },
 

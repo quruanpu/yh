@@ -46,10 +46,56 @@ const NotebookService = {
         return Date.now();
     },
 
-    ensureDb() {
-        const db = window.FirebaseModule?.state?.database || null;
-        if (!db) throw new Error('记事本数据库未初始化');
-        return db;
+    // ---------- 树存储助手（sjk 中控：notebooks 集合，整树内嵌） ----------
+
+    async ensureDb() {
+        if (!window.SjkModule) throw new Error('记事本数据库未初始化');
+        await window.SjkModule.init();
+        return window.SjkModule;
+    },
+
+    async _loadTree(providerId) {
+        return window.SjkModule.get('notebooks', providerId);
+    },
+
+    async _saveTree(providerId, tree) {
+        await window.SjkModule.set('notebooks', providerId, tree);
+    },
+
+    _getNodeAt(tree, nodePath) {
+        if (!nodePath) return tree || null;
+        let node = tree;
+        for (const segment of nodePath.split('/')) {
+            if (!node || typeof node !== 'object') return null;
+            node = node[segment];
+        }
+        return node === undefined ? null : node;
+    },
+
+    _setNodeAt(tree, nodePath, value) {
+        if (!nodePath) return value;
+        const segments = nodePath.split('/');
+        let node = tree;
+        for (let i = 0; i < segments.length - 1; i++) {
+            const segment = segments[i];
+            if (!node[segment] || typeof node[segment] !== 'object') node[segment] = {};
+            node = node[segment];
+        }
+        node[segments[segments.length - 1]] = value;
+        return tree;
+    },
+
+    _deleteNodeAt(tree, nodePath) {
+        if (!nodePath) return tree;
+        const segments = nodePath.split('/');
+        let node = tree;
+        for (let i = 0; i < segments.length - 1; i++) {
+            const segment = segments[i];
+            if (!node[segment] || typeof node[segment] !== 'object') return tree;
+            node = node[segment];
+        }
+        delete node[segments[segments.length - 1]];
+        return tree;
     },
 
     normalizeAction(action) {
@@ -135,15 +181,12 @@ const NotebookService = {
         return nodePath ? `${root}/${nodePath}` : root;
     },
 
-    async ensureProviderRoot(db, providerId) {
-        const rootPath = this.getProviderRoot(providerId);
-        const rootRef = db.ref(rootPath);
-        const snapshot = await rootRef.once('value');
-        const value = snapshot.val();
+    async ensureProviderRoot(providerId) {
+        const tree = await this._loadTree(providerId);
 
-        if (value === null || value === undefined) {
+        if (tree === null || tree === undefined) {
             const now = this.now();
-            await rootRef.set({
+            await this._saveTree(providerId, {
                 __meta: {
                     provider_id: providerId,
                     created_at: now,
@@ -153,26 +196,30 @@ const NotebookService = {
             return { created: true };
         }
 
-        if (!this.isPlainObject(value)) {
+        if (!this.isPlainObject(tree)) {
             throw new Error('记事本节点结构异常，无法操作');
         }
 
-        if (!this.isPlainObject(value.__meta)) {
+        if (!this.isPlainObject(tree.__meta)) {
             const now = this.now();
-            await rootRef.child('__meta').set({
+            tree.__meta = {
                 provider_id: providerId,
                 created_at: now,
                 updated_at: now
-            });
+            };
+            await this._saveTree(providerId, tree);
             return { created: false };
         }
 
         return { created: false };
     },
 
-    async touchUpdatedAt(db, providerId) {
-        const updatedAtRef = db.ref(`${this.getProviderRoot(providerId)}/__meta/updated_at`);
-        await updatedAtRef.set(this.now());
+    async touchUpdatedAt(providerId) {
+        const tree = await this._loadTree(providerId);
+        if (!tree || !this.isPlainObject(tree)) return;
+        tree.__meta = this.isPlainObject(tree.__meta) ? tree.__meta : {};
+        tree.__meta.updated_at = this.now();
+        await this._saveTree(providerId, tree);
     },
 
     normalizeParams(params = {}) {
@@ -239,21 +286,21 @@ const NotebookService = {
         }
     },
 
-    async readNode(db, providerId, nodePath) {
+    async readNode(providerId, nodePath) {
         const scopedPath = this.getScopedPath(providerId, nodePath);
-        const snapshot = await db.ref(scopedPath).once('value');
+        const value = this._getNodeAt(await this._loadTree(providerId), nodePath);
+        const exists = value !== null && value !== undefined;
         return {
             action: 'read_node',
             scoped_path: scopedPath,
-            exists: snapshot.exists(),
-            value: snapshot.val()
+            exists,
+            value: exists ? value : null
         };
     },
 
-    async listNodes(db, providerId, nodePath, includeValues, maxChildren) {
+    async listNodes(providerId, nodePath, includeValues, maxChildren) {
         const scopedPath = this.getScopedPath(providerId, nodePath);
-        const snapshot = await db.ref(scopedPath).once('value');
-        const value = snapshot.val();
+        const value = this._getNodeAt(await this._loadTree(providerId), nodePath);
 
         if (value === null || value === undefined) {
             return {
@@ -302,11 +349,11 @@ const NotebookService = {
         return out;
     },
 
-    async createNode(db, providerId, nodePath, value) {
+    async createNode(providerId, nodePath, value) {
         const scopedPath = this.getScopedPath(providerId, nodePath);
-        const ref = db.ref(scopedPath);
-        const existing = await ref.once('value');
-        if (existing.exists()) {
+        const tree = await this._loadTree(providerId);
+        const existing = this._getNodeAt(tree, nodePath);
+        if (existing !== null && existing !== undefined) {
             return {
                 action: 'create_node',
                 scoped_path: scopedPath,
@@ -316,8 +363,10 @@ const NotebookService = {
         }
 
         const nextValue = value === undefined ? {} : value;
-        await ref.set(nextValue);
-        await this.touchUpdatedAt(db, providerId);
+        const nextTree = tree && this.isPlainObject(tree) ? tree : {};
+        this._setNodeAt(nextTree, nodePath, nextValue);
+        await this._saveTree(providerId, nextTree);
+        await this.touchUpdatedAt(providerId);
         return {
             action: 'create_node',
             scoped_path: scopedPath,
@@ -326,24 +375,32 @@ const NotebookService = {
         };
     },
 
-    async writeNode(db, providerId, nodePath, value) {
+    async writeNode(providerId, nodePath, value) {
         const scopedPath = this.getScopedPath(providerId, nodePath);
-        const ref = db.ref(scopedPath);
-        const existing = await ref.once('value');
-        await ref.set(value);
-        await this.touchUpdatedAt(db, providerId);
+        const tree = await this._loadTree(providerId);
+        const existing = this._getNodeAt(tree, nodePath);
+        const nextTree = tree && this.isPlainObject(tree) ? tree : {};
+        this._setNodeAt(nextTree, nodePath, value);
+        await this._saveTree(providerId, nextTree);
+        await this.touchUpdatedAt(providerId);
         return {
             action: 'write_node',
             scoped_path: scopedPath,
-            overwritten: existing.exists()
+            overwritten: existing !== null && existing !== undefined
         };
     },
 
-    async updateNode(db, providerId, nodePath, value) {
+    async updateNode(providerId, nodePath, value) {
         const scopedPath = this.getScopedPath(providerId, nodePath);
-        const ref = db.ref(scopedPath);
-        await ref.update(value);
-        await this.touchUpdatedAt(db, providerId);
+        const tree = await this._loadTree(providerId);
+        const existing = this._getNodeAt(tree, nodePath);
+        const merged = (existing && typeof existing === 'object' && !Array.isArray(existing))
+            ? { ...existing, ...value }
+            : { ...value };
+        const nextTree = tree && this.isPlainObject(tree) ? tree : {};
+        this._setNodeAt(nextTree, nodePath, merged);
+        await this._saveTree(providerId, nextTree);
+        await this.touchUpdatedAt(providerId);
         return {
             action: 'update_node',
             scoped_path: scopedPath,
@@ -351,11 +408,11 @@ const NotebookService = {
         };
     },
 
-    async deleteNode(db, providerId, nodePath) {
+    async deleteNode(providerId, nodePath) {
         const scopedPath = this.getScopedPath(providerId, nodePath);
-        const ref = db.ref(scopedPath);
-        const existing = await ref.once('value');
-        if (!existing.exists()) {
+        const tree = await this._loadTree(providerId);
+        const existing = this._getNodeAt(tree, nodePath);
+        if (existing === null || existing === undefined) {
             return {
                 action: 'delete_node',
                 scoped_path: scopedPath,
@@ -364,8 +421,9 @@ const NotebookService = {
             };
         }
 
-        await ref.remove();
-        await this.touchUpdatedAt(db, providerId);
+        this._deleteNodeAt(tree, nodePath);
+        await this._saveTree(providerId, tree);
+        await this.touchUpdatedAt(providerId);
         return {
             action: 'delete_node',
             scoped_path: scopedPath,
@@ -379,31 +437,30 @@ const NotebookService = {
             const input = this.normalizeParams(params);
             this.validateInput(input);
 
-            const db = this.ensureDb();
+            await this.ensureDb();
             const providerId = await this.resolveProviderId();
             this.validateScopedNodePath(input.node_path, providerId);
-            await this.ensureProviderRoot(db, providerId);
+            await this.ensureProviderRoot(providerId);
 
             let result = null;
             switch (input.action) {
                 case 'create_node':
-                    result = await this.createNode(db, providerId, input.node_path, input.value);
+                    result = await this.createNode(providerId, input.node_path, input.value);
                     break;
                 case 'read_node':
-                    result = await this.readNode(db, providerId, input.node_path);
+                    result = await this.readNode(providerId, input.node_path);
                     break;
                 case 'write_node':
-                    result = await this.writeNode(db, providerId, input.node_path, input.value);
+                    result = await this.writeNode(providerId, input.node_path, input.value);
                     break;
                 case 'update_node':
-                    result = await this.updateNode(db, providerId, input.node_path, input.value);
+                    result = await this.updateNode(providerId, input.node_path, input.value);
                     break;
                 case 'delete_node':
-                    result = await this.deleteNode(db, providerId, input.node_path);
+                    result = await this.deleteNode(providerId, input.node_path);
                     break;
                 case 'list_nodes':
                     result = await this.listNodes(
-                        db,
                         providerId,
                         input.node_path,
                         input.include_values,

@@ -177,15 +177,10 @@ const YhquanToolModule = {
     },
 
     async getSharedCoupons() {
-        if (!window.FirebaseModule) {
-            throw new Error('Firebase 模块未加载');
+        if (!window.SjkModule) {
+            throw new Error('数据中控未加载');
         }
-        await window.FirebaseModule.init();
-
-        const db = window.FirebaseModule.state.database;
-        if (!db) {
-            throw new Error('数据库连接失败');
-        }
+        await window.SjkModule.init();
 
         const loginResult = await window.LoginModule?.requireCredentials?.('scm', { silent: true });
         const creds = loginResult?.ok ? loginResult.credentials : null;
@@ -194,8 +189,17 @@ const YhquanToolModule = {
             throw new Error('无法获取供应商 ID');
         }
 
-        const snapshot = await db.ref(`yhq_gx/${providerId}`).once('value');
-        const data = snapshot.val() || {};
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+        const data = docs.reduce((acc, doc) => {
+            const couponId = doc.couponId || String(doc._id || '').split('::')[1] || '';
+            if (!couponId) return acc;
+            const node = { ...doc };
+            delete node.provider_id;
+            delete node.couponId;
+            delete node._id;
+            acc[couponId] = node;
+            return acc;
+        }, {});
 
         const sharedCoupons = [];
         for (const [couponId, info] of Object.entries(data)) {

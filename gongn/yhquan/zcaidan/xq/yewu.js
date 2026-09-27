@@ -146,39 +146,39 @@ const XqYewu = {
         }
     },
 
-    // 如果该券在 Firebase 已有共享节点，则同步更新券级有效期。
+    // 如果该券在共享池已有节点，则同步更新券级有效期。
     async syncSharedCouponExpireAt(couponId, newEndDate) {
         try {
-            if (!window.FirebaseModule) return;
-            await window.FirebaseModule.init();
-            const db = window.FirebaseModule.state.database;
-            if (!db) return;
+            if (!window.SjkModule) return;
+            await window.SjkModule.init();
 
             const loginResult = await window.LoginModule?.requireCredentials?.('scm', { silent: true });
             const creds = loginResult?.ok ? loginResult.credentials : null;
             const providerId = creds?.provider_id;
             if (!providerId) return;
 
-            const ref = db.ref(`yhq_gx/${providerId}/${couponId}`);
-            const snapshot = await ref.once('value');
-            if (!snapshot.exists()) return;
+            const normalize = (value) => String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
+            const docId = `${normalize(providerId)}::${normalize(couponId)}`;
+            const doc = await window.SjkModule.get('coupons', docId);
+            if (!doc) return;
 
-            const node = snapshot.val() || {};
             const activities = {};
-            if (node.activities && typeof node.activities === 'object') {
-                Object.entries(node.activities).forEach(([id, activity]) => {
+            if (doc.activities && typeof doc.activities === 'object') {
+                Object.entries(doc.activities).forEach(([id, activity]) => {
                     if (activity && typeof activity === 'object') activities[id] = activity;
                 });
             }
             if (Object.keys(activities).length === 0) {
-                await ref.remove();
+                await window.SjkModule.remove('coupons', docId);
                 const coupon = window.YhquanModule?.state?.allCoupons?.find(c => String(c.id) === String(couponId));
                 if (coupon) coupon.isSharing = false;
                 return;
             }
 
-            await ref.set({
-                coupon_name: this.currentCoupon?.name || node.coupon_name || '',
+            await window.SjkModule.set('coupons', docId, {
+                provider_id: providerId,
+                couponId,
+                coupon_name: this.currentCoupon?.name || doc.coupon_name || '',
                 coupon_expire_at: newEndDate + ' 23:59:59',
                 updated_at: Date.now(),
                 activities

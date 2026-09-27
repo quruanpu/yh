@@ -46,13 +46,11 @@ const ToolCenterAiService = {
     },
 
     async ensureDatabase() {
-        if (!window.FirebaseModule) {
-            throw new Error('Firebase 模块未加载');
+        if (!window.SjkModule) {
+            throw new Error('数据中控未加载');
         }
-        await window.FirebaseModule.init();
-        const db = window.FirebaseModule?.state?.database;
-        if (!db) throw new Error('Firebase 数据库不可用');
-        return db;
+        await window.SjkModule.init();
+        return window.SjkModule;
     },
 
     async getProviderInfo() {
@@ -167,13 +165,14 @@ const ToolCenterAiService = {
     },
 
     async listAllItems() {
-        const db = await this.ensureDatabase();
-        const path = this.resolveDbPath();
+        const sjk = await this.ensureDatabase();
         const provider = await this.getProviderInfo();
-        const snapshot = await db.ref(path).once('value');
-        const raw = snapshot.val() || {};
-        const list = Object.entries(raw)
-            .map(([id, item]) => this.normalizeItemFromDb(id, item))
+        const docs = await sjk.getAll('gongju_items');
+        const list = docs
+            .map((doc) => {
+                const { _id, ...item } = doc;
+                return this.normalizeItemFromDb(_id, item);
+            })
             .filter((item) => this.canViewItem(item, provider.provider_id));
         return this.sortItems(list);
     },

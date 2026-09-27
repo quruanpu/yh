@@ -94,7 +94,7 @@ const GongjuzxGongju = {
         if (username) return username;
         const sessionUsername = String(window.LoginModule?.session?.username || '').trim();
         if (sessionUsername) return sessionUsername;
-        const deviceId = String(window.FirebaseModule?.state?.deviceId || '').trim();
+        const deviceId = String(window.DeviceModule?.state?.deviceId || '').trim();
         if (deviceId) return deviceId;
         return 'anonymous';
     },
@@ -149,15 +149,21 @@ const GongjuzxGongju = {
     },
 
     async ensureDatabase() {
-        if (!window.FirebaseModule) {
-            throw new Error('Firebase模块未加载');
+        if (!window.SjkModule) {
+            throw new Error('数据中控未加载');
         }
-        await FirebaseModule.init();
-        const db = FirebaseModule.state.database;
-        if (!db) {
-            throw new Error('Firebase数据库不可用');
-        }
-        return db;
+        await window.SjkModule.init();
+        return window.SjkModule;
+    },
+
+    _docsToRawMap(docs = []) {
+        return docs.reduce((acc, doc) => {
+            const item = { ...doc };
+            const id = doc._id;
+            delete item._id;
+            acc[id] = item;
+            return acc;
+        }, {});
     },
 
     normalizeList(rawData = {}, currentProviderId = '') {
@@ -190,27 +196,22 @@ const GongjuzxGongju = {
     },
 
     async listItems() {
-        const db = await this.ensureDatabase();
+        const sjk = await this.ensureDatabase();
         const provider = await this.getProviderInfo();
-        const snapshot = await db.ref(this.dbPath).once('value');
-        return this.normalizeList(snapshot.val() || {}, provider.provider_id);
+        const docs = await sjk.getAll('gongju_items');
+        return this.normalizeList(this._docsToRawMap(docs), provider.provider_id);
     },
 
     async subscribeItems(onChange, onError) {
-        const db = await this.ensureDatabase();
+        const sjk = await this.ensureDatabase();
         const provider = await this.getProviderInfo();
-        const ref = db.ref(this.dbPath);
 
-        const handleValue = (snapshot) => {
-            const list = this.normalizeList(snapshot.val() || {}, provider.provider_id);
+        const handleValue = ({ docs }) => {
+            const list = this.normalizeList(this._docsToRawMap(docs), provider.provider_id);
             if (typeof onChange === 'function') onChange(list);
         };
 
-        ref.on('value', handleValue, (error) => {
-            if (typeof onError === 'function') onError(error);
-        });
-
-        return () => ref.off('value', handleValue);
+        return sjk.watchCollection('gongju_items', handleValue);
     },
 
     async createItem(raw = {}) {
@@ -219,7 +220,7 @@ const GongjuzxGongju = {
             throw new Error(validated.errors[0] || '参数无效');
         }
 
-        const db = await this.ensureDatabase();
+        await this.ensureDatabase();
         const provider = await this.requireProviderInfo();
         const now = Date.now();
         const actor = this.getActor();
@@ -233,8 +234,9 @@ const GongjuzxGongju = {
             updated_by: actor
         };
 
-        const ref = await db.ref(this.dbPath).push(payload);
-        return ref.key;
+        const configId = `gjx${Date.now()}${Math.floor(Math.random() * 10000)}`;
+        await window.SjkModule.set('gongju_items', configId, payload);
+        return configId;
     },
 
     async updateItem(itemId, raw = {}) {
@@ -248,11 +250,9 @@ const GongjuzxGongju = {
             throw new Error(validated.errors[0] || '参数无效');
         }
 
-        const db = await this.ensureDatabase();
+        const sjk = await this.ensureDatabase();
         const provider = await this.requireProviderInfo();
-        const itemRef = db.ref(`${this.dbPath}/${id}`);
-        const snapshot = await itemRef.once('value');
-        const existing = snapshot.val();
+        const existing = await sjk.get('gongju_items', id);
         if (!existing || !this.canManageItem(existing, provider.provider_id)) {
             throw new Error('无权编辑该工具');
         }
@@ -265,7 +265,7 @@ const GongjuzxGongju = {
             updated_by: this.getActor()
         };
 
-        await itemRef.update(payload);
+        await sjk.update('gongju_items', id, payload);
     },
 
     async deleteItem(itemId) {
@@ -273,15 +273,13 @@ const GongjuzxGongju = {
         if (!id) {
             throw new Error('缺少资源ID');
         }
-        const db = await this.ensureDatabase();
+        const sjk = await this.ensureDatabase();
         const provider = await this.requireProviderInfo();
-        const itemRef = db.ref(`${this.dbPath}/${id}`);
-        const snapshot = await itemRef.once('value');
-        const existing = snapshot.val();
+        const existing = await sjk.get('gongju_items', id);
         if (!existing || !this.canManageItem(existing, provider.provider_id)) {
             throw new Error('无权删除该工具');
         }
-        await itemRef.remove();
+        await sjk.remove('gongju_items', id);
     }
 };
 

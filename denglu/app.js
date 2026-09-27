@@ -137,7 +137,8 @@ const LoginModule = {
         if (this.state.dependencyPromise) return this.state.dependencyPromise;
 
         const scripts = [
-            'denglu/fir.js',
+            'sjk/app.js',
+            'denglu/zhanghu.js',
             'denglu/yw/scm.js',
             'denglu/yw/pms.js',
             'denglu/yw/bi.js',
@@ -151,7 +152,8 @@ const LoginModule = {
         ).then(() => {
             const missing = [
                 ['DeviceModule', window.DeviceModule],
-                ['FirebaseModule', window.FirebaseModule],
+                ['SjkModule', window.SjkModule],
+                ['ZhanghuModule', window.ZhanghuModule],
                 ['ScmLoginModule', window.ScmLoginModule],
                 ['PmsLoginModule', window.PmsLoginModule],
                 ['BiLoginModule', window.BiLoginModule],
@@ -482,9 +484,9 @@ const LoginModule = {
 
     async syncSharedCredentialAfterLogin(system) {
         const local = this.getLocalLogin(system);
-        if (!local || !this.canShareCurrentLogin(system) || !window.FirebaseModule) return false;
+        if (!local || !this.canShareCurrentLogin(system) || !window.ZhanghuModule) return false;
 
-        await FirebaseModule.init();
+        await ZhanghuModule.init();
         const account = this.getLocalAccountId(system, local);
         const providerId = local.provider_id || local.credentials?.providerId || local.credentials?.provider_id || '';
         if (!account || !providerId) return false;
@@ -577,10 +579,10 @@ const LoginModule = {
     // 后台补充缺失的provider_info（从Firebase获取并回写localStorage）
     async _supplementProviderInfo(username) {
         try {
-            if (!window.FirebaseModule) return;
-            await window.FirebaseModule.init();
+            if (!window.ZhanghuModule) return;
+            await window.ZhanghuModule.init();
             const providerId = this.session.credentials?.provider_id || this._getLocal('scm_login')?.provider_id || '';
-            const info = await window.FirebaseModule.getScmLogin(username, providerId);
+            const info = await window.ZhanghuModule.getScmLogin(username, providerId);
             if (info?.provider_info) {
                 this.session.providerInfo = info.provider_info;
                 // 回写localStorage
@@ -699,12 +701,12 @@ const LoginModule = {
         const local = this.getLocalLogin(system);
         const account = this.getLocalAccountId(system, local);
         const providerId = local?.provider_id || local?.credentials?.providerId || local?.credentials?.provider_id || '';
-        if (!window.FirebaseModule || !providerId || !account) return { hasAny: false };
-        await FirebaseModule.init();
+        if (!window.ZhanghuModule || !providerId || !account) return { hasAny: false };
+        await ZhanghuModule.init();
         let shared = null;
-        if (system === 'scm') shared = await FirebaseModule.getScmLogin(account, providerId);
-        else if (system === 'pms') shared = await FirebaseModule.getPmsLogin(account, providerId);
-        else if (system === 'bi') shared = await FirebaseModule.findBiByAccount(account, providerId);
+        if (system === 'scm') shared = await ZhanghuModule.getScmLogin(account, providerId);
+        else if (system === 'pms') shared = await ZhanghuModule.getPmsLogin(account, providerId);
+        else if (system === 'bi') shared = await ZhanghuModule.findBiByAccount(account, providerId);
         const hasSecret = !!shared?.account_secret;
         const hasCredentials = !!shared?.credentials;
         return { shared, hasSecret, hasCredentials, hasAny: hasSecret || hasCredentials };
@@ -807,8 +809,8 @@ const LoginModule = {
 
     async shareCurrentCredential(system, mode = 'credentials') {
         const local = this.getLocalLogin(system);
-        if (!local || !this.canShareCurrentLogin(system) || !window.FirebaseModule) return false;
-        await FirebaseModule.init();
+        if (!local || !this.canShareCurrentLogin(system) || !window.ZhanghuModule) return false;
+        await ZhanghuModule.init();
         if (system === 'scm') {
             const account = local.username || local.account;
             const secret = local.account_secret || null;
@@ -821,8 +823,8 @@ const LoginModule = {
                 provider_id: providerId,
                 provider_name: local.provider_name || local.provider_info?.provider_name || local.credentials?.provider_name || local.credentials?.providerName || ''
             };
-            const shared = await FirebaseModule.getScmLogin(account, providerInfo.provider_id);
-            return FirebaseModule.saveScmLogin(
+            const shared = await ZhanghuModule.getScmLogin(account, providerInfo.provider_id);
+            return ZhanghuModule.saveScmLogin(
                 account,
                 mode === 'credentials' ? credentials : (shared?.credentials || null),
                 providerInfo,
@@ -830,10 +832,10 @@ const LoginModule = {
             );
         }
         if (system === 'pms') {
-            return FirebaseModule.savePmsLogin(local.account, local.credentials, local.user_info || null, local.permissions || null);
+            return ZhanghuModule.savePmsLogin(local.account, local.credentials, local.user_info || null, local.permissions || null);
         }
         if (system === 'bi') {
-            return FirebaseModule.saveBiLogin(
+            return ZhanghuModule.saveBiLogin(
                 local.account || local.userInfo?.account,
                 local.credentials || { token: local.token, tokenSig: local.tokenSig, exp: local.exp || 0 },
                 local.userInfo || null,
@@ -846,10 +848,10 @@ const LoginModule = {
 
     async unshareCurrentCredential(system, mode = 'credentials') {
         const local = this.getLocalLogin(system);
-        if (!local || !this.canShareCurrentLogin(system) || !window.FirebaseModule) return false;
+        if (!local || !this.canShareCurrentLogin(system) || !window.ZhanghuModule) return false;
         const account = this.getLocalAccountId(system, local);
         const providerId = local.provider_id || local.credentials?.providerId || local.credentials?.provider_id || '';
-        return FirebaseModule.unshareLogin(system, providerId, account, mode);
+        return ZhanghuModule.unshareLogin(system, providerId, account, mode);
     },
 
     // 处理切换登录（所有用户统一进入账户列表）
@@ -975,12 +977,12 @@ const LoginModule = {
                 used.add(this.buildAccountKey(system, localAccount));
             }
 
-            if (window.FirebaseModule) {
-                await window.FirebaseModule.init();
+            if (window.ZhanghuModule) {
+                await window.ZhanghuModule.init();
                 let shared = [];
-                if (system === 'scm') shared = await window.FirebaseModule.findAllScmByProviderId(providerId);
-                else if (system === 'bi') shared = await window.FirebaseModule.findAllBiByProviderId(providerId);
-                else shared = await window.FirebaseModule.findAllPmsByProviderId(providerId);
+                if (system === 'scm') shared = await window.ZhanghuModule.findAllScmByProviderId(providerId);
+                else if (system === 'bi') shared = await window.ZhanghuModule.findAllBiByProviderId(providerId);
+                else shared = await window.ZhanghuModule.findAllPmsByProviderId(providerId);
                 shared.forEach(acc => {
                     const item = { ...acc, _source: 'shared' };
                     const key = this.buildAccountKey(system, item);
@@ -1138,7 +1140,7 @@ const LoginModule = {
     async switchToAccount(acc, system) {
         this._isSwitching = true;
         try {
-            const currentDeviceId = window.FirebaseModule?.state?.deviceId || '';
+            const currentDeviceId = window.ZhanghuModule?.state?.deviceId || '';
             const canShare = acc._source !== 'shared' || !!(currentDeviceId && acc.devices?.[currentDeviceId]);
             const source = canShare ? (acc._source === 'local' ? 'local' : 'device') : 'shared';
             let username = '';
@@ -1454,13 +1456,13 @@ const LoginModule = {
             accountInput.placeholder = '自动加载中......';
             passwordInput.placeholder = '自动加载中......';
 
-            if (!window.FirebaseModule) return;
+            if (!window.ZhanghuModule) return;
 
             // 获取当前设备登录过的SCM账户（超时保护，防止数据库不可达时永久挂起）
             const deviceLogins = await this._withTimeout(
                 (async () => {
-                    await FirebaseModule.init();
-                    return FirebaseModule.getDeviceLogins('scm');
+                    await ZhanghuModule.init();
+                    return ZhanghuModule.getDeviceLogins('scm');
                 })(),
                 this.config.autoFillTimeoutMs,
                 '账号自动加载'
@@ -1473,7 +1475,7 @@ const LoginModule = {
 
             // 检查是否有保存的账号密码，且当前设备登录过
             const savedSecret = info?.account_secret;
-            if (savedSecret && info.devices?.[FirebaseModule.state.deviceId]) {
+            if (savedSecret && info.devices?.[ZhanghuModule.state.deviceId]) {
                 accountInput.value = savedSecret.account || '';
                 passwordInput.value = savedSecret.password || '';
                 console.log('已自动填充SCM账号密码');

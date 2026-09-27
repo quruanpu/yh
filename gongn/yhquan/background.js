@@ -83,13 +83,31 @@ const YhquanBackgroundRuntime = {
         return result?.ok ? result.credentials : null;
     },
 
-    async getDatabase() {
-        if (!window.FirebaseModule && window.LoginModule?.ensureDependencies) {
+    async ensureSjk() {
+        if (!window.SjkModule && window.LoginModule?.ensureDependencies) {
             await window.LoginModule.ensureDependencies();
         }
-        if (!window.FirebaseModule?.init) return null;
-        await window.FirebaseModule.init();
-        return window.FirebaseModule.state?.database || null;
+        if (!window.SjkModule?.init) return null;
+        await window.SjkModule.init();
+        return window.SjkModule;
+    },
+
+    // ---------- 共享券存储助手（sjk 中控：coupons / coupon_index 集合） ----------
+
+    _normalizeId(value) {
+        return String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
+    },
+
+    _couponDocId(providerId, couponId) {
+        return `${this._normalizeId(providerId)}::${this._normalizeId(couponId)}`;
+    },
+
+    _indexDocId(providerId) {
+        return this._normalizeId(providerId);
+    },
+
+    _couponPayload(providerId, couponId, node) {
+        return { provider_id: providerId, couponId, ...node };
     },
 
     hasSharedActivities(shareInfo) {
@@ -160,40 +178,50 @@ const YhquanBackgroundRuntime = {
         return !Number.isNaN(timestamp) && timestamp < now;
     },
 
-    async loadSharingData(db, providerId) {
-        const snapshot = await db.ref(`yhq_gx/${providerId}`).once('value');
-        return snapshot.val() || {};
+    // 读取某供应商的全部共享券，返回 { couponId: 券节点 }（与旧 snapshot.val() 同构）
+    async loadSharingData(providerId) {
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+        return docs.reduce((acc, doc) => {
+            const couponId = doc.couponId || String(doc._id || '').split('::')[1] || '';
+            if (!couponId) return acc;
+            const node = { ...doc };
+            delete node.provider_id;
+            delete node.couponId;
+            delete node._id;
+            acc[couponId] = node;
+            return acc;
+        }, {});
     },
 
-    async cleanupEmptySharedCoupons(db, providerId, sharingData, onCouponStatusChange) {
+    async cleanupEmptySharedCoupons(providerId, sharingData, onCouponStatusChange) {
         const emptyIds = Object.entries(sharingData || {})
             .filter(([, info]) => !this.hasSharedActivities(info) && !this.hasProtectedTasks(info))
             .map(([couponId]) => couponId);
         if (emptyIds.length === 0) return;
 
         await Promise.all(emptyIds.map(async (couponId) => {
-            await db.ref(`yhq_gx/${providerId}/${couponId}`).remove();
+            await window.SjkModule.remove('coupons', this._couponDocId(providerId, couponId));
             onCouponStatusChange?.(couponId, false);
         }));
     },
 
-    async cleanupExpiredSnapshots(db, providerId, sharingData, onCouponStatusChange) {
+    async cleanupExpiredSnapshots(providerId, sharingData, onCouponStatusChange) {
         const expiredItems = Object.entries(sharingData || {})
             .filter(([, info]) => info?.coupon_expire_at && this.isShareTimeExpired(info.coupon_expire_at));
         if (expiredItems.length === 0) return;
 
         await Promise.all(expiredItems.map(async ([couponId, info]) => {
-            const couponRef = db.ref(`yhq_gx/${providerId}/${couponId}`);
+            const docId = this._couponDocId(providerId, couponId);
             if (this.hasProtectedTasks(info)) {
-                await couponRef.set(this.buildTaskOnlyNode(info));
+                await window.SjkModule.set('coupons', docId, this._couponPayload(providerId, couponId, this.buildTaskOnlyNode(info)));
             } else {
-                await couponRef.remove();
+                await window.SjkModule.remove('coupons', docId);
             }
             onCouponStatusChange?.(couponId, false);
         }));
     },
 
-    async cleanupExpiredActivitySnapshots(db, providerId, sharingData, onCouponStatusChange) {
+    async cleanupExpiredActivitySnapshots(providerId, sharingData, onCouponStatusChange) {
         await Promise.all(Object.entries(sharingData || {}).map(async ([couponId, info]) => {
             const activities = this.getSharedActivities(info);
             if (Object.keys(activities).length === 0) return;
@@ -210,42 +238,42 @@ const YhquanBackgroundRuntime = {
             });
             if (!changed) return;
 
-            const couponRef = db.ref(`yhq_gx/${providerId}/${couponId}`);
+            const docId = this._couponDocId(providerId, couponId);
             if (Object.keys(nextActivities).length === 0) {
                 if (this.hasProtectedTasks(info)) {
-                    await couponRef.set(this.buildTaskOnlyNode(info));
+                    await window.SjkModule.set('coupons', docId, this._couponPayload(providerId, couponId, this.buildTaskOnlyNode(info)));
                 } else {
-                    await couponRef.remove();
+                    await window.SjkModule.remove('coupons', docId);
                 }
                 onCouponStatusChange?.(couponId, false);
                 return;
             }
 
-            await couponRef.set(this.buildSharedNode(info, nextActivities));
+            await window.SjkModule.set('coupons', docId, this._couponPayload(providerId, couponId, this.buildSharedNode(info, nextActivities)));
             onCouponStatusChange?.(couponId, true);
         }));
     },
 
-    async cleanupShareIndexIfEmpty(db, providerId) {
-        const providerSnap = await db.ref(`yhq_gx/${providerId}`).once('value');
-        if (!providerSnap.exists()) {
-            await db.ref(`yhq_gx_index/${providerId}`).remove();
+    async cleanupShareIndexIfEmpty(providerId) {
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+        if (docs.length === 0) {
+            await window.SjkModule.remove('coupon_index', this._indexDocId(providerId));
         }
     },
 
     async cleanupSharedData(options = {}) {
         const providerId = String(options.providerId || this.state.providerId || '').trim();
-        const db = options.db || await this.getDatabase();
-        if (!providerId || !db) return false;
+        const sjk = await this.ensureSjk();
+        if (!providerId || !sjk) return false;
 
         const onCouponStatusChange = typeof options.onCouponStatusChange === 'function'
             ? options.onCouponStatusChange
             : null;
 
-        await this.cleanupEmptySharedCoupons(db, providerId, await this.loadSharingData(db, providerId), onCouponStatusChange);
-        await this.cleanupExpiredSnapshots(db, providerId, await this.loadSharingData(db, providerId), onCouponStatusChange);
-        await this.cleanupExpiredActivitySnapshots(db, providerId, await this.loadSharingData(db, providerId), onCouponStatusChange);
-        await this.cleanupShareIndexIfEmpty(db, providerId);
+        await this.cleanupEmptySharedCoupons(providerId, await this.loadSharingData(providerId), onCouponStatusChange);
+        await this.cleanupExpiredSnapshots(providerId, await this.loadSharingData(providerId), onCouponStatusChange);
+        await this.cleanupExpiredActivitySnapshots(providerId, await this.loadSharingData(providerId), onCouponStatusChange);
+        await this.cleanupShareIndexIfEmpty(providerId);
         this.state.cleanupDone = true;
         return true;
     },

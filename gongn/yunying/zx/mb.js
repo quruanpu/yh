@@ -62,16 +62,45 @@ collectTemplateState(name) {
     };
 },
 
+// ---------- 模板存储（sjk 中控：yeji_templates 集合） ----------
+
+_dbKey(value) {
+    const text = String(value ?? '').trim();
+    return text.replace(/[.#$/[\]]/g, '_') || 'unknown';
+},
+
+async fetchTpls(pid) {
+    const docs = await window.SjkModule.getWhere('yeji_templates', 'pid', '==', pid);
+    return docs
+        .map(doc => ({ ...doc, _key: doc.key }))
+        .sort((a, b) => (b.time || 0) - (a.time || 0));
+},
+
+async putTpl(pid, key, tpl) {
+    const docId = `${this._dbKey(pid)}::${this._dbKey(key)}`;
+    await window.SjkModule.set('yeji_templates', docId, { pid, key, ...tpl });
+},
+
+async createTpl(pid, tpl) {
+    const key = `t${Date.now()}${Math.floor(Math.random() * 10000)}`;
+    await this.putTpl(pid, key, tpl);
+    return key;
+},
+
+async removeTpl(pid, key) {
+    await window.SjkModule.remove('yeji_templates', `${this._dbKey(pid)}::${this._dbKey(key)}`);
+},
+
 async loadTemplates({ force = false } = {}) {
     const pid = this.getTemplateProviderId();
     if (this.state.templatesLoaded && !force && this._templatesProviderId === pid) return this.state.templates;
-    if (!pid || !window.FirebaseModule?.getTpls) {
+    if (!pid || !window.SjkModule) {
         this.state.templates = [];
         this.state.templatesLoaded = false;
         this._templatesProviderId = '';
         return [];
     }
-    const list = await FirebaseModule.getTpls(pid);
+    const list = await this.fetchTpls(pid);
     this.state.templates = this.sortTemplates((list || []).filter(item => item?.module === 'ultra' && Number(item.version) === 2));
     this.state.templatesLoaded = true;
     this._templatesProviderId = pid;
@@ -299,13 +328,13 @@ async reorderTemplates(sourceKey, targetKey, placeAfter = false) {
 
 async persistTemplateOrder() {
     const pid = this.getTemplateProviderId();
-    if (!pid || !window.FirebaseModule?.updateTpl) return;
+    if (!pid || !window.SjkModule) return;
     try {
         await Promise.all((this.state.templates || []).map((tpl, index) => {
             if (!tpl._key) return Promise.resolve();
             const payload = this.clonePlain({ ...tpl, sortIndex: index });
             delete payload._key;
-            return FirebaseModule.updateTpl(pid, tpl._key, payload);
+            return this.putTpl(pid, tpl._key, payload);
         }));
         this.state.templatesLoaded = true;
     } catch (error) {
@@ -365,7 +394,7 @@ async showTemplateNameDialog() {
 
 async saveTemplate(name) {
     const pid = this.getTemplateProviderId();
-    if (!pid || !window.FirebaseModule) {
+    if (!pid || !window.SjkModule) {
         this._showToast('模板保存失败：未找到供应商信息', 'error');
         return;
     }
@@ -375,8 +404,8 @@ async saveTemplate(name) {
         const existing = list.find(item => item.name === name);
         const existingIndex = existing ? list.findIndex(item => item._key === existing._key) : -1;
         tpl.sortIndex = existing?.sortIndex ?? (existingIndex >= 0 ? existingIndex : list.length);
-        if (existing?._key) await FirebaseModule.updateTpl(pid, existing._key, tpl);
-        else await FirebaseModule.saveTpl(pid, tpl);
+        if (existing?._key) await this.putTpl(pid, existing._key, tpl);
+        else await this.createTpl(pid, tpl);
         await this.loadTemplates({ force: true });
         this.renderTemplatePanel();
         this._showToast('模板已保存', 'success');
@@ -395,9 +424,9 @@ async deleteTemplate(templateKey) {
     if (!confirmed) return;
 
     const pid = this.getTemplateProviderId();
-    if (!pid || !window.FirebaseModule?.deleteTpl) return;
+    if (!pid || !window.SjkModule) return;
     try {
-        await FirebaseModule.deleteTpl(pid, templateKey);
+        await this.removeTpl(pid, templateKey);
         if (this.state.activeTemplateKey === templateKey) this.state.activeTemplateKey = '';
         await this.loadTemplates({ force: true });
         this.renderTemplatePanel();

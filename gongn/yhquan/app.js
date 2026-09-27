@@ -118,11 +118,8 @@ const YhquanModule = {
         try {
             this.cleanupSharingListener();
 
-            if (!window.FirebaseModule) return;
-            await window.FirebaseModule.init();
-
-            const db = window.FirebaseModule.state.database;
-            if (!db) return;
+            if (!window.SjkModule) return;
+            await window.SjkModule.init();
 
             // 获取当前供应商ID
             const loginResult = await window.LoginModule?.requireCredentials?.('scm', { silent: true });
@@ -136,8 +133,17 @@ const YhquanModule = {
 
             let isFirstCallback = true;
 
-            this.state.sharingListener = db.ref(`yhq_gx/${this.state.providerId}`).on('value', (snapshot) => {
-                const sharingData = snapshot.val() || {};
+            this.state.sharingListener = window.SjkModule.watchWhere('coupons', 'provider_id', this.state.providerId, ({ docs }) => {
+                const sharingData = docs.reduce((acc, doc) => {
+                    const couponId = doc.couponId || String(doc._id || '').split('::')[1] || '';
+                    if (!couponId) return acc;
+                    const node = { ...doc };
+                    delete node.provider_id;
+                    delete node.couponId;
+                    delete node._id;
+                    acc[couponId] = node;
+                    return acc;
+                }, {});
 
                 const changedCoupons = [];
                 this.state.allCoupons.forEach(coupon => {
@@ -154,7 +160,7 @@ const YhquanModule = {
                     this.updateCardStatusIcon(id, isSharing);
                 });
 
-                // 首次回调时，只清理 Firebase 共享节点，不触碰真实业务系统。
+                // 首次回调时，只清理共享节点，不触碰真实业务系统。
                 if (isFirstCallback) {
                     isFirstCallback = false;
                     this.cleanupStartupSharedData().catch(error => {
@@ -272,24 +278,21 @@ const YhquanModule = {
 
     async removeSharedCouponSnapshot(couponId, credentials = null) {
         try {
-            if (!couponId || !window.FirebaseModule) {
+            if (!couponId || !window.SjkModule) {
                 return { removed: false, reason: 'SKIPPED' };
             }
 
-            await window.FirebaseModule.init();
-            const db = window.FirebaseModule.state?.database;
-            if (!db) {
-                return { removed: false, reason: 'NO_DB' };
-            }
+            await window.SjkModule.init();
 
             const providerId = await this.getProviderId(credentials);
             if (!providerId) {
                 return { removed: false, reason: 'NO_PROVIDER' };
             }
 
-            const couponRef = db.ref(`yhq_gx/${providerId}/${couponId}`);
-            const couponSnapshot = await couponRef.once('value');
-            if (!couponSnapshot.exists()) {
+            const normalize = (value) => String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
+            const docId = `${normalize(providerId)}::${normalize(couponId)}`;
+            const existing = await window.SjkModule.get('coupons', docId);
+            if (!existing) {
                 const coupon = this.state.allCoupons.find(c => String(c.id) === String(couponId));
                 if (coupon) {
                     coupon.isSharing = false;
@@ -298,11 +301,11 @@ const YhquanModule = {
                 return { removed: false, reason: 'NOT_FOUND' };
             }
 
-            await couponRef.remove();
+            await window.SjkModule.remove('coupons', docId);
 
-            const providerSnapshot = await db.ref(`yhq_gx/${providerId}`).once('value');
-            if (!providerSnapshot.exists()) {
-                await db.ref(`yhq_gx_index/${providerId}`).remove();
+            const remaining = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+            if (remaining.length === 0) {
+                await window.SjkModule.remove('coupon_index', normalize(providerId));
             }
 
             const coupon = this.state.allCoupons.find(c => String(c.id) === String(couponId));
@@ -319,11 +322,9 @@ const YhquanModule = {
     },
 
     async cleanupStartupSharedData() {
-        const db = window.FirebaseModule?.state?.database;
-        if (!db || !this.state.providerId) return;
+        if (!window.SjkModule || !this.state.providerId) return;
 
         await window.YhquanBackgroundRuntime?.cleanupSharedData?.({
-            db,
             providerId: this.state.providerId,
             onCouponStatusChange: (couponId, isSharing) => this.updateCardStatusIcon(couponId, isSharing)
         });
@@ -333,9 +334,8 @@ const YhquanModule = {
     cleanupSharingListener() {
         if (this.state.sharingListener) {
             try {
-                const db = window.FirebaseModule?.state?.database;
-                if (db && this.state.providerId) {
-                    db.ref(`yhq_gx/${this.state.providerId}`).off('value', this.state.sharingListener);
+                if (typeof this.state.sharingListener === 'function') {
+                    this.state.sharingListener();
                 }
                 this.state.sharingListener = null;
             } catch (error) {

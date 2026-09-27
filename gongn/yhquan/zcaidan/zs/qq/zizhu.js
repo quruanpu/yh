@@ -1,40 +1,57 @@
 ﻿/**
  * Coupon self-service gift task monitor.
- * Listens to yhq_gx/{providerId}/{couponId}/tasks and reuses the normal gift API.
+ * Listens to shared coupons (coupons collection) tasks and reuses the normal gift API.
  */
 const ZsZizhuYewu = {
     providerId: null,
-    db: null,
-    ref: null,
+    unwatch: null,
     callback: null,
     processing: false,
     latestData: null,
     needsScan: false,
     maxTaskRecords: 10,
 
+    _normalizeId(value) {
+        return String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
+    },
+
+    _couponDocId(providerId, couponId) {
+        return `${this._normalizeId(providerId)}::${this._normalizeId(couponId)}`;
+    },
+
+    _toSharingMap(docs = []) {
+        return docs.reduce((acc, doc) => {
+            const couponId = doc.couponId || String(doc._id || '').split('::')[1] || '';
+            if (!couponId) return acc;
+            const node = { ...doc };
+            delete node.provider_id;
+            delete node.couponId;
+            delete node._id;
+            acc[couponId] = node;
+            return acc;
+        }, {});
+    },
+
     async start() {
         const ready = await this.waitForRuntime();
         if (!ready) return;
 
         const providerId = await this.getProviderId();
-        const db = window.FirebaseModule?.state?.database;
-        if (!providerId || !db) return;
+        if (!providerId || !window.SjkModule) return;
 
-        if (this.providerId === providerId && this.ref && this.callback) return;
+        if (this.providerId === providerId && this.unwatch && this.callback) return;
         this.stop();
 
         this.providerId = providerId;
-        this.db = db;
-        this.ref = db.ref(`yhq_gx/${providerId}`);
-        this.callback = snapshot => this.handleSnapshot(snapshot.val() || {});
-        this.ref.on('value', this.callback);
+        this.callback = ({ docs }) => this.handleSnapshot(this._toSharingMap(docs));
+        this.unwatch = window.SjkModule.watchWhere('coupons', 'provider_id', providerId, this.callback);
     },
 
     stop() {
-        if (this.ref && this.callback) {
-            this.ref.off('value', this.callback);
+        if (this.unwatch) {
+            this.unwatch();
         }
-        this.ref = null;
+        this.unwatch = null;
         this.callback = null;
         this.processing = false;
         this.latestData = null;
@@ -44,9 +61,13 @@ const ZsZizhuYewu = {
     async waitForRuntime(retries = 40) {
         for (let i = 0; i < retries; i++) {
             const hasGiftService = window.YhquanBackgroundRuntime?.callGiveAllAPI || window.ZsYewu?.callGiveAllAPI;
-            if (window.FirebaseModule?.init && window.LoginModule && window.YhquanGongju && hasGiftService) {
-                await window.FirebaseModule.init();
-                if (window.FirebaseModule?.state?.database) return true;
+            if (window.SjkModule?.init && window.LoginModule && window.YhquanGongju && hasGiftService) {
+                try {
+                    await window.SjkModule.init();
+                    return true;
+                } catch (error) {
+                    // 初始化未就绪，继续等待下一轮
+                }
             }
             await new Promise(resolve => setTimeout(resolve, 250));
         }
@@ -112,24 +133,27 @@ const ZsZizhuYewu = {
         }
     },
 
-    async claimTask(taskRef) {
+    // 任务抢占：原子条件更新（json_patch 递归合并 + status='pending' 条件），与原事务语义一致
+    async claimTask(providerId, couponId, taskId) {
         const now = Date.now();
-        const result = await taskRef.transaction(current => {
-            if (!current || current.status !== 'pending') return;
-            return {
-                ...current,
-                status: 'processing',
-                processing_at: now,
-                updated_at: now
-            };
-        });
-        return result && result.committed;
+        try {
+            const res = await window.SjkModule.updateWhere(
+                'coupons',
+                this._couponDocId(providerId, couponId),
+                { tasks: { [taskId]: { status: 'processing', processing_at: now, updated_at: now } } },
+                'tasks.' + taskId + '.status',
+                'pending'
+            );
+            return !!(res && res.changed);
+        } catch (error) {
+            console.warn('[自助领取] 抢占任务失败:', error?.message || error);
+            return false;
+        }
     },
 
     async processOne(item) {
-        if (!this.db || !this.providerId) return;
-        const taskRef = this.db.ref(`yhq_gx/${this.providerId}/${item.couponId}/tasks/${item.taskId}`);
-        const claimed = await this.claimTask(taskRef);
+        if (!this.providerId || !window.SjkModule) return;
+        const claimed = await this.claimTask(this.providerId, item.couponId, item.taskId);
         if (!claimed) return;
 
         const task = item.task || {};
@@ -137,7 +161,7 @@ const ZsZizhuYewu = {
         const parseMode = String(task.parse_mode || 'auto').trim() || 'auto';
 
         if (!inputText) {
-            await this.finishTask(taskRef, false, null, '赠送目标为空。');
+            await this.finishTask(this.providerId, item.couponId, item.taskId, false, null, '赠送目标为空。');
             await this.cleanupOldTasks(item.couponId);
             return;
         }
@@ -152,9 +176,9 @@ const ZsZizhuYewu = {
             if (result?.success === false) {
                 throw new Error(result.message || '赠送失败。');
             }
-            await this.finishTask(taskRef, true, result, '');
+            await this.finishTask(this.providerId, item.couponId, item.taskId, true, result, '');
         } catch (error) {
-            await this.finishTask(taskRef, false, null, error?.message || '赠送失败。');
+            await this.finishTask(this.providerId, item.couponId, item.taskId, false, null, error?.message || '赠送失败。');
         } finally {
             await this.cleanupOldTasks(item.couponId);
         }
@@ -174,20 +198,26 @@ const ZsZizhuYewu = {
         throw new Error('赠券服务未就绪。');
     },
 
-    async finishTask(taskRef, success, result, errorMessage) {
-        await taskRef.update({
+    async finishTask(providerId, couponId, taskId, success, result, errorMessage) {
+        const docId = this._couponDocId(providerId, couponId);
+        const doc = await window.SjkModule.get('coupons', docId);
+        if (!doc) return;
+        const tasks = { ...(doc.tasks || {}) };
+        tasks[taskId] = {
+            ...(tasks[taskId] || {}),
             status: success ? 'done' : 'failed',
             result: result || null,
             error: errorMessage || '',
             updated_at: Date.now()
-        });
+        };
+        await window.SjkModule.update('coupons', docId, { tasks });
     },
 
     async cleanupOldTasks(couponId) {
-        if (!this.db || !this.providerId || !couponId) return;
-        const tasksRef = this.db.ref(`yhq_gx/${this.providerId}/${couponId}/tasks`);
-        const snapshot = await tasksRef.once('value');
-        const taskMap = snapshot.val();
+        if (!this.providerId || !couponId || !window.SjkModule) return;
+        const docId = this._couponDocId(this.providerId, couponId);
+        const doc = await window.SjkModule.get('coupons', docId);
+        const taskMap = doc?.tasks;
         if (!taskMap || typeof taskMap !== 'object') return;
 
         const list = Object.entries(taskMap)
@@ -202,7 +232,9 @@ const ZsZizhuYewu = {
         if (overflow <= 0) return;
 
         const removable = list.filter(item => item.status === 'done' || item.status === 'failed');
-        await Promise.all(removable.slice(0, overflow).map(item => tasksRef.child(item.id).remove()));
+        const tasks = { ...taskMap };
+        removable.slice(0, overflow).forEach(item => { delete tasks[item.id]; });
+        await window.SjkModule.update('coupons', docId, { tasks });
     }
 };
 
