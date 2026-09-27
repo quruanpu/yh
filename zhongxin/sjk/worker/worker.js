@@ -45,7 +45,7 @@ async function notifyCollection(env, collection) {
     const stub = env.YH_NOTIFY.get(id);
     await stub.fetch('https://yh-gateway.internal/notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-yh-token': String(env.YH_TOKEN || '') },
       body: JSON.stringify({ collection })
     });
   } catch (e) {
@@ -162,6 +162,9 @@ export class YhNotifyDO {
     }
 
     if (url.pathname === '/notify') {
+      if (request.headers.get('x-yh-token') !== String(this.env.YH_TOKEN || '')) {
+        return jsonR(request, 401, { ok: false, error: 'TOKEN_INVALID' });
+      }
       let body;
       try { body = await request.json(); } catch (e) { body = null; }
       const collection = body && String(body.collection || '');

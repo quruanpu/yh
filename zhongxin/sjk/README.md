@@ -1,30 +1,36 @@
 # sjk —— 数据中控接口速查
 
-全站唯一数据库入口。业务模块只使用 `window.SjkModule` 的以下方法；更换数据库只改本文件夹。
+全站唯一数据库入口。业务模块只使用 `window.SjkModule` 的以下方法；更换数据库只改 zhongxin/（dy + sjk + worker）。
 
 ## 初始化
 ```js
-await SjkModule.init();   // 匿名登录 + 打开数据库连接（内部幂等，各 API 也会自动触发）
+await SjkModule.init();   // 网关健康检查（GET yhsjk.cfdaili.top，内部幂等，各 API 也会自动触发；失败不阻断、标记 degraded）
 ```
 
-## 通用文档 API
+## 数据 API（9 个，全部走 CF Worker HTTP 网关）
 ```js
 await SjkModule.get(collection, docId)                 // → 文档对象 | null
-await SjkModule.getWhere(collection, field, op, value) // → [文档...]（恒为数组）
+await SjkModule.getWhere(collection, field, op, value) // → [文档...]（恒为数组，字段值全等匹配）
+await SjkModule.getAll(collection)                     // → [文档...]
 await SjkModule.add(collection, data)                  // → 自动生成的 _id
 await SjkModule.set(collection, docId, data)           // 整文档覆盖（可新建）
-await SjkModule.update(collection, docId, patch)       // 局部更新，支持 'a.b' 点路径；不存在自动转为整写
+await SjkModule.update(collection, docId, patch)       // 顶层键合并；文档不存在抛错（严格语义）
+await SjkModule.upsert(collection, docId, patch)       // 存在→update，不存在→set
 await SjkModule.remove(collection, docId)
+await SjkModule.updateWhere(collection, docId, patch, wherePath, whereValue)
+                                                       // 原子条件更新：仅当 json_extract(data, wherePath)==whereValue
+                                                       // 时以 json_patch 深合并写入；返回 { changed: true|false }
 ```
 
-## 实时监听
+## 实时订阅（委托 zhongxin/dy/realtime.js）
 ```js
-const unwatch = SjkModule.watchDoc(collection, docId, cb)
 const unwatch = SjkModule.watchWhere(collection, field, value, cb)
-// cb({ docs: [{...字段, _id}], type })；unwatch() 取消监听
+const unwatch = SjkModule.watchCollection(collection, cb)
+// cb({ docs: [{...字段, _id}], type: 'push'|'poll' })；unwatch() 取消监听
+// 链路：WS 推送（通知→即时拉取）+ 60s 兜底轮询 + 失败自愈退避（5s→60s）+ WS 断线降级轮询
 ```
 
-## 集合清单
+## 集合清单（Worker 白名单一致）
 | 集合 | 用途 | 文档 ID 规则 |
 |---|---|---|
 | login_accounts | 三系统登录账户库 | `{sys}::{pidKey}::{accKey}` |
@@ -40,4 +46,4 @@ const unwatch = SjkModule.watchWhere(collection, field, value, cb)
 ## 内建保证
 - 所有读写 **10 秒超时**（超时抛错，绝不永久挂起）；
 - 统一错误日志前缀 `[sjk]`；
-- 匿名登录态本地保持，失败不阻断读流程。
+- 令牌内嵌（`x-yh-token` 头），Origin 白名单双层鉴权（ly.cqytyy.top / *.cqytyy.top / localhost）。

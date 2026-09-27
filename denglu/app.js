@@ -578,7 +578,7 @@ const LoginModule = {
         this.renderScmFormView();
     },
 
-    // 后台补充缺失的provider_info（从Firebase获取并回写localStorage）
+    // 后台补充缺失的provider_info（从 ZhanghuModule 获取并回写 localStorage）
     async _supplementProviderInfo(username) {
         try {
             if (!window.ZhanghuModule) return;
@@ -1312,12 +1312,6 @@ const LoginModule = {
         if (window.ScmLoginModule) ScmLoginModule.stopPolling();
         if (window.PmsLoginModule) PmsLoginModule.stopPolling();
         if (window.BiLoginModule) BiLoginModule.stopPolling();
-
-        // 停止Firebase监听
-        if (this.state.accountListListener) {
-            this.state.accountListListener.ref.off('value', this.state.accountListListener.listener);
-            this.state.accountListListener = null;
-        }
 
         this.state.overlay.classList.remove('active');
         this.state.container.classList.remove('active');

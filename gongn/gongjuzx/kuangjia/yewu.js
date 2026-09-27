@@ -333,6 +333,10 @@ const GongjuzxKuangjiaYewu = {
 
         try {
             await GongjuzxGongju.deleteItem(itemId);
+            // 本地乐观移除（等效原版 Firebase 延迟补偿）：卡片即时消失，不等推送回包；
+            // 后续推送到达时列表已一致，仅作确认，无视觉跳动。
+            this.state.allItems = this.state.allItems.filter((item) => String(item.id) !== String(itemId));
+            this.renderList();
             this.closeDeleteConfirm();
             this.showToast('资源已删除', 'success');
         } catch (error) {

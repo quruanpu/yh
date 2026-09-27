@@ -121,9 +121,14 @@ const YhquanModule = {
             if (!window.SjkModule) return;
             await window.SjkModule.init();
 
-            // 获取当前供应商ID
-            const loginResult = await window.LoginModule?.requireCredentials?.('scm', { silent: true });
-            const creds = loginResult?.ok ? loginResult.credentials : null;
+            // 获取当前供应商ID（登录链路异步落账，短暂等待凭据就绪，最多 ~5s）
+            let creds = null;
+            for (let attempt = 0; attempt < 10; attempt++) {
+                const loginResult = await window.LoginModule?.requireCredentials?.('scm', { silent: true });
+                creds = loginResult?.ok ? loginResult.credentials : null;
+                if (creds?.provider_id) break;
+                await new Promise((resolve) => setTimeout(resolve, 500));
+            }
             this.state.providerId = creds?.provider_id || null;
             if (!this.state.providerId) {
                 console.warn('无法获取供应商ID，跳过共享状态监听');

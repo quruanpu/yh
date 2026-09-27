@@ -716,22 +716,7 @@ body {
     }
 
     async function ensureBaseDeps() {
-        await loadFromCandidates(
-            [
-                'https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js',
-                'https://cdn.bootcdn.net/ajax/libs/firebase/8.10.0/firebase-app.min.js'
-            ],
-            () => !!window.firebase && typeof window.firebase.initializeApp === 'function'
-        );
-
-        await loadFromCandidates(
-            [
-                'https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js',
-                'https://cdn.bootcdn.net/ajax/libs/firebase/8.10.0/firebase-database.min.js'
-            ],
-            () => !!window.firebase && typeof window.firebase.database === 'function'
-        );
-
+        // 数据面自包含：直连 CF Worker 网关，无需外部 SDK
     }
 
     let qrLibPromise = null;
@@ -768,35 +753,21 @@ body {
         return d2iLibPromise;
     }
 
-    function initFirebaseAndDb() {
-        const config = {
-            apiKey: "AIzaSyAbBSiwBNgBsVfwt5bHORpNTvSthMIaeM0",
-            authDomain: "ai-moxing.firebaseapp.com",
-            databaseURL: "https://ai-moxing-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "ai-moxing",
-            storageBucket: "ai-moxing.firebasestorage.app",
-            messagingSenderId: "295148076780",
-            appId: "1:295148076780:web:c777bca192d4ea54cbefc9"
-        };
-        const apps = Array.isArray(firebase.apps) ? firebase.apps : [];
-        if (apps.length === 0) {
-            firebase.initializeApp(config);
-        }
+    // ===== 数据层（CF Worker + D1 直连，自包含无外部 SDK）=====
+    const GW = 'https://yhsjk.cfdaili.top';
+    const GW_TOKEN = 'f21ac6eb173ffc820403a50ce468bb1153ac2452';
+    const POLL_MS = 30000;
 
-        const dbInternal = firebase && firebase.database && firebase.database.INTERNAL;
-        if (IS_WECHAT && IS_MOBILE && dbInternal && typeof dbInternal.forceLongPolling === 'function') {
-            try {
-                firebase.database.INTERNAL.forceLongPolling();
-                console.log('[共享页] Mobile WeChat 环境启用 RTDB long-polling');
-            } catch (err) {
-                console.warn('[共享页] 强制 long-polling 失败:', err);
-            }
-        }
-
-        return firebase.database();
+    async function sjkCall(op, params) {
+        const res = await fetch(GW + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-yh-token': GW_TOKEN },
+            body: JSON.stringify(Object.assign({ op: op }, params))
+        });
+        const json = await res.json();
+        if (!json || json.ok !== true) throw new Error((json && json.error) || ('HTTP ' + res.status));
+        return json.data;
     }
-
-    let db = null;
 
     // Section
     const state = {
@@ -970,22 +941,28 @@ body {
     function attachProviderListener(pid) {
         if (state.providerListeners[pid]) return;
         state.providerLoaded[pid] = false;
+        state.providerListeners[pid] = { active: true };
+    }
 
-        const ref = db.ref('yhq_gx/' + pid);
-        const cb = ref.on('value', snap => {
-            const providerName = (state.providers[pid] && state.providers[pid].name) || pid;
-            state.cache[pid] = parseCoupons(pid, providerName, snap.val());
-            state.providerLoaded[pid] = true;
-            applyFilter();
-        });
-        state.providerListeners[pid] = { ref, cb };
+    async function refreshProvider(pid) {
+        const docs = await sjkCall('getWhere', { collection: 'coupons', field: 'provider_id', value: pid }) || [];
+        const data = {};
+        for (const d of docs) {
+            const cid = d.couponId || String(d._id || '').split('::')[1];
+            if (!cid) continue;
+            const info = Object.assign({}, d);
+            delete info._id;
+            data[cid] = info;
+        }
+        const providerName = (state.providers[pid] && state.providers[pid].name) || pid;
+        state.cache[pid] = parseCoupons(pid, providerName, data);
+        state.providerLoaded[pid] = true;
     }
 
     // Section
     function detachProviderListener(pid) {
         const entry = state.providerListeners[pid];
         if (!entry) return;
-        entry.ref.off('value', entry.cb);
         delete state.providerListeners[pid];
         delete state.cache[pid];
         delete state.providerLoaded[pid];
@@ -1056,14 +1033,21 @@ body {
             }
         }, INDEX_INIT_TIMEOUT_MS);
 
-        db.ref('yhq_gx_index').on('value', snap => {
-            const data = snap.val() || {};
+        refreshIndex();
+        setInterval(refreshIndex, POLL_MS);
+    }
+
+    async function refreshIndex() {
+        try {
+            const docs = await sjkCall('getAll', { collection: 'coupon_index' }) || [];
             const newProviders = {};
 
-            for (const [id, info] of Object.entries(data)) {
-                newProviders[id] = {
-                    name: (info && info.provider_name) || id,
-                    ts: (info && info.last_update) || 0
+            for (const d of docs) {
+                const pid = d.provider_id || d._id;
+                if (!pid) continue;
+                newProviders[pid] = {
+                    name: d.provider_name || pid,
+                    ts: d.last_update || 0
                 };
             }
 
@@ -1078,16 +1062,19 @@ body {
             state.providers = newProviders;
             renderProviderSelect();
             syncProviderListeners(newProviders);
-            applyFilter();
 
-        }, (err) => {
-            console.error('[共享页] 监听供应商索引失败:', err);
+            for (const pid of Object.keys(state.providerListeners)) {
+                try { await refreshProvider(pid); } catch (e) { console.warn('[共享页] 刷新券数据失败:', pid, e && e.message); }
+            }
+            applyFilter();
+        } catch (err) {
+            console.error('[共享页] 加载供应商索引失败:', err);
             if (state.indexInitTimer) {
                 clearTimeout(state.indexInitTimer);
                 state.indexInitTimer = null;
             }
             showState('fa-triangle-exclamation', '\u6570\u636E\u52A0\u8F7D\u5931\u8D25\uFF0C\u8BF7\u5237\u65B0\u91CD\u8BD5');
-        });
+        }
     }
 
     // Section
@@ -1607,8 +1594,6 @@ body {
 
     async function boot() {
         try {
-            await ensureBaseDeps();
-            db = initFirebaseAndDb();
             watchProviderIndex();
         } catch (err) {
             console.error('[共享页] 启动失败:', err);

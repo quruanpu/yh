@@ -44,7 +44,7 @@ const YulanModule = {
         this.overlay.className = 'yulan-overlay';
         this.overlay.innerHTML = `
             <button class="yulan-close"><i class="fa-solid fa-xmark"></i></button>
-            <img class="yulan-image" src="" alt="预览">
+            <img class="yulan-image" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="预览">
             <div class="yulan-hint">滚轮缩放 · 拖拽移动 · 关闭按钮或 Esc 关闭</div>
         `;
 

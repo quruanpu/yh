@@ -10,7 +10,7 @@ const SjkRealtime = {
         token: 'f21ac6eb173ffc820403a50ce468bb1153ac2452',
         tickMs: 1000,
         pollMs: 60000,
-        degradedPollMs: 10000,
+        degradedPollMs: 60000,
         retryBaseMs: 5000,
         retryMaxMs: 60000,
         reconnectMs: 30000
@@ -107,7 +107,7 @@ const SjkRealtime = {
     _setDegraded(flag) {
         if (this.state.degraded === flag) return;
         this.state.degraded = flag;
-        console.warn('[dy] realtime ' + (flag ? 'DEGRADED (fast poll mode)' : 'RESTORED (push mode)'));
+        console.warn('[dy] realtime ' + (flag ? 'DEGRADED (poll mode)' : 'RESTORED (push mode)'));
         this._wakeAll();
     }    ,
 

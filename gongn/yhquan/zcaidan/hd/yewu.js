@@ -317,7 +317,7 @@ const HdYewu = {
         this.render();
         this.bindEvents();
 
-        // 统一加载：Firebase + 活动列表 + 选中活动详情 + 区域
+        // 统一加载：共享数据 + 活动列表 + 选中活动详情 + 区域
         this.setFormLoading(true);
         this.loadAllData().then(() => {
             this.refreshBody();
@@ -452,7 +452,7 @@ const HdYewu = {
     },
 
     async loadAllData() {
-        // 并行加载 Firebase（仅用于写入时的辅助字段）和活动列表（表单数据源）
+        // 并行加载共享数据（SjkModule get）和活动列表（表单数据源）
         await Promise.all([
             this.loadShareData(),
             this.loadActivityList()

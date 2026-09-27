@@ -1,7 +1,7 @@
 # ============================================================
 # Deploy-sync: workspace -> deploy copy (clean release snapshot)
 # Usage: powershell -ExecutionPolicy Bypass -File deploy-sync.ps1
-# Excluded: .git / DB-docs / test-zone / sjk\worker / sjk\gateway-fn / node_modules / *.cmd
+# Excluded: .git / DB-docs / test-zone / zhongxin\sjk\worker / node_modules / *.cmd
 # CJK dir names built from codepoints (avoids GBK/UTF-8 console issues)
 # ============================================================
 $src = 'c:\Users\zhixiaobo\Desktop\yh-main\yh-main'
