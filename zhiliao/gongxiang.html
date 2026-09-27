@@ -945,7 +945,7 @@ body {
     }
 
     async function refreshProvider(pid) {
-        const docs = await sjkCall('getWhere', { collection: 'coupons', field: 'provider_id', value: pid }) || [];
+        const docs = await sjkCall('getWhere', { collection: 'coupons', field: 'provider_id', value: (Number(pid) || pid) }) || [];
         const data = {};
         for (const d of docs) {
             const cid = d.couponId || String(d._id || '').split('::')[1];

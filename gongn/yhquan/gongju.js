@@ -145,6 +145,9 @@ const YhquanGongju = {
     },
 
     getCouponStatus(coupon) {
+        if (!coupon) {
+            return { text: '未知', color: '#9ca3af', valid: false };
+        }
         if (String(coupon.couponStatus) !== '1') {
             return { text: '已作废', color: '#ef4444', valid: false };
         }

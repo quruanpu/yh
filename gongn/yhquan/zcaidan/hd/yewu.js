@@ -319,11 +319,14 @@ const HdYewu = {
 
         // 统一加载：共享数据 + 活动列表 + 选中活动详情 + 区域
         this.setFormLoading(true);
+        const showToken = this._createModeSwitchToken = Date.now();
         this.loadAllData().then(() => {
+            if (this._createModeSwitchToken !== showToken) return; // 弹窗已关闭或已切换场景，放弃本次回调
             this.refreshBody();
             this.bindBodyEvents();
             this.setFormLoading(false);
         }).catch(err => {
+            if (this._createModeSwitchToken !== showToken) return;
             console.error('加载数据失败：', err);
             // 即使加载失败，也要渲染表单并绑定事件，确保UI可交互
             this.refreshBody();
