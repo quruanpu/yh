@@ -5,7 +5,7 @@ const assert = require('assert');
 const { ProxyAgent } = require('c:/Users/zhixiaobo/AppData/Local/Temp/node_modules/undici');
 
 const root = 'c:/Users/zhixiaobo/Desktop/yh-main/yh-main';
-const GW = 'https://yh-data-gateway.cqytxy001.workers.dev';
+const GW = 'https://yhsjk.cfdaili.top';
 const ORIGIN = 'https://ly.cqytyy.top';
 const dispatcher = new ProxyAgent('http://127.0.0.1:7897');
 

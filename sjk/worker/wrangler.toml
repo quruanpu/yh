@@ -2,6 +2,11 @@ name = "yh-data-gateway"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
+routes = [
+  { pattern = "yhsjk.cfdaili.top", custom_domain = true }
+]
+
+
 [[d1_databases]]
 binding = "DB"
 database_name = "yh-data"

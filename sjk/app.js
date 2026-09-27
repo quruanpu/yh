@@ -5,8 +5,8 @@
 // =====================================================================
 const SjkModule = {
     config: {
-        gatewayUrl: (typeof localStorage !== 'undefined' && localStorage.getItem('sjk_gateway')) || '/api/sjk',
-        wsUrl: (typeof localStorage !== 'undefined' && localStorage.getItem('sjk_ws')) || '/api/sjk-ws',
+        gatewayUrl: (typeof localStorage !== 'undefined' && localStorage.getItem('sjk_gateway')) || 'https://yhsjk.cfdaili.top',
+        wsUrl: (typeof localStorage !== 'undefined' && localStorage.getItem('sjk_ws')) || 'wss://yhsjk.cfdaili.top/connect',
         token: 'f21ac6eb173ffc820403a50ce468bb1153ac2452',
         requestTimeoutMs: 10000,
         pollMs: 60000,          // fallback poll while WebSocket healthy
