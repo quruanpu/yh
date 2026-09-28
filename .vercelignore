@@ -1,6 +1,6 @@
 数据库优化/
 测试区/
-zhongxin/sjk/worker/
+zhongxin/shujuku/worker/
 *.cmd
 *.log
 .gitignore

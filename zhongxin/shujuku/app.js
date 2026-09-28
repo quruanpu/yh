@@ -142,7 +142,7 @@ const SjkModule = {
         return result;
     },
 
-    // ---------- realtime subscriptions (delegated to zhongxin/dy) ----------
+    // ---------- realtime subscriptions (delegated to zhongxin/dingyue) ----------
     watchWhere(collection, field, value, callback) {
         return window.SjkRealtime.subscribe(
             `${collection}|${field}|${JSON.stringify(value)}`, collection,

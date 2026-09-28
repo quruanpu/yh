@@ -137,8 +137,8 @@ const LoginModule = {
         if (this.state.dependencyPromise) return this.state.dependencyPromise;
 
         const scripts = [
-            'zhongxin/dy/realtime.js',
-            'zhongxin/sjk/app.js',
+            'zhongxin/dingyue/realtime.js',
+            'zhongxin/shujuku/app.js',
             'denglu/zhanghu.js',
             'denglu/yw/scm.js',
             'denglu/yw/pms.js',

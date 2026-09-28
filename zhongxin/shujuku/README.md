@@ -22,7 +22,7 @@ await SjkModule.updateWhere(collection, docId, patch, wherePath, whereValue)
                                                        // 时以 json_patch 深合并写入；返回 { changed: true|false }
 ```
 
-## 实时订阅（委托 zhongxin/dy/realtime.js）
+## 实时订阅（委托 zhongxin/dingyue/realtime.js）
 ```js
 const unwatch = SjkModule.watchWhere(collection, field, value, cb)
 const unwatch = SjkModule.watchCollection(collection, cb)

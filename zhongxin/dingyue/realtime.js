@@ -1,5 +1,5 @@
 // =====================================================================
-// zhongxin/dy/realtime.js - SjkRealtime : realtime subscription engine
+// zhongxin/dingyue/realtime.js - SjkRealtime : realtime subscription engine
 // Owns: WS connection lifecycle, subscription registry, notify->fetch->callback,
 //       failure self-healing (exponential backoff), fallback/degraded polling.
 // Consumers register via SjkModule.watchWhere/watchCollection (delegated here).
