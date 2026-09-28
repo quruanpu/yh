@@ -43,6 +43,26 @@ const unwatch = SjkModule.watchCollection(collection, cb)
 | gongju_items | 工具中心 | `{itemId}` |
 | model_configs | 模型配置仓库 | `{configId}` |
 
+## 字段类型契约（★ 写入/查询前必读）
+
+存储层为 SQLite `json_extract` 全等匹配——**跨类型永不相等**（数字 ≠ 字符串）。同一概念在不同业务链路类型不同，写入与查询必须同型：
+
+| 集合.字段（或键） | 类型 | 来源链路 | 实测依据 |
+|---|---|---|---|
+| coupons.provider_id | **数字** | SCM（药师帮）凭证 `provider_id` 原样 | 写入端 Int32 + 数字查询 12/6 命中（2026-09-27）|
+| coupons.couponId | 数字 | SCM 券 ID 原样 | 写入端实测；读取端 fallback `_id::` 拆分兼容 |
+| yeji_templates.pid | **字符串** | BI（观远）登录态 `provider_id` 原样 | 字符串查询 21 命中（2026-09-28）|
+| login_accounts.provider_id | 字符串 | zhanghu `_text()` 惯例 | 存量文档实测 |
+| device_logins.device_id | 字符串 | 设备指纹 `device_XXXXXX` | 37 条实测 |
+| coupon_index 文档键 | 字符串 | `_normalizeId(pid)` | 2 条实测（落地页 getAll 驱动）|
+| yeji_targets / notebooks 文档键 | 字符串 | `String(pid)` | 实测 |
+| gongju_items / model_configs 文档键 | 字符串 | RTDB push 键原样（`-Oxxx`）| 56+6 条实测 |
+
+**三条纪律**（2026-09-28 类型事故固化）：
+1. 同一供应商 ID **跨系统类型不同**：SCM（药师帮）=数字、BI（观远）=字符串——**禁止同源推断**。
+2. 新增集合/字段：先实测查询端类型，再定写入类型；验收 = 用「前端同类型查询实测命中」。
+3. 类型对齐类变更必须经用户可感知行为验证后，方可视为完成。
+
 ## 内建保证
 - 所有读写 **10 秒超时**（超时抛错，绝不永久挂起）；
 - 统一错误日志前缀 `[sjk]`；
