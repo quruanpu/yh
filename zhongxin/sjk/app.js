@@ -1,6 +1,6 @@
 // =====================================================================
 // sjk/app.js - SjkModule: unified data layer (CF Worker + D1 via gateway)
-// Realtime: WebSocket push (notify-then-fetch) + 60s fallback poll + degraded mode
+// Realtime: WebSocket push (notify-then-fetch) + fallback/degraded polling in realtime.js
 // All business modules use ONLY this API. Changing the DB touches only sjk/ + worker.
 // =====================================================================
 const SjkModule = {
@@ -8,16 +8,11 @@ const SjkModule = {
         gatewayUrl: (typeof localStorage !== 'undefined' && localStorage.getItem('sjk_gateway')) || 'https://yhsjk.cfdaili.top',
         token: 'f21ac6eb173ffc820403a50ce468bb1153ac2452',
         requestTimeoutMs: 10000,
-        pollMs: 60000,          // fallback poll while WebSocket healthy
-        degradedPollMs: 10000,  // poll interval while WebSocket unavailable
-        reconnectMs: 30000,     // WebSocket retry while degraded
-        initialized: false,
         degraded: false
     },
 
     state: {
-        initPromise: null,
-        degraded: false,        // true = polling at degradedPollMs
+        initPromise: null
     },
 
     // ---------- internal utils ----------
@@ -50,7 +45,6 @@ const SjkModule = {
         this.state.initPromise = (async () => {
             try {
                 await this._withTimeout(fetch(this.config.gatewayUrl), 'gateway health check');
-                this.config.initialized = true;
                 this.config.degraded = false;
             } catch (error) {
                 this.config.degraded = true;
