@@ -129,7 +129,7 @@ const HdYewu = {
             : '选择公共共享后可设置';
     },
 
-    // ---------- 共享券存储（sjk 中控：coupons / coupon_index 集合） ----------
+    // ---------- 共享券存储（sjk 中控：coupons 集合） ----------
 
     _normalizeId(value) {
         return String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
@@ -178,24 +178,6 @@ const HdYewu = {
         };
     },
 
-    async syncProviderIndex() {
-        const providerName = window.LoginModule?.session?.providerInfo?.provider_name || '';
-        if (!providerName || !this.providerId) return;
-        await window.SjkModule.upsert('coupon_index', this._normalizeId(this.providerId), {
-            provider_id: this.providerId,
-            provider_name: providerName,
-            last_update: Date.now()
-        });
-    },
-
-    async cleanupProviderIndexIfEmpty() {
-        if (!this.providerId) return;
-        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(this.providerId) || this.providerId));
-        if (docs.length === 0) {
-            await window.SjkModule.remove('coupon_index', this._normalizeId(this.providerId));
-        }
-    },
-
     async upsertSelectedSharedActivity(form) {
         if (!this.currentCoupon?.id || !this.activityId) return;
         if (!window.SjkModule || !this.providerId) return;
@@ -216,12 +198,12 @@ const HdYewu = {
             provider_id: this.providerId,
             couponId: this.currentCoupon.id,
             coupon_name: this.currentCoupon.name || '',
+            provider_name: window.LoginModule?.session?.providerInfo?.provider_name || '',
             coupon_expire_at: this.currentCoupon.endTime || '',
             updated_at: Date.now(),
             tasks: existingTasks || null,
             activities
         });
-        await this.syncProviderIndex();
     },
 
     async removeSharedActivity(activityId = this.activityId) {
@@ -242,7 +224,6 @@ const HdYewu = {
 
         if (!activities || Object.keys(activities).length === 0) {
             await window.SjkModule.remove('coupons', docId);
-            await this.cleanupProviderIndexIfEmpty();
             return;
         }
 
@@ -250,6 +231,7 @@ const HdYewu = {
             provider_id: this.providerId,
             couponId: this.currentCoupon?.id,
             coupon_name: this.currentCoupon?.name || '',
+            provider_name: window.LoginModule?.session?.providerInfo?.provider_name || '',
             coupon_expire_at: this.currentCoupon?.endTime || '',
             updated_at: Date.now(),
             tasks: existingTasks || null,

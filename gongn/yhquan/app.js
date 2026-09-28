@@ -308,11 +308,6 @@ const YhquanModule = {
 
             await window.SjkModule.remove('coupons', docId);
 
-            const remaining = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(providerId) || providerId));
-            if (remaining.length === 0) {
-                await window.SjkModule.remove('coupon_index', normalize(providerId));
-            }
-
             const coupon = this.state.allCoupons.find(c => String(c.id) === String(couponId));
             if (coupon) {
                 coupon.isSharing = false;

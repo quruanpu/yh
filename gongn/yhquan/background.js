@@ -92,7 +92,7 @@ const YhquanBackgroundRuntime = {
         return window.SjkModule;
     },
 
-    // ---------- 共享券存储助手（sjk 中控：coupons / coupon_index 集合） ----------
+    // ---------- 共享券存储助手（sjk 中控：coupons 集合） ----------
 
     _normalizeId(value) {
         return String(value ?? '').trim().replace(/[.#$/[\]]/g, '_') || 'unknown';
@@ -100,10 +100,6 @@ const YhquanBackgroundRuntime = {
 
     _couponDocId(providerId, couponId) {
         return `${this._normalizeId(providerId)}::${this._normalizeId(couponId)}`;
-    },
-
-    _indexDocId(providerId) {
-        return this._normalizeId(providerId);
     },
 
     _couponPayload(providerId, couponId, node) {
@@ -254,13 +250,6 @@ const YhquanBackgroundRuntime = {
         }));
     },
 
-    async cleanupShareIndexIfEmpty(providerId) {
-        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(providerId) || providerId));
-        if (docs.length === 0) {
-            await window.SjkModule.remove('coupon_index', this._indexDocId(providerId));
-        }
-    },
-
     async cleanupSharedData(options = {}) {
         const providerId = String(options.providerId || this.state.providerId || '').trim();
         const sjk = await this.ensureSjk();
@@ -273,7 +262,6 @@ const YhquanBackgroundRuntime = {
         await this.cleanupEmptySharedCoupons(providerId, await this.loadSharingData(providerId), onCouponStatusChange);
         await this.cleanupExpiredSnapshots(providerId, await this.loadSharingData(providerId), onCouponStatusChange);
         await this.cleanupExpiredActivitySnapshots(providerId, await this.loadSharingData(providerId), onCouponStatusChange);
-        await this.cleanupShareIndexIfEmpty(providerId);
         this.state.cleanupDone = true;
         return true;
     },
