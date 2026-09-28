@@ -190,7 +190,7 @@ const HdYewu = {
 
     async cleanupProviderIndexIfEmpty() {
         if (!this.providerId) return;
-        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', this.providerId);
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(this.providerId) || this.providerId));
         if (docs.length === 0) {
             await window.SjkModule.remove('coupon_index', this._normalizeId(this.providerId));
         }
@@ -307,7 +307,7 @@ const HdYewu = {
         // 获取当前供应商ID（路径隔离用）
         const loginResult = await window.LoginModule?.requireCredentials?.('scm', { silent: true });
         const creds = loginResult?.ok ? loginResult.credentials : null;
-        this.providerId = creds?.provider_id || null;
+        this.providerId = (Number(creds?.provider_id) || creds?.provider_id || null);
         if (!this.providerId) {
             console.error('无法获取供应商 ID，共享功能不可用。');
             return;

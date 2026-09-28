@@ -389,7 +389,7 @@ const YhquanHdTimeRefreshModule = {
             const sjk = await this.ensureSjk();
             if (!providerId || !sjk) return;
 
-            const docs = await sjk.getWhere('coupons', 'provider_id', '==', providerId);
+            const docs = await sjk.getWhere('coupons', 'provider_id', '==', (Number(providerId) || providerId));
             const tasks = this.collectAutoRefreshTasks(this._toSharingMap(docs));
             if (tasks.length === 0) return;
 

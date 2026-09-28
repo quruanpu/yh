@@ -189,7 +189,7 @@ const YhquanToolModule = {
             throw new Error('无法获取供应商 ID');
         }
 
-        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(providerId) || providerId));
         const data = docs.reduce((acc, doc) => {
             const couponId = doc.couponId || String(doc._id || '').split('::')[1] || '';
             if (!couponId) return acc;

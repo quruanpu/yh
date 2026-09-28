@@ -180,7 +180,7 @@ const YhquanBackgroundRuntime = {
 
     // 读取某供应商的全部共享券，返回 { couponId: 券节点 }（与旧 snapshot.val() 同构）
     async loadSharingData(providerId) {
-        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(providerId) || providerId));
         return docs.reduce((acc, doc) => {
             const couponId = doc.couponId || String(doc._id || '').split('::')[1] || '';
             if (!couponId) return acc;
@@ -255,7 +255,7 @@ const YhquanBackgroundRuntime = {
     },
 
     async cleanupShareIndexIfEmpty(providerId) {
-        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+        const docs = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(providerId) || providerId));
         if (docs.length === 0) {
             await window.SjkModule.remove('coupon_index', this._indexDocId(providerId));
         }

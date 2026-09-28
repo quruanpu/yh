@@ -129,7 +129,7 @@ const YhquanModule = {
                 if (creds?.provider_id) break;
                 await new Promise((resolve) => setTimeout(resolve, 500));
             }
-            this.state.providerId = creds?.provider_id || null;
+            this.state.providerId = (Number(creds?.provider_id) || creds?.provider_id || null);
             if (!this.state.providerId) {
                 console.warn('无法获取供应商ID，跳过共享状态监听');
                 return;
@@ -276,7 +276,7 @@ const YhquanModule = {
 
         const loginResult = credentials ? null : await window.LoginModule?.requireCredentials?.('scm', { silent: true });
         const creds = credentials || (loginResult?.ok ? loginResult.credentials : null);
-        const providerId = creds?.provider_id || creds?.providerId || null;
+        const providerId = (Number(creds?.provider_id || creds?.providerId) || creds?.provider_id || creds?.providerId || null);
         this.state.providerId = providerId;
         return providerId;
     },
@@ -308,7 +308,7 @@ const YhquanModule = {
 
             await window.SjkModule.remove('coupons', docId);
 
-            const remaining = await window.SjkModule.getWhere('coupons', 'provider_id', '==', providerId);
+            const remaining = await window.SjkModule.getWhere('coupons', 'provider_id', '==', (Number(providerId) || providerId));
             if (remaining.length === 0) {
                 await window.SjkModule.remove('coupon_index', normalize(providerId));
             }
