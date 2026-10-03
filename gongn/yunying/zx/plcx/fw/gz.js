@@ -61,6 +61,12 @@ const YejiPlcxFwGuize = {
         return { manual: String(value ?? '') };
     },
 
+    // 批量值拆分：与主查询 splitValues（sx.js）同一分隔符契约（换行/半全角逗号/半全角分号/顿号/空白），
+    // plcx 体系唯一拆分事实源（口径导出、展示等统一使用）
+    splitValues(text) {
+        return String(text || '').split(/[\n,，;；、\s]+/).map(item => item.trim()).filter(Boolean);
+    },
+
     normalizeExcludeMode(input = {}, selectorMap = new Map()) {
         const output = {};
         Object.entries(input || {}).forEach(([key, enabled]) => {

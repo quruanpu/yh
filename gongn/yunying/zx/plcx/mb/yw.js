@@ -727,20 +727,17 @@ buildBatchTargetExportModel(rows) {
     return '汇总模板';
     },
 
-    // 与主查询 splitValues（sx.js）同一分隔符集：换行/半全角逗号/半全角分号/顿号/空白
-    splitCaliberValues(text) {
-        return String(text || '').split(/[\n,，;；、\s]+/).map(item => item.trim()).filter(Boolean);
-    },
-
     // 统一解析模板筛选值为「每项一值」数组，与查询执行端（cx.js）同一套语义：
-    // selected/manual（可共存合并）、range 日期对、treePaths 区域树、纯字符串/数组（AI 直传）
+    // selected/manual（可共存合并）、range 日期对、treePaths 区域树、纯字符串/数组（历史/AI 直传）
+    // 字符串拆分复用规则层 YejiPlcxFwGuize.splitValues（plcx 体系单一拆分事实源）
     parseCaliberFilterValues(raw) {
+        const split = window.YejiPlcxFwGuize?.splitValues?.bind(window.YejiPlcxFwGuize) || (text => [String(text ?? '')]);
         if (raw === undefined || raw === null || raw === '') return [];
         if (Array.isArray(raw)) {
             if (raw.some(item => Array.isArray(item))) return raw.filter(p => Array.isArray(p) && p.length).map(p => p.join('>'));
             return raw.map(v => String(v ?? '')).filter(v => v !== '');
         }
-        if (typeof raw === 'string') return this.splitCaliberValues(raw);
+        if (typeof raw === 'string') return split(raw);
         if (typeof raw === 'object') {
             const parts = [];
             if (Array.isArray(raw.range)) {
@@ -750,7 +747,7 @@ buildBatchTargetExportModel(rows) {
             }
             if (Array.isArray(raw.selected)) parts.push(...raw.selected.map(v => String(v ?? '')).filter(Boolean));
             if (Array.isArray(raw.treePaths)) parts.push(...raw.treePaths.filter(p => Array.isArray(p) && p.length).map(p => p.join('>')));
-            if (typeof raw.manual === 'string') parts.push(...this.splitCaliberValues(raw.manual));
+            if (typeof raw.manual === 'string') parts.push(...split(raw.manual));
             if (parts.length) return parts;
             return Object.values(raw).map(v => (v && typeof v === 'object') ? JSON.stringify(v) : String(v ?? '')).filter(Boolean);
         }
