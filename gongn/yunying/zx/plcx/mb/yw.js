@@ -728,24 +728,38 @@ buildBatchTargetExportModel(rows) {
     },
 
     buildTemplateCaliberSheetRows(tpl) {
-    const rows = [['项目', '内容']];
-    rows.push(['口径类型', this.getTemplateCaliberType(tpl)]);
-    rows.push(['关键词', String(tpl?.keyword || '').trim() || '—']);
-    const filters = (tpl?.filters && typeof tpl.filters === 'object') ? tpl.filters : null;
-    if (filters) {
-        Object.keys(filters).forEach(field => {
-            const value = filters[field];
-            const text = Array.isArray(value) ? value.join('、') : String(value ?? '');
-            rows.push([String(field), text || '—']);
-        });
-    }
-    rows.push(['快捷搜索', tpl?.quickSearch ? '是' : '否']);
-    rows.push(['更新时间', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
-    return rows;
+        const selectorMap = new Map((this.state.selectors || []).map(s => [s.cdId || s.id, s.name || s.title || s.cdId || '']));
+        const rows = [['项目', '内容']];
+        rows.push(['口径类型', this.getTemplateCaliberType(tpl)]);
+        const keyword = String(tpl?.keyword || '').trim();
+        if (keyword) rows.push(['关键词', keyword]);
+        const filters = (tpl?.filters && typeof tpl.filters === 'object') ? tpl.filters : null;
+        if (filters) {
+            Object.keys(filters).forEach(field => {
+                const raw = filters[field];
+                let text = '';
+                if (raw && typeof raw === 'object' && Array.isArray(raw.selected)) text = raw.selected.join('、');
+                else if (Array.isArray(raw)) text = raw.join('、');
+                else if (raw && typeof raw === 'object') text = JSON.stringify(raw);
+                else text = String(raw ?? '');
+                const label = selectorMap.get(field) || (field + '（未匹配组件）');
+                rows.push([label, text || '—']);
+            });
+        }
+        rows.push(['快捷搜索', tpl?.quickSearch ? '是' : '否']);
+        rows.push(['更新时间', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
+        return rows;
     },
 
     async downloadAllTemplateCalibers() {
-    const templates = this.state.templates || [];
+        try {
+            // 确保筛选组件元数据就绪（组件 ID → 中文名映射），失败不阻断导出（组件名回退显示 ID）
+            await this.ensureBiReadyForTool?.({ showToast: false });
+            await this.loadUltraMetadata?.();
+        } catch (error) {
+            console.warn('[yeji] 口径导出前元数据加载失败，组件名将回退显示 ID:', error);
+        }
+        const templates = this.state.templates || [];
     if (!templates.length) {
         this._showToast('暂无模板，无法导出口径', 'warning');
         return;
