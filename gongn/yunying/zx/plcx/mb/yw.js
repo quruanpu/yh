@@ -716,7 +716,79 @@ buildBatchTargetExportModel(rows) {
         return data;
     });
     return { headers, rows: exportRows };
-}
-};
+    },
+
+    getTemplateCaliberType(tpl) {
+    const hasKeyword = String(tpl?.keyword || '').trim() !== '';
+    const hasFilters = !!(tpl?.filters && typeof tpl.filters === 'object' && Object.keys(tpl.filters).length);
+    if (hasKeyword && hasFilters) return '筛选+关键词';
+    if (hasKeyword) return '关键词';
+    if (hasFilters) return '筛选条件';
+    return '汇总模板';
+    },
+
+    buildTemplateCaliberSheetRows(tpl) {
+    const rows = [['项目', '内容']];
+    rows.push(['口径类型', this.getTemplateCaliberType(tpl)]);
+    rows.push(['关键词', String(tpl?.keyword || '').trim() || '—']);
+    const filters = (tpl?.filters && typeof tpl.filters === 'object') ? tpl.filters : null;
+    if (filters) {
+        Object.keys(filters).forEach(field => {
+            const value = filters[field];
+            const text = Array.isArray(value) ? value.join('、') : String(value ?? '');
+            rows.push([String(field), text || '—']);
+        });
+    }
+    rows.push(['快捷搜索', tpl?.quickSearch ? '是' : '否']);
+    rows.push(['更新时间', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
+    return rows;
+    },
+
+    async downloadAllTemplateCalibers() {
+    const templates = this.state.templates || [];
+    if (!templates.length) {
+        this._showToast('暂无模板，无法导出口径', 'warning');
+        return;
+    }
+    if (!window.YejiPlcxHbGuize?.parseTemplateName) {
+        throw new Error('模板合并规则模块未加载。');
+    }
+    const mergeGroups = new Map();
+    templates.forEach(tpl => {
+        const parsed = window.YejiPlcxHbGuize.parseTemplateName(tpl.name || '') || {};
+        const base = parsed.base || tpl.name || '';
+        if (!mergeGroups.has(base)) mergeGroups.set(base, []);
+        mergeGroups.get(base).push(tpl.name || '');
+    });
+
+    const mergeRows = [
+        ['合并规则', '同名基础模板（如「刘蕊成」与「刘蕊成_重庆」）在查询结果中合并为一个项目展示。'],
+        ['合并组', '组内模板'],
+        ...[...mergeGroups.entries()].filter(([, names]) => names.length > 1).map(([base, names]) => [base, names.join('、')]),
+        [],
+        ['全部模板总表'],
+        ['模板名', '口径类型', '合并组', '更新时间']
+    ];
+    templates.forEach(tpl => {
+        const parsed = window.YejiPlcxHbGuize.parseTemplateName(tpl.name || '') || {};
+        const base = parsed.base || tpl.name || '';
+        const inGroup = (mergeGroups.get(base)?.length || 0) > 1;
+        mergeRows.push([tpl.name || '', this.getTemplateCaliberType(tpl), inGroup ? base : '—', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
+    });
+
+    const sheets = [{ name: '合并说明', rows: mergeRows }];
+    templates.forEach((tpl, index) => {
+        sheets.push({
+            name: tpl.name || ('模板' + (index + 1)),
+            rows: this.buildTemplateCaliberSheetRows(tpl)
+        });
+    });
+
+    await window.YejiPlcxGongju.downloadWorkbookSheets({
+        filename: window.YejiPlcxGongju.makeFilename('BI模板取数口径'),
+        sheets
+    });
+    }
+    };
 
 window.YejiPlcxMbYewu = YejiPlcxMbYewu;

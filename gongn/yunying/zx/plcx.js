@@ -303,6 +303,9 @@ renderBatchQueryStatusBar() {
                 <button type="button" id="yeji-batch-download" class="yeji-batch-icon-btn" title="下载Excel" ${this.canDownloadBatchQuery() ? '' : 'disabled'}>
                     <i class="fa-solid fa-download"></i>
                 </button>
+                <button type="button" id="yeji-batch-caliber" class="yeji-batch-icon-btn" title="下载全部模板口径">
+                    <i class="fa-solid fa-file-excel"></i>
+                </button>
                 <button type="button" id="yeji-batch-refresh" class="yeji-batch-icon-btn" title="刷新" ${this.state.batchQueryLoading ? 'disabled' : ''}>
                     <i class="fa-solid ${this.state.batchQueryLoading ? 'fa-spinner fa-spin' : 'fa-rotate-right'}"></i>
                 </button>
@@ -321,6 +324,9 @@ bindBatchQueryStatusBar() {
     });
     document.getElementById('yeji-batch-download')?.addEventListener('click', () => {
         this.downloadBatchQueryExcel();
+    });
+    document.getElementById('yeji-batch-caliber')?.addEventListener('click', () => {
+        this.downloadAllTemplateCalibers?.();
     });
 },
 

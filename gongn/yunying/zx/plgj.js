@@ -42,6 +42,28 @@ const YejiPlcxGongju = {
         XLSX.writeFile(workbook, filename);
     },
 
+    downloadWorkbookSheets({ filename = 'BI模板取数口径.xlsx', sheets = [] } = {}) {
+        return this.ensureExcelLib().then(() => {
+            const workbook = XLSX.utils.book_new();
+            const used = new Set();
+            sheets.forEach(sheet => {
+                let name = String(sheet.name || 'Sheet').replace(/[\\/?*[\]:]/g, '_').trim().slice(0, 31) || 'Sheet';
+                let seq = 2;
+                while (used.has(name)) {
+                    const suffix = '(' + seq + ')';
+                    name = name.slice(0, 31 - suffix.length) + suffix;
+                    seq += 1;
+                }
+                used.add(name);
+                const worksheet = XLSX.utils.aoa_to_sheet(sheet.rows || []);
+                worksheet['!cols'] = (sheet.cols && sheet.cols.length) ? sheet.cols : [{ wch: 18 }, { wch: 60 }];
+                XLSX.utils.book_append_sheet(workbook, worksheet, name);
+            });
+            if (!workbook.SheetNames.length) throw new Error('没有可导出的工作表。');
+            XLSX.writeFile(workbook, filename);
+        });
+    },
+
     makeFilename(prefix = 'BI汇总查询') {
         const now = new Date();
         const pad = value => String(value).padStart(2, '0');
