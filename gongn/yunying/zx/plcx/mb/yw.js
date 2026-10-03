@@ -727,50 +727,41 @@ buildBatchTargetExportModel(rows) {
     return '汇总模板';
     },
 
-    pushCaliberValueRows(rows, label, text) {
-        const MAX = 30000;
-        const value = String(text ?? '');
-        if (value.length <= MAX) { rows.push([label, value || '—']); return; }
-        // 超出 Excel 单元格上限：按「、」边界分段成多行，完整保留所有筛选项
-        const parts = [];
-        let cur = '';
-        value.split('、').forEach(item => {
-            if (item.length > MAX) {
-                if (cur) { parts.push(cur); cur = ''; }
-                for (let i = 0; i < item.length; i += MAX) parts.push(item.slice(i, i + MAX));
-                return;
-            }
-            const candidate = cur ? cur + '、' + item : item;
-            if (candidate.length > MAX && cur) { parts.push(cur); cur = item; }
-            else cur = candidate;
-        });
-        if (cur) parts.push(cur);
-        const total = parts.length;
-        parts.forEach((part, index) => rows.push([label + '（' + (index + 1) + '/' + total + '）', part]));
-    },
-
     buildTemplateCaliberSheetRows(tpl) {
         const selectorMap = new Map((this.state.selectors || []).map(s => [s.cdId || s.id, s.name || s.title || s.cdId || '']));
-        const rows = [['项目', '内容']];
-        rows.push(['口径类型', this.getTemplateCaliberType(tpl)]);
-        const keyword = String(tpl?.keyword || '').trim();
-        if (keyword) this.pushCaliberValueRows(rows, '关键词', keyword);
+        // 筛选项从 C 列开始：每项一列（列标题=筛选项名称），值纵向每单元格一个
+        const filterCols = [];
         const filters = (tpl?.filters && typeof tpl.filters === 'object') ? tpl.filters : null;
         if (filters) {
             Object.keys(filters).forEach(field => {
                 const raw = filters[field];
-                let text = '';
-                if (raw && typeof raw === 'object' && Array.isArray(raw.selected)) text = raw.selected.join('、');
-                else if (Array.isArray(raw)) text = raw.join('、');
-                else if (raw && typeof raw === 'object') text = JSON.stringify(raw);
-                else text = String(raw ?? '');
+                let values = [];
+                if (raw && typeof raw === 'object' && Array.isArray(raw.selected)) values = raw.selected;
+                else if (Array.isArray(raw)) values = raw;
+                else if (raw !== undefined && raw !== null && raw !== '') values = [String(raw)];
                 const label = selectorMap.get(field) || (field + '（未匹配组件）');
-                this.pushCaliberValueRows(rows, label, text);
+                filterCols.push({ label, values: values.map(v => String(v ?? '')) });
             });
         }
-        rows.push(['快捷搜索', tpl?.quickSearch ? '是' : '否']);
-        rows.push(['更新时间', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
-        return rows;
+        const baseRows = [
+            ['口径类型', this.getTemplateCaliberType(tpl)],
+            ['关键词', String(tpl?.keyword || '').trim() || '—'],
+            ['快捷搜索', tpl?.quickSearch ? '是' : '否'],
+            ['更新时间', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']
+        ];
+        const maxLen = filterCols.reduce((m, col) => Math.max(m, col.values.length), 0);
+        const rows = [['项目', '内容', ...filterCols.map(col => col.label)]];
+        baseRows.forEach(pair => rows.push(pair));
+        if (baseRows.length < maxLen) {
+            for (let i = baseRows.length; i < maxLen; i++) rows.push(['', '']);
+        }
+        for (let i = 0; i < maxLen; i++) {
+            const row = rows[i + 1];
+            filterCols.forEach((col, c) => {
+                row[c + 2] = col.values[i] ?? '';
+            });
+        }
+        return rows.map(row => row.map(cell => (cell === undefined ? '' : String(cell).length > 32000 ? String(cell).slice(0, 32000) + '…' : cell)));
     },
 
     async downloadAllTemplateCalibers() {
