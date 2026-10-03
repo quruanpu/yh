@@ -727,6 +727,36 @@ buildBatchTargetExportModel(rows) {
     return '汇总模板';
     },
 
+    // 与主查询 splitValues（sx.js）同一分隔符集：换行/半全角逗号/半全角分号/顿号/空白
+    splitCaliberValues(text) {
+        return String(text || '').split(/[\n,，;；、\s]+/).map(item => item.trim()).filter(Boolean);
+    },
+
+    // 统一解析模板筛选值为「每项一值」数组，与查询执行端（cx.js）同一套语义：
+    // selected/manual（可共存合并）、range 日期对、treePaths 区域树、纯字符串/数组（AI 直传）
+    parseCaliberFilterValues(raw) {
+        if (raw === undefined || raw === null || raw === '') return [];
+        if (Array.isArray(raw)) {
+            if (raw.some(item => Array.isArray(item))) return raw.filter(p => Array.isArray(p) && p.length).map(p => p.join('>'));
+            return raw.map(v => String(v ?? '')).filter(v => v !== '');
+        }
+        if (typeof raw === 'string') return this.splitCaliberValues(raw);
+        if (typeof raw === 'object') {
+            const parts = [];
+            if (Array.isArray(raw.range)) {
+                const range = raw.range.filter(Boolean).map(String);
+                if (range.length === 2) parts.push(range[0] + ' ~ ' + range[1]);
+                else parts.push(...range);
+            }
+            if (Array.isArray(raw.selected)) parts.push(...raw.selected.map(v => String(v ?? '')).filter(Boolean));
+            if (Array.isArray(raw.treePaths)) parts.push(...raw.treePaths.filter(p => Array.isArray(p) && p.length).map(p => p.join('>')));
+            if (typeof raw.manual === 'string') parts.push(...this.splitCaliberValues(raw.manual));
+            if (parts.length) return parts;
+            return Object.values(raw).map(v => (v && typeof v === 'object') ? JSON.stringify(v) : String(v ?? '')).filter(Boolean);
+        }
+        return [String(raw)];
+    },
+
     buildTemplateCaliberSheetRows(tpl) {
         const selectorMap = new Map((this.state.selectors || []).map(s => [s.cdId || s.id, s.name || s.title || s.cdId || '']));
         // 筛选项从 C 列开始：每项一列（列标题=筛选项名称），值纵向每单元格一个
@@ -734,20 +764,14 @@ buildBatchTargetExportModel(rows) {
         const filters = (tpl?.filters && typeof tpl.filters === 'object') ? tpl.filters : null;
         if (filters) {
             Object.keys(filters).forEach(field => {
-                const raw = filters[field];
-                let values = [];
-                if (raw && typeof raw === 'object' && Array.isArray(raw.selected)) values = raw.selected;
-                else if (raw && typeof raw === 'object' && typeof raw.manual === 'string') values = raw.manual.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-                else if (Array.isArray(raw)) values = raw;
-                else if (raw && typeof raw === 'object') values = Object.values(raw).map(v => (v && typeof v === 'object') ? JSON.stringify(v) : String(v ?? ''));
-                else if (raw !== undefined && raw !== null && raw !== '') values = String(raw).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
                 const label = selectorMap.get(field) || (field + '（未匹配组件）');
-                filterCols.push({ label, values: values.map(v => String(v ?? '')) });
+                filterCols.push({ label, values: this.parseCaliberFilterValues(filters[field]) });
             });
         }
+        const keywordRaw = tpl?.keyword;
         const baseRows = [
             ['口径类型', this.getTemplateCaliberType(tpl)],
-            ['关键词', String(tpl?.keyword || '').trim() || '—'],
+            ['关键词', Array.isArray(keywordRaw) ? keywordRaw.join('、') : (String(keywordRaw || '').trim() || '—')],
             ['快捷搜索', tpl?.quickSearch ? '是' : '否'],
             ['更新时间', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']
         ];
