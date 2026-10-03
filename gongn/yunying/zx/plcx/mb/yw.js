@@ -766,10 +766,16 @@ buildBatchTargetExportModel(rows) {
             });
         }
         const keywordRaw = tpl?.keyword;
+        const hasKeyword = Array.isArray(keywordRaw) ? keywordRaw.length > 0 : String(keywordRaw || '').trim() !== '';
+        const filterLabels = filterCols.map(col => col.label);
+        const situation = filterLabels.length
+            ? '本模板含 ' + filterLabels.length + ' 个筛选项：' + filterLabels.join('、')
+            : (hasKeyword ? '本模板无筛选项，仅按关键词查询' : '本模板无筛选项、无关键词');
         const baseRows = [
             ['口径类型', this.getTemplateCaliberType(tpl)],
             ['关键词', Array.isArray(keywordRaw) ? keywordRaw.join('、') : (String(keywordRaw || '').trim() || '—')],
             ['快捷搜索', tpl?.quickSearch ? '是' : '否'],
+            ['情况说明', situation],
             ['更新时间', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']
         ];
         const maxLen = filterCols.reduce((m, col) => Math.max(m, col.values.length), 0);
@@ -812,11 +818,20 @@ buildBatchTargetExportModel(rows) {
     });
 
     const mergeRows = [
-        ['合并规则', '同名基础模板（如「刘蕊成」与「刘蕊成_重庆」）在查询结果中合并为一个项目展示。'],
-        ['合并组', '组内模板'],
-        ...[...mergeGroups.entries()].filter(([, names]) => names.length > 1).map(([base, names]) => [base, names.join('、')]),
+        ['一、表格结构说明'],
+        ['本工作簿为 BI 批量查询模板的「取数口径」说明，包含 1 个总表（本表）与每个模板各 1 个分表。'],
         [],
-        ['全部模板总表'],
+        ['总表（本表）结构：'],
+        ['1. 「一、表格结构说明」：本段，说明工作簿整体结构。'],
+        ['2. 「二、模板明细」：每行一个模板的概览表，列依次为：模板名、口径类型、合并组、更新时间。'],
+        ['3. 「三、合并规则」：模板合并展示规则的文字说明与通用示例。'],
+        [],
+        ['分表结构（每个模板一张，以模板名命名）：'],
+        ['1. A 列「项目」、B 列「内容」：模板基础信息，行依次为：口径类型、关键词、快捷搜索、情况说明、更新时间。'],
+        ['2. C 列起为筛选项明细：每个筛选项独占一列，列标题为筛选项名称，列下方每行一个筛选值；值较多的筛选项纵向向下铺开，各列相互独立、短列留空。'],
+        ['3. 筛选项的数量与顺序由模板自身决定，模板增删筛选项后重新下载即同步；纯关键词模板 C 列起为空。'],
+        [],
+        ['二、模板明细'],
         ['模板名', '口径类型', '合并组', '更新时间']
     ];
     templates.forEach(tpl => {
@@ -825,6 +840,16 @@ buildBatchTargetExportModel(rows) {
         const inGroup = (mergeGroups.get(base)?.length || 0) > 1;
         mergeRows.push([tpl.name || '', this.getTemplateCaliberType(tpl), inGroup ? base : '—', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
     });
+    mergeRows.push(
+        [],
+        ['三、合并规则'],
+        ['模板名以最后一个下划线「_」分隔：下划线前为基础名，后面为区分后缀（如「张三_重庆」的基础名为「张三」）。'],
+        ['基础名相同的多个模板构成一个「合并组」：批量查询的结果汇总时，组内模板的数据合并为同一个项目展示。'],
+        ['通用示例（非现有模板）：'],
+        ['· 「张三」「张三_重庆」「张三_云南」→ 同属合并组「张三」，三者的查询结果在汇总中合并展示；'],
+        ['· 「李四」仅单独存在 → 不构成合并组，独立展示；'],
+        ['· 「王五_北京」若不存在其他「王五」开头模板 → 不构成合并组，独立展示。']
+    );
 
     const sheets = [{ name: '合并说明', rows: mergeRows }];
     templates.forEach((tpl, index) => {
