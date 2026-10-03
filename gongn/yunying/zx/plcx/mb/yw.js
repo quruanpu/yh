@@ -737,8 +737,10 @@ buildBatchTargetExportModel(rows) {
                 const raw = filters[field];
                 let values = [];
                 if (raw && typeof raw === 'object' && Array.isArray(raw.selected)) values = raw.selected;
+                else if (raw && typeof raw === 'object' && typeof raw.manual === 'string') values = raw.manual.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
                 else if (Array.isArray(raw)) values = raw;
-                else if (raw !== undefined && raw !== null && raw !== '') values = [String(raw)];
+                else if (raw && typeof raw === 'object') values = Object.values(raw).map(v => (v && typeof v === 'object') ? JSON.stringify(v) : String(v ?? ''));
+                else if (raw !== undefined && raw !== null && raw !== '') values = String(raw).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
                 const label = selectorMap.get(field) || (field + '（未匹配组件）');
                 filterCols.push({ label, values: values.map(v => String(v ?? '')) });
             });
