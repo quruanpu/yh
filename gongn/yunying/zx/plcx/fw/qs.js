@@ -229,7 +229,10 @@ resolveTrendTargetValue(targetRange, templates = [], metricName = '') {
         rawRows: [{ key: tpl._key, name: tpl.name || '未命名模板' }]
     }));
     const merged = this.buildBatchDisplayRows?.(rows, [this.findMetricFieldByDisplayName(metricName)], { includeChildren: false }) || rows;
-    const row = merged.find(item => item.displayType === 'merged') || merged[0];
+    // 公式行置顶后兜底不能取 merged[0]（会错拿公式派生目标），优先取首个非公式行
+    const row = merged.find(item => item.displayType === 'merged')
+        || merged.find(item => item.displayType !== 'formula')
+        || merged[0];
     return this.getBatchTargetValueForDisplayRow?.(row, metricName, targetRange) ?? '';
 }
 };

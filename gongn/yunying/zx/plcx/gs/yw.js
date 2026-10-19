@@ -53,7 +53,9 @@ getFormulaBaseRegistryNames() {
     return [...new Set([...names, ...bases])];
 },
 
-// 展示层漏斗尾部钩子：把公式虚拟行追加到显示行序列之后。
+// 展示层漏斗尾部钩子：公式虚拟行置于顶部，其余行依次顺移。
+// options.includeChildren：模板下载等场景（同时展开合并子项）；
+// options.includeFormulaChildren：导出场景（仅展开公式参与行，合并行维持既有收起行为）。
 buildBatchFormulaRows(displayRows = [], options = {}) {
     const text = this.state.batchFormulaText || '';
     if (!text.trim() || !window.YejiPlcxGsGuize) return displayRows;
@@ -68,14 +70,14 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
     });
 
     const metricFields = this.getBatchQueryMetricFields();
-    const result = [...displayRows];
+    const formulaRows = [];
     const definedRows = new Map();
 
     specs.forEach(spec => {
         const registry = [...byName.keys(), ...definedRows.keys()];
         const tokenized = window.YejiPlcxGsGuize.tokenizeFormula(spec.expr, registry);
         if (tokenized.error) {
-            result.push(this.buildFormulaErrorRow(spec, tokenized.error, metricFields));
+            formulaRows.push(this.buildFormulaErrorRow(spec, tokenized.error, metricFields));
             return;
         }
         const resolveRow = name => byName.get(name) || definedRows.get(name) || null;
@@ -127,14 +129,17 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
             valuesByKey: evaluation.valuesByKey,
             formatsByKey: evaluation.formatsByKey
         };
-        result.push(row);
+        formulaRows.push(row);
         definedRows.set(spec.name, row);
-        if (childRows.length && (options.includeChildren || this.isBatchGroupRowExpanded(groupKey))) {
-            result.push(...childRows);
+        const expanded = options.includeChildren
+            || options.includeFormulaChildren
+            || this.isBatchGroupRowExpanded(groupKey);
+        if (childRows.length && expanded) {
+            formulaRows.push(...childRows);
         }
     });
 
-    return result;
+    return [...formulaRows, ...displayRows];
 },
 
 buildFormulaErrorRow(spec, message, metricFields = []) {
