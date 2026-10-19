@@ -46,7 +46,7 @@ const YejiModule = {
         batchQueryTemplateSnapshot: [],
         batchQueryCache: {},
         batchQueryPendingRefresh: false,
-        batchMergedOpen: {},
+        batchGroupOpen: {},
         batchQueryTargets: { ranges: {} },
         batchQueryActiveTargetKey: '',
         batchQueryTargetPickerOpen: false,
@@ -277,7 +277,7 @@ const YejiModule = {
                 'batchQueryOpen', 'batchQueryLoading', 'batchQueryRows', 'batchQueryRowMap',
                 'batchQueryMetricFields', 'batchQueryDisplayMetricFields', 'batchQueryFieldConfig',
                 'batchQueryDateValues', 'batchQueryTemplateSnapshot', 'batchQueryCache',
-                'batchQueryPendingRefresh', 'batchMergedOpen', 'batchQueryTargets',
+                'batchQueryPendingRefresh', 'batchGroupOpen', 'batchQueryTargets',
                 'batchQueryActiveTargetKey', 'batchQueryTargetPickerOpen', 'batchQueryTargetsLoaded',
                 'batchQueryTargetUploading', 'batchTargetFile',
                 'batchFormulaText', 'batchFormulaLoaded'
@@ -346,7 +346,7 @@ const YejiModule = {
         this.state.batchQueryTemplateSnapshot = [];
         this.state.batchQueryCache = {};
         this.state.batchQueryPendingRefresh = false;
-        this.state.batchMergedOpen = {};
+        this.state.batchGroupOpen = {};
         this.state.batchQueryTargets = { ranges: {} };
         this.state.batchQueryActiveTargetKey = '';
         this.state.batchQueryTargetPickerOpen = false;

@@ -271,7 +271,7 @@ renderBatchQueryBody(message = '') {
         ${this.renderBatchQueryStatusBar()}
     `;
     this.bindBatchQueryStatusBar();
-    this.bindBatchMergeRows?.();
+    this.bindBatchGroupRows?.();
     this.bindBatchTargetCellEditors?.();
     this.bindBatchTrendEntries?.();
     this.updateBatchQueryTitleMeta();

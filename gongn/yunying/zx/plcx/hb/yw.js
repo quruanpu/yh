@@ -76,7 +76,7 @@ buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = thi
         const children = grouped.get(parsed.base) || [];
         const merged = this.buildMergedBatchRow(parsed.base, children, metricFields);
         result.push(merged);
-        if (options.includeChildren || this.isBatchMergedRowExpanded(merged.groupKey)) {
+        if (options.includeChildren || this.isBatchGroupRowExpanded(merged.groupKey)) {
             children.forEach(child => {
                 result.push(this.decorateBatchDisplayRow(child, {
                     type: 'child',
@@ -86,7 +86,7 @@ buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = thi
         }
     });
 
-    return this.buildBatchFormulaRows?.(result) || result;
+    return this.buildBatchFormulaRows?.(result, options) || result;
 },
 
 decorateBatchDisplayRow(row, extra = {}) {
@@ -129,38 +129,46 @@ buildMergedBatchRow(baseName, children = [], metricFields = []) {
     };
 },
 
-isBatchMergedRowExpanded(groupKey) {
-    return !!this.state.batchMergedOpen?.[groupKey];
+isBatchGroupRowExpanded(groupKey) {
+    return !!this.state.batchGroupOpen?.[groupKey];
 },
 
-toggleBatchMergedRow(groupKey) {
+toggleBatchGroupRow(groupKey) {
     if (!groupKey) return;
-    this.state.batchMergedOpen = this.state.batchMergedOpen || {};
-    this.state.batchMergedOpen[groupKey] = !this.state.batchMergedOpen[groupKey];
+    this.state.batchGroupOpen = this.state.batchGroupOpen || {};
+    this.state.batchGroupOpen[groupKey] = !this.state.batchGroupOpen[groupKey];
     this.renderBatchQueryBody();
 },
 
 renderBatchDisplayName(row = {}) {
     if (row.displayType === 'merged') {
-        const expanded = this.isBatchMergedRowExpanded(row.groupKey);
-        return `<button type="button" class="yeji-batch-merge-toggle" data-merge-key="${this.escapeHtml(row.groupKey)}" title="查看原始记录">
+        const expanded = this.isBatchGroupRowExpanded(row.groupKey);
+        return `<button type="button" class="yeji-batch-merge-toggle" data-group-key="${this.escapeHtml(row.groupKey)}" title="查看原始记录">
             <span>${this.escapeHtml(row.name || '')}</span>
             <i class="fa-solid fa-caret-${expanded ? 'up' : 'down'}"></i>
         </button>`;
     }
     if (row.displayType === 'formula') {
         const tip = row.formulaError ? this.escapeHtml(row.formulaError) : '公式计算行';
-        return `<span class="yeji-batch-formula-name" title="${tip}">${this.escapeHtml(row.name || '')} <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i></span>`;
+        if (!row.childRows?.length) {
+            return `<span class="yeji-batch-formula-name" title="${tip}">${this.escapeHtml(row.name || '')} <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i></span>`;
+        }
+        const expanded = this.isBatchGroupRowExpanded(row.groupKey);
+        return `<button type="button" class="yeji-batch-merge-toggle" data-group-key="${this.escapeHtml(row.groupKey)}" title="查看参与行">
+            <span>${this.escapeHtml(row.name || '')}</span>
+            <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i>
+            <i class="fa-solid fa-caret-${expanded ? 'up' : 'down'}"></i>
+        </button>`;
     }
     const cls = row.displayType === 'child' ? 'yeji-batch-child-name' : '';
     return `<span class="${cls}">${this.escapeHtml(row.name || '')}</span>`;
 },
 
-bindBatchMergeRows() {
-    document.querySelectorAll('[data-merge-key]').forEach(button => {
+bindBatchGroupRows() {
+    document.querySelectorAll('[data-group-key]').forEach(button => {
         button.addEventListener('click', event => {
             event.stopPropagation();
-            this.toggleBatchMergedRow(button.dataset.mergeKey);
+            this.toggleBatchGroupRow(button.dataset.groupKey);
         });
     });
 },

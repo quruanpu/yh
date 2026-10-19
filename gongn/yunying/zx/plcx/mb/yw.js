@@ -334,7 +334,7 @@ buildBatchTargetTemplateRows(templates = [], metricFields = this.getBatchMetricF
         formatsByKey: {}
     }));
     const rows = (this.buildBatchDisplayRows?.(sourceRows, metricFields, { includeChildren: true }) || sourceRows)
-        .filter(row => row.displayType !== 'formula');
+        .filter(row => row.displayType !== 'formula' && !String(row.parentKey || '').startsWith('gs:'));
     const metricNames = (metricFields || []).map(field => this.getMetricFieldDisplayName(field));
     return rows.map(row => {
         const targets = {};

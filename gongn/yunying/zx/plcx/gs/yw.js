@@ -54,7 +54,7 @@ getFormulaBaseRegistryNames() {
 },
 
 // 展示层漏斗尾部钩子：把公式虚拟行追加到显示行序列之后。
-buildBatchFormulaRows(displayRows = []) {
+buildBatchFormulaRows(displayRows = [], options = {}) {
     const text = this.state.batchFormulaText || '';
     if (!text.trim() || !window.YejiPlcxGsGuize) return displayRows;
     const { specs } = window.YejiPlcxGsGuize.parseFormulaText(text);
@@ -100,13 +100,26 @@ buildBatchFormulaRows(displayRows = []) {
         const error = evaluation.missing.length
             ? `引用不存在：${evaluation.missing.join('、')}`
             : (evaluation.hasErrorRow ? '引用行查询失败' : '');
+        const groupKey = `gs:${spec.name}`;
+        // 参与行（子项）：模板行 / 合并组行 / 其他公式行；合并组与公式行保留自身折叠按钮，可递归展开
+        const childRows = evaluation.missing.length
+            ? []
+            : tokenized.terms.map(term => {
+                const refRow = resolveRow(term.name);
+                if (!refRow) return null;
+                return this.decorateBatchDisplayRow(refRow, {
+                    type: refRow.displayType === 'single' ? 'child' : '',
+                    parentKey: groupKey
+                });
+            }).filter(Boolean);
         const row = {
-            key: `gs:${spec.name}`,
+            key: groupKey,
             name: spec.name,
             displayType: 'formula',
-            groupKey: `gs:${spec.name}`,
+            groupKey,
             formulaError: error,
             formulaTree,
+            childRows,
             rawRows,
             metricFields,
             loading: evaluation.anyLoading && !evaluation.missing.length,
@@ -116,6 +129,9 @@ buildBatchFormulaRows(displayRows = []) {
         };
         result.push(row);
         definedRows.set(spec.name, row);
+        if (childRows.length && (options.includeChildren || this.isBatchGroupRowExpanded(groupKey))) {
+            result.push(...childRows);
+        }
     });
 
     return result;
@@ -134,6 +150,8 @@ buildFormulaErrorRow(spec, message, metricFields = []) {
         displayType: 'formula',
         groupKey: `gs:${spec.name}`,
         formulaError: message,
+        formulaTree: [],
+        childRows: [],
         rawRows: [],
         metricFields,
         loading: false,
