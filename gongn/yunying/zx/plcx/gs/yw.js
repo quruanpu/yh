@@ -84,13 +84,19 @@ buildBatchFormulaRows(displayRows = []) {
         const rawRows = evaluation.missing.length
             ? []
             : tokenized.terms.map(term => resolveRow(term.name)).filter(Boolean);
-        const formulaTerms = evaluation.missing.length
+        const formulaTree = evaluation.missing.length
             ? []
-            : tokenized.terms.map(term => ({
-                op: term.op,
-                name: term.name,
-                key: resolveRow(term.name)?.key || ''
-            })).filter(term => term.key);
+            : tokenized.terms.map(term => {
+                const refRow = resolveRow(term.name);
+                if (!refRow) return { op: term.op, name: term.name, key: '', keys: [] };
+                if (refRow.displayType === 'formula') {
+                    return { op: term.op, name: term.name, children: refRow.formulaTree || [] };
+                }
+                const memberKeys = (refRow.rawRows || [refRow]).map(item => item.key).filter(Boolean);
+                // key = 显示行 rowKey（目标派生用：单模板 _key / 合并组 merge:base）；
+                // keys = 成员 key（趋势节点聚合用）
+                return { op: term.op, name: term.name, key: refRow.key || '', keys: memberKeys };
+            });
         const error = evaluation.missing.length
             ? `引用不存在：${evaluation.missing.join('、')}`
             : (evaluation.hasErrorRow ? '引用行查询失败' : '');
@@ -100,7 +106,7 @@ buildBatchFormulaRows(displayRows = []) {
             displayType: 'formula',
             groupKey: `gs:${spec.name}`,
             formulaError: error,
-            formulaTerms,
+            formulaTree,
             rawRows,
             metricFields,
             loading: evaluation.anyLoading && !evaluation.missing.length,
@@ -135,6 +141,23 @@ buildFormulaErrorRow(spec, message, metricFields = []) {
         valuesByKey,
         formatsByKey
     };
+},
+
+// ---------- 趋势节点求值（公式行下钻：UI 链与服务链共用） ----------
+
+computeBatchFormulaNodeValue(context = {}, sourceRows = []) {
+    if (!context.formulaTree || !window.YejiPlcxGsGuize?.evalFormulaNode) return '';
+    const byKey = new Map((sourceRows || []).map(item => [item.key, item]));
+    const value = window.YejiPlcxGsGuize.evalFormulaNode(context.formulaTree, {
+        getSingle: key => byKey.get(key)?.valuesByKey?.[context.metric.key] ?? '',
+        aggregate: keys => window.YejiPlcxHbGuize.aggregateField(
+            keys.map(key => byKey.get(key)).filter(Boolean),
+            context.metric,
+            context.metricFields,
+            item => this.getMetricFieldDisplayName(item)
+        )
+    });
+    return value == null ? '' : value;
 },
 
 // ---------- 设置弹窗 ----------

@@ -246,7 +246,6 @@ renderBatchQueryBody(message = '') {
             : (row.loading ? metricHeaders.map(() => this.renderBatchLoadingCell()) : metricFields.map(field => {
                 if (!this.isBatchRowMetricEnabled(row, field.key)) return '-';
                 const displayText = this.formatBatchQueryValue(row.valuesByKey?.[field.key], row.formatsByKey?.[field.key]);
-                if (row.displayType === 'formula') return displayText;
                 return this.renderBatchMetricTrendCell?.(row, field, null, '', displayText, { enabled: true }) || displayText;
             }));
         return { name: row.name, nameHtml: this.renderBatchDisplayName?.(row), cells: values };

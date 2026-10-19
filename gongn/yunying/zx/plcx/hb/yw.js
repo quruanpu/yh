@@ -167,10 +167,10 @@ bindBatchMergeRows() {
 
 getBatchTargetValueForDisplayRow(row, metricName, targetRange) {
     if (!row) return '';
-    // 公式行：目标按公式派生（对参与行目标做 +/-，率目标按百分点口径）
+    // 公式行：目标按公式树派生（对参与行目标做优先级折叠，率目标按百分点口径）
     if (row.displayType === 'formula') {
-        if (!row.formulaTerms?.length || !window.YejiPlcxGsGuize?.evalFormulaTargets) return '';
-        return window.YejiPlcxGsGuize.evalFormulaTargets(row.formulaTerms, targetRange?.items || {}, metricName);
+        if (!row.formulaTree?.length || !window.YejiPlcxGsGuize?.evalFormulaTargets) return '';
+        return window.YejiPlcxGsGuize.evalFormulaTargets(row.formulaTree, targetRange?.items || {}, metricName);
     }
     return targetRange?.items?.[row.key]?.targets?.[metricName] ?? '';
 },

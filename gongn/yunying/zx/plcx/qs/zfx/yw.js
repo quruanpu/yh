@@ -50,23 +50,19 @@ buildBatchTrendDailyRow(context, node, result = {}) {
 },
 
 finishBatchTrendNode(context, node, index, rows = [], dailyRows = []) {
-    const merged = context.templates.length > 1;
-    const actual = merged
-        ? window.YejiPlcxHbGuize.aggregateField(
-            rows,
-            context.metric,
-            context.metricFields,
-            item => this.getMetricFieldDisplayName(item)
-        )
-        : rows[0]?.valuesByKey?.[context.metric.key];
-    const dailyActual = merged
-        ? window.YejiPlcxHbGuize.aggregateField(
-            dailyRows,
-            context.metric,
-            context.metricFields,
-            item => this.getMetricFieldDisplayName(item)
-        )
-        : dailyRows[0]?.valuesByKey?.[context.metric.key];
+    const computeActual = sourceRows => {
+        if (context.formulaTree) return this.computeBatchFormulaNodeValue(context, sourceRows);
+        return context.templates.length > 1
+            ? window.YejiPlcxHbGuize.aggregateField(
+                sourceRows,
+                context.metric,
+                context.metricFields,
+                item => this.getMetricFieldDisplayName(item)
+            )
+            : sourceRows[0]?.valuesByKey?.[context.metric.key];
+    };
+    const actual = computeActual(rows);
+    const dailyActual = computeActual(dailyRows);
     const format = rows.find(row => row.formatsByKey?.[context.metric.key])?.formatsByKey?.[context.metric.key] || null;
     const displayFormat = format || context.metric?.fieldFormat?.numberFormat || null;
     const queryProgress = window.YejiPlcxQsGuize.calcQueryProgress(context.dateInfo.range[0], node.endDate, context.periodEnd);

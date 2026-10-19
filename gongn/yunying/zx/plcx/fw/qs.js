@@ -66,13 +66,14 @@ async queryTrendTemplateSeriesForContext(context = {}, tpl = {}) {
 },
 
 buildTrendValueServiceRow(context, node, rows = [], dailyRows = []) {
-    const merged = (context.templates || []).length > 1;
-    const actual = merged
-        ? window.YejiPlcxHbGuize.aggregateField(rows, context.metric, context.metricFields, item => this.getMetricFieldDisplayName(item))
-        : rows[0]?.valuesByKey?.[context.metric.key];
-    const dailyActual = merged
-        ? window.YejiPlcxHbGuize.aggregateField(dailyRows, context.metric, context.metricFields, item => this.getMetricFieldDisplayName(item))
-        : dailyRows[0]?.valuesByKey?.[context.metric.key];
+    const computeActual = sourceRows => {
+        if (context.formulaTree) return this.computeBatchFormulaNodeValue(context, sourceRows);
+        return (context.templates || []).length > 1
+            ? window.YejiPlcxHbGuize.aggregateField(sourceRows, context.metric, context.metricFields, item => this.getMetricFieldDisplayName(item))
+            : sourceRows[0]?.valuesByKey?.[context.metric.key];
+    };
+    const actual = computeActual(rows);
+    const dailyActual = computeActual(dailyRows);
     const format = rows.find(row => row.formatsByKey?.[context.metric.key])?.formatsByKey?.[context.metric.key] || null;
     const displayFormat = format || context.metric?.fieldFormat?.numberFormat || null;
     const queryProgress = window.YejiPlcxQsGuize.calcQueryProgress(context.dateInfo.range[0], node.endDate, context.periodEnd);
@@ -165,10 +166,19 @@ async buildTrendServiceContext(params = {}, options = {}) {
     const displayName = this.getMetricFieldDisplayName(metric);
     const targetRange = batchInput.targetRange;
 
+    // 公式行上下文（UI 下钻或 AI 追问复用）：携带公式树，保证与显示行同口径
+    const formulaTree = params.formulaTree || currentContext?.formulaTree || null;
+
     const templates = batchInput.templates || [];
-    const rowKey = templates.length === 1 ? templates[0]._key : `merge:${templates.map(tpl => tpl.name || '').join('+')}`;
-    const rowName = templates.length === 1 ? (templates[0].name || '未命名模板') : templates.map(tpl => tpl.name || '未命名模板').join('+');
-    const targetValue = this.resolveTrendTargetValue(targetRange, templates, displayName);
+    const rowKey = formulaTree
+        ? (params.rowKey || currentContext?.rowKey || '')
+        : (templates.length === 1 ? templates[0]._key : `merge:${templates.map(tpl => tpl.name || '').join('+')}`);
+    const rowName = formulaTree
+        ? (params.rowName || currentContext?.rowName || '')
+        : (templates.length === 1 ? (templates[0].name || '未命名模板') : templates.map(tpl => tpl.name || '未命名模板').join('+'));
+    const targetValue = formulaTree
+        ? (window.YejiPlcxGsGuize?.evalFormulaTargets?.(formulaTree, targetRange?.items || {}, displayName) ?? '')
+        : this.resolveTrendTargetValue(targetRange, templates, displayName);
 
     const dateInfo = this.getBatchTargetInfoFromDateValues(batchInput.dateValues);
     if (!dateInfo) throw new Error('未找到指标详解日期范围。');
@@ -183,8 +193,10 @@ async buildTrendServiceContext(params = {}, options = {}) {
         templates,
         metric,
         metricName: displayName,
-        trendModel: rateMeta ? 'rate' : 'value',
-        rateMeta,
+        // 公式行固定值模型：率差按百分点展示，lfx 分子分母诊断对差值无意义
+        trendModel: formulaTree ? 'value' : (rateMeta ? 'rate' : 'value'),
+        rateMeta: formulaTree ? null : rateMeta,
+        formulaTree,
         targetValue,
         targetRangeKey: targetRange?.key || '',
         dateInfo: {
@@ -199,7 +211,7 @@ async buildTrendServiceContext(params = {}, options = {}) {
     };
     context.queryPlan = this.buildTrendQueryPlan(context);
     context.metricFields = this.clonePlain(context.queryPlan.metricFields || []);
-    if (this.isBatchTrendRateModel?.(context)) {
+    if (this.isBatchTrendRateModel?.(context) && !formulaTree) {
         const deps = this.getBatchRateDependencyFields?.(context) || {};
         if (!deps.numerator || !deps.denominator) throw new Error('率字段缺少依赖字段或业务基数字段，无法分析趋势。');
     }

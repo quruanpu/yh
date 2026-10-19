@@ -122,6 +122,7 @@ buildBatchTrendContext(cell) {
     }
 
     const rateMeta = window.YejiPlcxQsLfxGuize?.getRateMeta?.(cell.dataset.trendMetricName || this.getMetricFieldDisplayName(metric));
+    const formulaTree = this.parseBatchTrendFormulaTree(cell.dataset.trendFormulaTree);
     const context = {
         rowKey: cell.dataset.trendRowKey || '',
         rowName: cell.dataset.trendRowName || '',
@@ -129,8 +130,10 @@ buildBatchTrendContext(cell) {
         templates,
         metric,
         metricName: cell.dataset.trendMetricName || this.getMetricFieldDisplayName(metric),
-        trendModel: rateMeta ? 'rate' : 'value',
-        rateMeta,
+        // 公式行固定值模型：率差按百分点展示，lfx 分子分母诊断对差值无意义
+        trendModel: formulaTree ? 'value' : (rateMeta ? 'rate' : 'value'),
+        rateMeta: formulaTree ? null : rateMeta,
+        formulaTree,
         targetValue: cell.dataset.trendTarget || '',
         targetRangeKey: cell.dataset.trendTargetRange || '',
         dateInfo,
@@ -149,6 +152,15 @@ buildBatchTrendContext(cell) {
         }
     }
     return context;
+},
+
+parseBatchTrendFormulaTree(value = '') {
+    try {
+        const parsed = JSON.parse(decodeURIComponent(value || ''));
+        return Array.isArray(parsed) && parsed.length ? parsed : null;
+    } catch {
+        return null;
+    }
 },
 
 parseBatchTrendRawKeys(value = '') {

@@ -583,9 +583,12 @@ renderEditableBatchTargetCell(row, metric, targetRange, rawValue, displayText) {
 renderBatchMetricTrendCell(row, metric, targetRange, targetValue, displayText, options = {}) {
     if (displayText && typeof displayText === 'object') return displayText;
     const text = String(displayText ?? '').trim();
-    if (row?.displayType === 'formula') return displayText || '-';
     if (!text || text === '-' || row?.error || row?.loading || options.enabled === false || !metric?.key) return displayText || '-';
-    const rawKeys = (row.rawRows?.length ? row.rawRows : [row]).map(item => item.key).filter(Boolean);
+    const isFormula = row?.displayType === 'formula';
+    const formulaTree = isFormula ? (row.formulaTree || []) : [];
+    const rawKeys = isFormula
+        ? (window.YejiPlcxGsGuize?.flattenTreeKeys(formulaTree) || [])
+        : (row.rawRows?.length ? row.rawRows : [row]).map(item => item.key).filter(Boolean);
     const emphasized = options.emphasized === true;
     const metricName = metric.name || this.getMetricFieldDisplayName?.(metric) || '';
     return {
@@ -595,6 +598,7 @@ renderBatchMetricTrendCell(row, metric, targetRange, targetValue, displayText, o
             `data-trend-row-key="${this.escapeHtml(row.key || '')}"`,
             `data-trend-row-name="${this.escapeHtml(row.name || '')}"`,
             `data-trend-raw-keys="${this.escapeHtml(encodeURIComponent(JSON.stringify(rawKeys)))}"`,
+            ...(isFormula ? [`data-trend-formula-tree="${this.escapeHtml(encodeURIComponent(JSON.stringify(formulaTree)))}"`] : []),
             `data-trend-metric-key="${this.escapeHtml(metric.key || '')}"`,
             `data-trend-metric-name="${this.escapeHtml(metricName)}"`,
             `data-trend-target="${this.escapeHtml(targetValue ?? '')}"`,
