@@ -48,7 +48,7 @@ uniqueBatchFields(fields = []) {
 },
 
 buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = this.getBatchDisplayMetricFields(), options = {}) {
-    // 模板行全部为原始行（不再按命名解析合并组）；计算行（合并行）由公式钩子置于顶部
+    // 模板行全部为原始行；计算行（合并行）由公式钩子置于顶部
     const sourceRows = (rows || []).map(row => this.decorateBatchDisplayRow(row, { type: 'single' }));
     return this.buildBatchFormulaRows?.(sourceRows, options) || sourceRows;
 },
@@ -78,7 +78,7 @@ renderBatchDisplayName(row = {}) {
     if (row.displayType === 'merged') {
         if (!row.childRows?.length) {
             const tip = row.formulaError ? this.escapeHtml(row.formulaError) : '计算行';
-            return `<span class="yeji-batch-formula-name" title="${tip}">${this.escapeHtml(row.name || '')} <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i></span>`;
+            return `<span title="${tip}">${this.escapeHtml(row.name || '')} <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i></span>`;
         }
         const expanded = this.isBatchGroupRowExpanded(row.groupKey);
         return `<button type="button" class="yeji-batch-merge-toggle" data-group-key="${this.escapeHtml(row.groupKey)}" title="查看参与项">

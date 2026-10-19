@@ -43,7 +43,7 @@ const YejiPlcxGsGuize = {
     },
 
     // 词典最长匹配分词：名字可含 - 等字符而不被切碎。
-    // registry：全部可用引用名（模板名 + 合并组名 + 已定义公式结果名）。
+    // registry：全部可用引用名（原始模板名）。
     // 允许首项带符号（如 -退款+总销售）。
     tokenizeFormula(expr = '', registry = []) {
         const sorted = [...new Set(registry)].filter(Boolean).sort((a, b) => b.length - a.length);

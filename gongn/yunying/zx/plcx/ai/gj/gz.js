@@ -50,7 +50,7 @@ const YejiPlcxAiGjGuize = {
                                         },
                                         targetKey: { type: 'string', description: '可选目标范围 key。' },
                                         autoTarget: { type: 'boolean', description: '是否自动匹配目标，默认 true。' },
-                                        includeChildren: { type: 'boolean', description: '合并模板是否返回子项，默认 true。' }
+                                        includeChildren: { type: 'boolean', description: '公式合并行是否返回参与项，默认 true。' }
                                     }
                                 },
                                 description: '可选多组 BI 查询任务。传入后并发执行，最多 31 组。'
@@ -83,7 +83,7 @@ const YejiPlcxAiGjGuize = {
                             },
                             targetKey: { type: 'string', description: '可选目标范围 key。' },
                             autoTarget: { type: 'boolean', description: '是否自动匹配目标，默认 true。' },
-                            includeChildren: { type: 'boolean', description: '合并模板是否返回子项，默认 true。' }
+                            includeChildren: { type: 'boolean', description: '公式合并行是否返回参与项，默认 true。' }
                         }
                     }
                 }

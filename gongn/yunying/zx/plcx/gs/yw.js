@@ -1,4 +1,4 @@
-// BI summary formula business: storage, dialog, and virtual row building.
+// BI summary formula business: storage, dialog, and computed row building.
 const YejiPlcxGsYewu = {
 FORMULAS_COLLECTION: 'yeji_formulas',
 
@@ -41,7 +41,7 @@ async ensureBatchFormulasLoaded({ force = false } = {}) {
     return this.state.batchFormulaText || '';
 },
 
-// ---------- 公式注册表与虚拟行 ----------
+// ---------- 公式注册表与计算行 ----------
 
 // 可引用名 = 原始模板名（唯一计算来源：公式只引用原始模板，禁止嵌套）
 getFormulaRegistryNames() {
@@ -70,7 +70,7 @@ getFormulaRateDeps(metricFields = []) {
     return deps;
 },
 
-// 展示层漏斗尾部钩子：公式虚拟行置于顶部，其余行依次顺移。
+// 展示层漏斗钩子：公式计算行（合并行）置于顶部，其余行依次顺移。
 // options.includeChildren：模板下载等场景（同时展开参与项）；
 // options.includeParticipants：导出场景（展开参与项）。
 buildBatchFormulaRows(displayRows = [], options = {}) {

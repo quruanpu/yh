@@ -175,12 +175,16 @@ async buildTrendServiceContext(params = {}, options = {}) {
     const formulaTree = params.formulaTree || currentContext?.formulaTree || null;
 
     const templates = batchInput.templates || [];
+    // 单一来源：模板不再自动合并，多模板趋势必须通过公式合并行下钻
+    if (!formulaTree && templates.length > 1) {
+        throw new Error('多模板趋势请通过公式合并行下钻（模板不再自动合并）。');
+    }
     const rowKey = formulaTree
         ? (params.rowKey || currentContext?.rowKey || '')
-        : (templates.length === 1 ? templates[0]._key : `merge:${templates.map(tpl => tpl.name || '').join('+')}`);
+        : templates[0]._key;
     const rowName = formulaTree
         ? (params.rowName || currentContext?.rowName || '')
-        : (templates.length === 1 ? (templates[0].name || '未命名模板') : templates.map(tpl => tpl.name || '未命名模板').join('+'));
+        : (templates[0].name || '未命名模板');
     const targetValue = formulaTree
         ? (window.YejiPlcxGsGuize?.evalFormulaTargets?.(formulaTree, targetRange?.items || {}, displayName) ?? '')
         : this.resolveTrendTargetValue(targetRange, templates, displayName);
@@ -224,21 +228,9 @@ async buildTrendServiceContext(params = {}, options = {}) {
 },
 
 resolveTrendTargetValue(targetRange, templates = [], metricName = '') {
-    if (!targetRange || !metricName) return '';
-    if (templates.length === 1) {
-        return targetRange.items?.[templates[0]._key]?.targets?.[metricName] ?? '';
-    }
-    const rows = templates.map(tpl => ({
-        key: tpl._key,
-        name: tpl.name || '未命名模板',
-        rawRows: [{ key: tpl._key, name: tpl.name || '未命名模板' }]
-    }));
-    const merged = this.buildBatchDisplayRows?.(rows, [this.findMetricFieldByDisplayName(metricName)], { includeChildren: false }) || rows;
-    // 公式行置顶后兜底不能取 merged[0]（会错拿公式派生目标），优先取首个非公式行
-    const row = merged.find(item => item.displayType === 'merged')
-        || merged.find(item => item.displayType !== 'formula')
-        || merged[0];
-    return this.getBatchTargetValueForDisplayRow?.(row, metricName, targetRange) ?? '';
+    // 多模板场景已由公式合并行覆盖（公式树派生目标），此处仅单模板直接取值
+    if (!targetRange || !metricName || !templates.length) return '';
+    return targetRange.items?.[templates[0]._key]?.targets?.[metricName] ?? '';
 }
 };
 

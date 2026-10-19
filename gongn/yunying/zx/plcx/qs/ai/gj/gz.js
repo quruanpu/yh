@@ -10,7 +10,7 @@ const YejiPlcxQsAiGjGuize = {
                 type: 'function',
                 function: {
                     name: this.toolNames.queryPanel,
-                    description: '按指标详解面板业务壳执行只读查询。可传入模板、筛选、日期字段、日期范围、指标字段和目标范围；计算仍由指标详解面板完成，不修改当前页面。需要多个查询时优先传入 queries 数组，单次最多并发 31 组。',
+                    description: '按指标详解面板业务壳执行只读查询。可传入单个模板、筛选、日期字段、日期范围、指标字段和目标范围；多模板趋势请改用公式合并行（模板不再自动合并）；计算仍由指标详解面板完成，不修改当前页面。需要多个查询时优先传入 queries 数组，单次最多并发 31 组。',
                     parameters: {
                         type: 'object',
                         additionalProperties: false,
