@@ -235,7 +235,7 @@ renderBatchQueryBody(message = '') {
     const metricFields = this.getBatchDisplayMetricFields?.() || this.getBatchQueryMetricFields();
     const metricHeaders = metricFields.map(field => this.getMetricFieldDisplayName(field));
     const displayRows = this.buildBatchDisplayRows?.(this.state.batchQueryRows || [], metricFields) || (this.state.batchQueryRows || []);
-    const targetTable = this.buildBatchTargetTableModel?.(displayRows.filter(row => row.displayType !== 'formula'));
+    const targetTable = this.buildBatchTargetTableModel?.(displayRows);
     const ths = [
         '<th>项目名称</th>',
         ...(targetTable ? targetTable.headers : metricHeaders).map(name => `<th class="metric">${this.escapeHtml(name)}</th>`)
