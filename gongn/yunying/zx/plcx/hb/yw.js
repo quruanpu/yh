@@ -62,23 +62,25 @@ buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = thi
             .filter(([, items]) => items.length > 1)
             .map(([base]) => base)
     );
+    // 计算行置顶：合并组作为一个块（合并行+展开子项）迁到顶部，其余行依次顺移
+    const mergedRows = [];
+    const singleRows = [];
     const emitted = new Set();
-    const result = [];
 
     sourceRows.forEach(row => {
         const parsed = window.YejiPlcxHbGuize.parseTemplateName(row.name || '');
         if (!mergeableBases.has(parsed.base)) {
-            result.push(this.decorateBatchDisplayRow(row, { type: 'single' }));
+            singleRows.push(this.decorateBatchDisplayRow(row, { type: 'single' }));
             return;
         }
         if (emitted.has(parsed.base)) return;
         emitted.add(parsed.base);
         const children = grouped.get(parsed.base) || [];
         const merged = this.buildMergedBatchRow(parsed.base, children, metricFields);
-        result.push(merged);
+        mergedRows.push(merged);
         if (options.includeChildren || this.isBatchGroupRowExpanded(merged.groupKey)) {
             children.forEach(child => {
-                result.push(this.decorateBatchDisplayRow(child, {
+                mergedRows.push(this.decorateBatchDisplayRow(child, {
                     type: 'child',
                     parentKey: merged.groupKey
                 }));
@@ -86,7 +88,8 @@ buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = thi
         }
     });
 
-    return this.buildBatchFormulaRows?.(result, options) || result;
+    const orderedRows = [...mergedRows, ...singleRows];
+    return this.buildBatchFormulaRows?.(orderedRows, options) || orderedRows;
 },
 
 decorateBatchDisplayRow(row, extra = {}) {
