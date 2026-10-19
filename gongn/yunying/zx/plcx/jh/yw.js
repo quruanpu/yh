@@ -36,18 +36,17 @@ getMetricsWithDependencies(metrics = []) {
 },
 
 buildBatchQueryPlans(templates = [], displayMetricFields = this.getBatchMetricFields()) {
-    const mergeableBases = window.YejiPlcxJhGuize.buildMergeableBaseSet(templates);
+    // 配置了公式时，全部模板补查率字段的分子分母依赖（计算行的率列按加权口径自动计算）
+    const withDependencies = this.hasBatchFormulas?.();
     const plans = new Map();
     (templates || []).forEach(tpl => {
-        const mergeMember = window.YejiPlcxJhGuize.isTemplateMergeMember(tpl, mergeableBases);
-        const metricFields = mergeMember
+        const metricFields = withDependencies
             ? this.getMetricsWithDependencies(displayMetricFields)
             : this.uniquePlanFields(displayMetricFields);
         plans.set(tpl._key, {
             rowFields: [],
             metricFields,
-            displayMetricFields: this.uniquePlanFields(displayMetricFields),
-            mergeMember
+            displayMetricFields: this.uniquePlanFields(displayMetricFields)
         });
     });
     return plans;
@@ -66,12 +65,10 @@ buildTrendQueryPlan(context = {}) {
     const metricFields = dependencies.length
         ? this.uniquePlanFields(dependencies)
         : this.uniquePlanFields([context.metric]);
-    const merged = (context.templates || []).length > 1;
     return {
         rowFields: [dateField],
         metricFields,
         displayMetricFields: this.uniquePlanFields([context.metric]),
-        mergeMember: merged,
         seriesDateField: dateField
     };
 }

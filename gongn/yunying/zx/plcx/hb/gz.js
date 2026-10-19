@@ -1,16 +1,5 @@
-// BI summary merge rules: template grouping and value aggregation.
+// BI summary aggregation rules: field matching, value aggregation, and rate weighting.
 const YejiPlcxHbGuize = {
-    parseTemplateName(name = '') {
-        const text = String(name || '').trim();
-        const index = text.lastIndexOf('_');
-        if (index <= 0 || index >= text.length - 1) return { base: text, suffix: '', mergeable: false };
-        return {
-            base: text.slice(0, index).trim(),
-            suffix: text.slice(index + 1).trim(),
-            mergeable: true
-        };
-    },
-
     normalizeName(name = '') {
         return String(name || '')
             .replace(/\s+/g, '')

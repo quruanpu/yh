@@ -82,11 +82,9 @@ const YejiPlcxGsGuize = {
     },
 
     // 带优先级的折叠：先乘除后加减；任一操作数非数值 → null（对应列空，不猜 0）。
-    // resolve(term) 返回参与项原始值；term.children 表示公式引用，递归求值。
+    // resolve(term) 返回参与项原始值。
     foldTerms(terms = [], resolve) {
-        const readValue = term => (term.children
-            ? this.foldTerms(term.children, resolve)
-            : (typeof resolve === 'function' ? resolve(term) : null));
+        const readValue = term => (typeof resolve === 'function' ? resolve(term) : null);
         const folded = [];
         (terms || []).forEach(term => {
             if (folded.length && (term.op === '*' || term.op === '/')) {
@@ -114,42 +112,68 @@ const YejiPlcxGsGuize = {
         return total;
     },
 
-    // 目标派生：对目标 items 折叠公式树（率目标同样按百分点口径）。
-    // terms: [{op,name,key}] 或含 children 的公式引用；任一参与项缺失/为空 → ''（不猜 0）。
+    // 计算核心（显示行与趋势节点共用，单一事实源）：
+    // 值列 = 参与项按公式折叠；率列（rateDeps 有依赖定义）= 分子列、分母列分别按同一公式折叠后相除（加权口径）。
+    // resolve(term) 返回参与行（含 valuesByKey）；任一操作数空 / 分母空或 0 → 该列空。
+    computeFormulaValues(terms = [], resolve, metricFields = [], rateDeps = {}) {
+        const valuesByKey = {};
+        const formatsByKey = {};
+        const resolved = (terms || []).map(term => ({
+            ...term,
+            row: typeof resolve === 'function' ? resolve(term) : null
+        }));
+        metricFields.forEach(field => {
+            let value = null;
+            const deps = rateDeps?.[field.key];
+            if (deps?.numeratorKey && deps?.denominatorKey) {
+                const numerator = this.foldTerms(resolved, term => term.row?.valuesByKey?.[deps.numeratorKey]);
+                const denominator = this.foldTerms(resolved, term => term.row?.valuesByKey?.[deps.denominatorKey]);
+                value = numerator == null || denominator == null || denominator === 0
+                    ? null
+                    : numerator / denominator;
+            } else {
+                value = this.foldTerms(resolved, term => term.row?.valuesByKey?.[field.key]);
+            }
+            valuesByKey[field.key] = value == null ? '' : value;
+            formatsByKey[field.key] = resolved.find(item => item.row?.formatsByKey?.[field.key])?.row.formatsByKey[field.key]
+                || field.fieldFormat?.numberFormat
+                || null;
+        });
+        return { valuesByKey, formatsByKey };
+    },
+
+    // 目标派生：对目标 items 折叠公式（率目标同样按百分点口径）。
+    // terms: [{op,name,key}]；任一参与项缺失/为空 → ''（不猜 0）。
     evalFormulaTargets(terms = [], items = {}, metricName = '') {
         if (!terms.length) return '';
         const value = this.foldTerms(terms, term => items?.[term.key]?.targets?.[metricName]);
         return value == null ? '' : value;
     },
 
-    // 对一批指标列求值。resolveRow(name) 返回参与行（真实/合并/已定义公式行）或 null。
-    // 口径：数值列 = 各项按优先级折叠；率列同样按百分点加减（严禁分子分母运算）。
-    // 任一引用缺失/参与行查询失败/任一操作数为空 → 该列空。
-    evalFormulaRow(spec = {}, resolveRow, metricFields = []) {
+    // 显示行求值：resolveRow(key) 按参与项 key 返回显示行或 null。
+    // 任一引用缺失/参与行查询失败/参与行 loading → 该行列空。
+    evalFormulaRow(spec = {}, resolveRow, metricFields = [], rateDeps = {}) {
         const resolved = (spec.terms || []).map(term => ({
             ...term,
-            row: typeof resolveRow === 'function' ? resolveRow(term.name) : null
+            row: typeof resolveRow === 'function' ? resolveRow(term.key) : null
         }));
         const missing = resolved.filter(item => !item.row).map(item => item.name);
         const hasErrorRow = resolved.some(item => item.row?.error);
         const anyLoading = resolved.some(item => item.row?.loading);
-        const valuesByKey = {};
-        const formatsByKey = {};
         const blocked = missing.length > 0 || hasErrorRow;
 
+        const empty = { valuesByKey: {}, formatsByKey: {} };
         metricFields.forEach(field => {
-            const value = blocked || anyLoading
-                ? null
-                : this.foldTerms(resolved, term => term.row.valuesByKey?.[field.key]);
-            valuesByKey[field.key] = value == null ? '' : value;
-            formatsByKey[field.key] = resolved.find(item => item.row?.formatsByKey?.[field.key])?.row.formatsByKey[field.key]
-                || field.fieldFormat?.numberFormat
-                || null;
+            empty.valuesByKey[field.key] = '';
+            empty.formatsByKey[field.key] = field.fieldFormat?.numberFormat || null;
         });
+        const computed = blocked || anyLoading
+            ? empty
+            : this.computeFormulaValues(resolved, term => term.row, metricFields, rateDeps);
 
         return {
-            valuesByKey,
-            formatsByKey,
+            valuesByKey: computed.valuesByKey,
+            formatsByKey: computed.formatsByKey,
             missing,
             hasErrorRow,
             anyLoading,
@@ -157,34 +181,24 @@ const YejiPlcxGsGuize = {
         };
     },
 
-    // 展开公式树中全部叶子模板 key（趋势查询模板清单用，去重保序）
+    // 展开公式中全部参与项模板 key（趋势查询模板清单用，去重保序）
     flattenTreeKeys(terms = []) {
         const keys = [];
         (terms || []).forEach(term => {
-            if (term.children) {
-                this.flattenTreeKeys(term.children).forEach(key => {
-                    if (key && !keys.includes(key)) keys.push(key);
-                });
-                return;
-            }
-            (term.keys || []).forEach(key => {
-                if (key && !keys.includes(key)) keys.push(key);
-            });
+            const key = term.key;
+            if (key && !keys.includes(key)) keys.push(key);
         });
         return keys;
     },
 
-    // 趋势节点求值：叶子/组按 keys 解析（单 key 直接取值，多 key 走 aggregate 聚合），公式引用按 children 递归。
-    // options.getSingle(key)/options.aggregate(keys) 由调用方按“显示行 / 趋势节点行”提供取值方式。
+    // 趋势节点求值：按参与项 key 取节点行（单 key 直接取值），率列按分子分母分别折叠后相除。
     evalFormulaNode(terms = [], options = {}) {
         const getSingle = options.getSingle || (() => null);
-        const aggregate = options.aggregate || (() => null);
         const resolve = term => {
-            const keys = term.keys || [];
-            if (!keys.length) return null;
-            return keys.length === 1 ? getSingle(keys[0]) : aggregate(keys);
+            const key = term.key;
+            return key ? getSingle(key) : null;
         };
-        return this.foldTerms(terms, resolve);
+        return this.computeFormulaValues(terms, resolve, options.metricFields || [], options.rateDeps || {});
     }
 };
 

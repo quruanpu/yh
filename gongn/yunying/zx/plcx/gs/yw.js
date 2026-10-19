@@ -43,86 +43,103 @@ async ensureBatchFormulasLoaded({ force = false } = {}) {
 
 // ---------- 公式注册表与虚拟行 ----------
 
-// 可引用名 = 真实模板名 + 合并组名（公式结果名在解析时叠加）
-getFormulaBaseRegistryNames() {
+// 可引用名 = 原始模板名（唯一计算来源：公式只引用原始模板，禁止嵌套）
+getFormulaRegistryNames() {
     const templates = this.state.templates || [];
-    const names = templates.map(tpl => String(tpl.name || '').trim()).filter(Boolean);
-    const bases = window.YejiPlcxJhGuize?.buildMergeableBaseSet
-        ? [...window.YejiPlcxJhGuize.buildMergeableBaseSet(templates)]
-        : [];
-    return [...new Set([...names, ...bases])];
+    return [...new Set(templates.map(tpl => String(tpl.name || '').trim()).filter(Boolean))];
+},
+
+// 是否配置了公式（查询计划据此为全部模板补查率字段的分子分母依赖）
+hasBatchFormulas() {
+    return !!(this.state.batchFormulaText || '').trim();
+},
+
+// 率字段的分子/分母依赖字段 key（率列 = 分子、分母分别按公式折叠后相除）
+getFormulaRateDeps(metricFields = []) {
+    const deps = {};
+    (metricFields || []).forEach(field => {
+        const name = this.getMetricFieldDisplayName(field);
+        const depNames = window.YejiPlcxJhGuize?.dependencyNames?.(name) || [];
+        if (depNames.length < 2) return;
+        const numerator = this.findBatchMetricFieldByDisplayName?.(depNames[0], metricFields);
+        const denominator = this.findBatchMetricFieldByDisplayName?.(depNames[1], metricFields);
+        if (numerator?.key && denominator?.key) {
+            deps[field.key] = { numeratorKey: numerator.key, denominatorKey: denominator.key };
+        }
+    });
+    return deps;
 },
 
 // 展示层漏斗尾部钩子：公式虚拟行置于顶部，其余行依次顺移。
-// options.includeChildren：模板下载等场景（同时展开合并子项）；
-// options.includeFormulaChildren：导出场景（仅展开公式参与行，合并行维持既有收起行为）。
+// options.includeChildren：模板下载等场景（同时展开参与项）；
+// options.includeParticipants：导出场景（展开参与项）。
 buildBatchFormulaRows(displayRows = [], options = {}) {
     const text = this.state.batchFormulaText || '';
     if (!text.trim() || !window.YejiPlcxGsGuize) return displayRows;
     const { specs } = window.YejiPlcxGsGuize.parseFormulaText(text);
     if (!specs.length) return displayRows;
 
-    const sourceRows = displayRows.filter(row => row.displayType !== 'formula');
     const byName = new Map();
-    sourceRows.forEach(row => {
+    (displayRows || []).forEach(row => {
         const name = String(row.name || '').trim();
         if (name && !byName.has(name)) byName.set(name, row);
     });
 
     const metricFields = this.getBatchQueryMetricFields();
+    const rateDeps = this.getFormulaRateDeps(metricFields);
     const formulaRows = [];
-    const definedRows = new Map();
 
     specs.forEach(spec => {
-        const registry = [...byName.keys(), ...definedRows.keys()];
-        const tokenized = window.YejiPlcxGsGuize.tokenizeFormula(spec.expr, registry);
+        const registry = this.getFormulaRegistryNames();
+        const formulaNames = new Set(specs.map(item => item.name));
+        const tokenized = window.YejiPlcxGsGuize.tokenizeFormula(spec.expr, [...registry, ...formulaNames]);
         if (tokenized.error) {
             formulaRows.push(this.buildFormulaErrorRow(spec, tokenized.error, metricFields));
             return;
         }
-        const resolveRow = name => byName.get(name) || definedRows.get(name) || null;
+        // 已存的旧公式若引用其他公式结果（不支持层层嵌套）→ 显式降级
+        const nested = tokenized.terms.filter(term => formulaNames.has(term.name));
+        if (nested.length) {
+            formulaRows.push(this.buildFormulaErrorRow(
+                spec, `公式不能引用其他公式结果（不支持层层嵌套）：${nested.map(term => term.name).join('、')}`, metricFields));
+            return;
+        }
+        const resolveRow = name => byName.get(name) || null;
+        const formulaTree = tokenized.terms.map(term => ({
+            op: term.op,
+            name: term.name,
+            key: resolveRow(term.name)?.key || ''
+        }));
         const evaluation = window.YejiPlcxGsGuize.evalFormulaRow(
-            { ...spec, terms: tokenized.terms }, resolveRow, metricFields);
-        const rawRows = evaluation.missing.length
-            ? []
-            : tokenized.terms.map(term => resolveRow(term.name)).filter(Boolean);
-        const formulaTree = evaluation.missing.length
-            ? []
-            : tokenized.terms.map(term => {
-                const refRow = resolveRow(term.name);
-                if (!refRow) return { op: term.op, name: term.name, key: '', keys: [] };
-                if (refRow.displayType === 'formula') {
-                    return { op: term.op, name: term.name, children: refRow.formulaTree || [] };
-                }
-                const memberKeys = (refRow.rawRows || [refRow]).map(item => item.key).filter(Boolean);
-                // key = 显示行 rowKey（目标派生用：单模板 _key / 合并组 merge:base）；
-                // keys = 成员 key（趋势节点聚合用）
-                return { op: term.op, name: term.name, key: refRow.key || '', keys: memberKeys };
-            });
+            { ...spec, terms: formulaTree },
+            key => (displayRows || []).find(row => row.key === key) || null,
+            metricFields,
+            rateDeps
+        );
         const error = evaluation.missing.length
             ? `引用不存在：${evaluation.missing.join('、')}`
             : (evaluation.hasErrorRow ? '引用行查询失败' : '');
-        const groupKey = `gs:${spec.name}`;
-        // 参与行（子项）：模板行 / 合并组行 / 其他公式行；合并组与公式行保留自身折叠按钮，可递归展开
+        const groupKey = `merge:${spec.name}`;
+        // 参与项（子项）：公式直接引用的原始模板行
         const childRows = evaluation.missing.length
             ? []
             : tokenized.terms.map(term => {
                 const refRow = resolveRow(term.name);
                 if (!refRow) return null;
                 return this.decorateBatchDisplayRow(refRow, {
-                    type: refRow.displayType === 'single' ? 'child' : '',
+                    type: 'child',
                     parentKey: groupKey
                 });
             }).filter(Boolean);
         const row = {
             key: groupKey,
             name: spec.name,
-            displayType: 'formula',
+            displayType: 'merged',
             groupKey,
             formulaError: error,
             formulaTree,
             childRows,
-            rawRows,
+            rawRows: childRows,
             metricFields,
             loading: evaluation.anyLoading && !evaluation.missing.length,
             error,
@@ -130,9 +147,8 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
             formatsByKey: evaluation.formatsByKey
         };
         formulaRows.push(row);
-        definedRows.set(spec.name, row);
         const expanded = options.includeChildren
-            || options.includeFormulaChildren
+            || options.includeParticipants
             || this.isBatchGroupRowExpanded(groupKey);
         if (childRows.length && expanded) {
             formulaRows.push(...childRows);
@@ -150,10 +166,10 @@ buildFormulaErrorRow(spec, message, metricFields = []) {
         formatsByKey[field.key] = field.fieldFormat?.numberFormat || null;
     });
     return {
-        key: `gs:${spec.name}`,
+        key: `merge:${spec.name}`,
         name: spec.name,
-        displayType: 'formula',
-        groupKey: `gs:${spec.name}`,
+        displayType: 'merged',
+        groupKey: `merge:${spec.name}`,
         formulaError: message,
         formulaTree: [],
         childRows: [],
@@ -166,21 +182,16 @@ buildFormulaErrorRow(spec, message, metricFields = []) {
     };
 },
 
-// ---------- 趋势节点求值（公式行下钻：UI 链与服务链共用） ----------
+// ---------- 趋势节点求值（计算行下钻：UI 链与服务链共用） ----------
 
-computeBatchFormulaNodeValue(context = {}, sourceRows = []) {
-    if (!context.formulaTree || !window.YejiPlcxGsGuize?.evalFormulaNode) return '';
+computeBatchFormulaNodeValues(context = {}, sourceRows = []) {
+    if (!context.formulaTree || !window.YejiPlcxGsGuize?.evalFormulaNode) return {};
     const byKey = new Map((sourceRows || []).map(item => [item.key, item]));
-    const value = window.YejiPlcxGsGuize.evalFormulaNode(context.formulaTree, {
-        getSingle: key => byKey.get(key)?.valuesByKey?.[context.metric.key] ?? '',
-        aggregate: keys => window.YejiPlcxHbGuize.aggregateField(
-            keys.map(key => byKey.get(key)).filter(Boolean),
-            context.metric,
-            context.metricFields,
-            item => this.getMetricFieldDisplayName(item)
-        )
-    });
-    return value == null ? '' : value;
+    return window.YejiPlcxGsGuize.evalFormulaNode(context.formulaTree, {
+        getSingle: key => byKey.get(key) || null,
+        metricFields: context.metricFields || [],
+        rateDeps: this.getFormulaRateDeps(context.metricFields || [])
+    }).valuesByKey || {};
 },
 
 // ---------- 设置弹窗 ----------
@@ -246,20 +257,33 @@ updateFormulaValidation(text) {
     ).join('');
 },
 
-// 保存前全量校验：语法 + 词典分词（含链式引用）
+// 保存前全量校验：语法 + 词典分词（仅原始模板名可引用，拒绝层层嵌套）
 validateFormulaText(text) {
     const guize = window.YejiPlcxGsGuize;
     if (!guize) return { ok: false, specs: [], errors: [{ line: 0, message: '公式规则模块未加载。' }] };
     const { specs, errors } = guize.parseFormulaText(text);
-    const registry = this.getFormulaBaseRegistryNames();
-    const defined = [];
+    const registry = this.getFormulaRegistryNames();
+    const formulaNames = new Set(specs.map(spec => spec.name));
     specs.forEach(spec => {
-        const tokenized = guize.tokenizeFormula(spec.expr, [...registry, ...defined]);
+        if (registry.includes(spec.name)) {
+            errors.push({ line: spec.line, message: `结果名与模板名重复：${spec.name}` });
+            return;
+        }
+        // 词典含公式结果名：分词成功后若命中公式名 → 层层嵌套，拒绝
+        const tokenized = guize.tokenizeFormula(spec.expr, [...registry, ...formulaNames]);
         if (tokenized.error) {
             errors.push({ line: spec.line, message: tokenized.error });
             return;
         }
-        defined.push(spec.name);
+        const nested = tokenized.terms.filter(term => formulaNames.has(term.name));
+        if (nested.length) {
+            errors.push({ line: spec.line, message: `公式不能引用其他公式结果（不支持层层嵌套）：${nested.map(term => term.name).join('、')}` });
+            return;
+        }
+        const unknown = tokenized.terms.filter(term => !registry.includes(term.name));
+        if (unknown.length) {
+            errors.push({ line: spec.line, message: `无法识别的名称：${unknown.map(term => term.name).join('、')}` });
+        }
     });
     return { ok: errors.length === 0, specs, errors };
 },

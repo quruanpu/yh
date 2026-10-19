@@ -67,7 +67,9 @@ async queryTrendTemplateSeriesForContext(context = {}, tpl = {}) {
 
 buildTrendValueServiceRow(context, node, rows = [], dailyRows = []) {
     const computeActual = sourceRows => {
-        if (context.formulaTree) return this.computeBatchFormulaNodeValue(context, sourceRows);
+        if (context.formulaTree) {
+            return this.computeBatchFormulaNodeValues(context, sourceRows)[context.metric.key] ?? '';
+        }
         return (context.templates || []).length > 1
             ? window.YejiPlcxHbGuize.aggregateField(sourceRows, context.metric, context.metricFields, item => this.getMetricFieldDisplayName(item))
             : sourceRows[0]?.valuesByKey?.[context.metric.key];
@@ -100,10 +102,13 @@ buildTrendRateServiceRow(context, node, rows = [], dailyRows = []) {
     const denominatorKey = deps.denominator?.key || '';
     const merged = (context.templates || []).length > 1;
     const sumValue = (items, key) => window.YejiPlcxHbGuize.sumRows(items, key);
-    const cumNumerator = merged ? sumValue(rows, numeratorKey) : rows[0]?.valuesByKey?.[numeratorKey];
-    const cumDenominator = merged ? sumValue(rows, denominatorKey) : rows[0]?.valuesByKey?.[denominatorKey];
-    const dailyNumerator = merged ? sumValue(dailyRows, numeratorKey) : dailyRows[0]?.valuesByKey?.[numeratorKey];
-    const dailyDenominator = merged ? sumValue(dailyRows, denominatorKey) : dailyRows[0]?.valuesByKey?.[denominatorKey];
+    // 计算行（公式）：分子分母逐节点按公式折叠，率 = 折叠后相除（加权口径）
+    const formulaCum = context.formulaTree ? this.computeBatchFormulaNodeValues(context, rows) : null;
+    const formulaDaily = context.formulaTree ? this.computeBatchFormulaNodeValues(context, dailyRows) : null;
+    const cumNumerator = formulaCum ? (formulaCum[numeratorKey] ?? '') : (merged ? sumValue(rows, numeratorKey) : rows[0]?.valuesByKey?.[numeratorKey]);
+    const cumDenominator = formulaCum ? (formulaCum[denominatorKey] ?? '') : (merged ? sumValue(rows, denominatorKey) : rows[0]?.valuesByKey?.[denominatorKey]);
+    const dailyNumerator = formulaDaily ? (formulaDaily[numeratorKey] ?? '') : (merged ? sumValue(dailyRows, numeratorKey) : dailyRows[0]?.valuesByKey?.[numeratorKey]);
+    const dailyDenominator = formulaDaily ? (formulaDaily[denominatorKey] ?? '') : (merged ? sumValue(dailyRows, denominatorKey) : dailyRows[0]?.valuesByKey?.[denominatorKey]);
     const actual = window.YejiPlcxQsLfxGuize.calcRate(cumNumerator, cumDenominator);
     const dailyActual = window.YejiPlcxQsLfxGuize.calcRate(dailyNumerator, dailyDenominator);
     const numeratorFormat = rows.find(row => row.formatsByKey?.[numeratorKey])?.formatsByKey?.[numeratorKey]
@@ -193,9 +198,9 @@ async buildTrendServiceContext(params = {}, options = {}) {
         templates,
         metric,
         metricName: displayName,
-        // 公式行固定值模型：率差按百分点展示，lfx 分子分母诊断对差值无意义
-        trendModel: formulaTree ? 'value' : (rateMeta ? 'rate' : 'value'),
-        rateMeta: formulaTree ? null : rateMeta,
+        // 率指标走率模型（计算行按公式折叠分子分母后加权，与显示口径一致）
+        trendModel: rateMeta ? 'rate' : 'value',
+        rateMeta,
         formulaTree,
         targetValue,
         targetRangeKey: targetRange?.key || '',

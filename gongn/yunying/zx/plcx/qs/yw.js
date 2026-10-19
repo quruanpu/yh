@@ -130,9 +130,9 @@ buildBatchTrendContext(cell) {
         templates,
         metric,
         metricName: cell.dataset.trendMetricName || this.getMetricFieldDisplayName(metric),
-        // 公式行固定值模型：率差按百分点展示，lfx 分子分母诊断对差值无意义
-        trendModel: formulaTree ? 'value' : (rateMeta ? 'rate' : 'value'),
-        rateMeta: formulaTree ? null : rateMeta,
+        // 率指标走率模型（计算行按公式折叠分子分母后加权，与显示口径一致）
+        trendModel: rateMeta ? 'rate' : 'value',
+        rateMeta,
         formulaTree,
         targetValue: cell.dataset.trendTarget || '',
         targetRangeKey: cell.dataset.trendTargetRange || '',

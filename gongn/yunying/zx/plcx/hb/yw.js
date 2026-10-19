@@ -48,48 +48,9 @@ uniqueBatchFields(fields = []) {
 },
 
 buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = this.getBatchDisplayMetricFields(), options = {}) {
-    const sourceRows = rows || [];
-    const grouped = new Map();
-    sourceRows.forEach(row => {
-        const parsed = window.YejiPlcxHbGuize.parseTemplateName(row.name || '');
-        if (!parsed.mergeable || !parsed.base) return;
-        if (!grouped.has(parsed.base)) grouped.set(parsed.base, []);
-        grouped.get(parsed.base).push(row);
-    });
-
-    const mergeableBases = new Set(
-        Array.from(grouped.entries())
-            .filter(([, items]) => items.length > 1)
-            .map(([base]) => base)
-    );
-    // 计算行置顶：合并组作为一个块（合并行+展开子项）迁到顶部，其余行依次顺移
-    const mergedRows = [];
-    const singleRows = [];
-    const emitted = new Set();
-
-    sourceRows.forEach(row => {
-        const parsed = window.YejiPlcxHbGuize.parseTemplateName(row.name || '');
-        if (!mergeableBases.has(parsed.base)) {
-            singleRows.push(this.decorateBatchDisplayRow(row, { type: 'single' }));
-            return;
-        }
-        if (emitted.has(parsed.base)) return;
-        emitted.add(parsed.base);
-        const children = grouped.get(parsed.base) || [];
-        const merged = this.buildMergedBatchRow(parsed.base, children, metricFields);
-        mergedRows.push(merged);
-        if (options.includeChildren || this.isBatchGroupRowExpanded(merged.groupKey)) {
-            children.forEach(child => {
-                mergedRows.push(this.decorateBatchDisplayRow(child, {
-                    type: 'child',
-                    parentKey: merged.groupKey
-                }));
-            });
-        }
-    });
-
-    const orderedRows = [...mergedRows, ...singleRows];
-    return this.buildBatchFormulaRows?.(orderedRows, options) || orderedRows;
+    // 模板行全部为原始行（不再按命名解析合并组）；计算行（合并行）由公式钩子置于顶部
+    const sourceRows = (rows || []).map(row => this.decorateBatchDisplayRow(row, { type: 'single' }));
+    return this.buildBatchFormulaRows?.(sourceRows, options) || sourceRows;
 },
 
 decorateBatchDisplayRow(row, extra = {}) {
@@ -98,37 +59,6 @@ decorateBatchDisplayRow(row, extra = {}) {
         displayType: extra.type || row.displayType || 'single',
         parentKey: extra.parentKey || row.parentKey || '',
         rawRows: row.rawRows || [row]
-    };
-},
-
-buildMergedBatchRow(baseName, children = [], metricFields = []) {
-    const queryFields = this.getBatchQueryMetricFields();
-    const valuesByKey = {};
-    const formatsByKey = {};
-    queryFields.forEach(field => {
-        valuesByKey[field.key] = window.YejiPlcxHbGuize.aggregateField(
-            children,
-            field,
-            queryFields,
-            item => this.getMetricFieldDisplayName(item)
-        );
-        formatsByKey[field.key] = children.find(row => row.formatsByKey?.[field.key])?.formatsByKey?.[field.key]
-            || field.fieldFormat?.numberFormat
-            || null;
-    });
-
-    const groupKey = `merge:${baseName}`;
-    return {
-        key: groupKey,
-        name: baseName,
-        displayType: 'merged',
-        groupKey,
-        rawRows: children,
-        metricFields,
-        loading: children.some(row => row.loading),
-        error: children.every(row => row.error),
-        valuesByKey,
-        formatsByKey
     };
 },
 
@@ -144,20 +74,14 @@ toggleBatchGroupRow(groupKey) {
 },
 
 renderBatchDisplayName(row = {}) {
+    // 计算行（合并行）：可展开折叠，展开时参与项紧随其后
     if (row.displayType === 'merged') {
-        const expanded = this.isBatchGroupRowExpanded(row.groupKey);
-        return `<button type="button" class="yeji-batch-merge-toggle" data-group-key="${this.escapeHtml(row.groupKey)}" title="查看原始记录">
-            <span>${this.escapeHtml(row.name || '')}</span>
-            <i class="fa-solid fa-caret-${expanded ? 'up' : 'down'}"></i>
-        </button>`;
-    }
-    if (row.displayType === 'formula') {
-        const tip = row.formulaError ? this.escapeHtml(row.formulaError) : '公式计算行';
         if (!row.childRows?.length) {
+            const tip = row.formulaError ? this.escapeHtml(row.formulaError) : '计算行';
             return `<span class="yeji-batch-formula-name" title="${tip}">${this.escapeHtml(row.name || '')} <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i></span>`;
         }
         const expanded = this.isBatchGroupRowExpanded(row.groupKey);
-        return `<button type="button" class="yeji-batch-merge-toggle" data-group-key="${this.escapeHtml(row.groupKey)}" title="查看参与行">
+        return `<button type="button" class="yeji-batch-merge-toggle" data-group-key="${this.escapeHtml(row.groupKey)}" title="查看参与项">
             <span>${this.escapeHtml(row.name || '')}</span>
             <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i>
             <i class="fa-solid fa-caret-${expanded ? 'up' : 'down'}"></i>
@@ -178,8 +102,8 @@ bindBatchGroupRows() {
 
 getBatchTargetValueForDisplayRow(row, metricName, targetRange) {
     if (!row) return '';
-    // 公式行：目标按公式树派生（对参与行目标做优先级折叠，率目标按百分点口径）
-    if (row.displayType === 'formula') {
+    // 计算行（合并行）：目标按公式派生（对参与项目标做公式折叠，率目标按百分点口径）
+    if (row.displayType === 'merged') {
         if (!row.formulaTree?.length || !window.YejiPlcxGsGuize?.evalFormulaTargets) return '';
         return window.YejiPlcxGsGuize.evalFormulaTargets(row.formulaTree, targetRange?.items || {}, metricName);
     }

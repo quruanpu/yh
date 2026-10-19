@@ -51,7 +51,9 @@ buildBatchTrendDailyRow(context, node, result = {}) {
 
 finishBatchTrendNode(context, node, index, rows = [], dailyRows = []) {
     const computeActual = sourceRows => {
-        if (context.formulaTree) return this.computeBatchFormulaNodeValue(context, sourceRows);
+        if (context.formulaTree) {
+            return this.computeBatchFormulaNodeValues(context, sourceRows)[context.metric.key] ?? '';
+        }
         return context.templates.length > 1
             ? window.YejiPlcxHbGuize.aggregateField(
                 sourceRows,

@@ -334,7 +334,7 @@ buildBatchTargetTemplateRows(templates = [], metricFields = this.getBatchMetricF
         formatsByKey: {}
     }));
     const rows = (this.buildBatchDisplayRows?.(sourceRows, metricFields, { includeChildren: true }) || sourceRows)
-        .filter(row => row.displayType !== 'formula' && !String(row.parentKey || '').startsWith('gs:'));
+        .filter(row => row.displayType === 'single');
     const metricNames = (metricFields || []).map(field => this.getMetricFieldDisplayName(field));
     return rows.map(row => {
         const targets = {};
@@ -416,19 +416,21 @@ buildBatchTargetPayload(parsed) {
     const templates = this.state.templates || [];
     const byKey = new Map(templates.map(tpl => [tpl._key, tpl]));
     const byName = new Map(templates.map(tpl => [tpl.name, tpl]));
-    const mergeableNames = this.getBatchMergeableTargetNames(templates);
     const metricNames = this.getBatchMetricFields().map(field => this.getMetricFieldDisplayName(field));
     const items = {};
 
     parsed.items.forEach(item => {
-        const targetItem = this.resolveBatchTargetPayloadItem(item, byKey, byName, mergeableNames);
-        if (!targetItem?.key) return;
+        // 目标仅匹配原始模板（模板上传即原样，不做任何合并解析）
+        const templateKey = String(item.templateKey || '').trim();
+        const templateName = String(item.templateName || '').trim();
+        const tpl = byKey.get(templateKey) || byName.get(templateName);
+        if (!tpl?._key) return;
         const targets = {};
         metricNames.forEach(name => {
             targets[name] = item.targets?.[name] ?? '';
         });
-        items[targetItem.key] = {
-            templateName: targetItem.name || item.templateName || '未命名模板',
+        items[tpl._key] = {
+            templateName: tpl.name || templateName || '未命名模板',
             targets
         };
     });
@@ -446,32 +448,6 @@ buildBatchTargetPayload(parsed) {
         updatedBy: this.getBatchTargetUpdater(),
         items
     };
-},
-
-resolveBatchTargetPayloadItem(item = {}, byKey = new Map(), byName = new Map(), mergeableNames = new Set()) {
-    const templateKey = String(item.templateKey || '').trim();
-    const templateName = String(item.templateName || '').trim();
-    const tpl = byKey.get(templateKey) || byName.get(templateName);
-    if (tpl?._key) {
-        return { key: tpl._key, name: tpl.name || templateName || '未命名模板' };
-    }
-    if (templateKey.startsWith('merge:')) {
-        return { key: templateKey, name: templateName || templateKey.slice('merge:'.length) || '未命名模板' };
-    }
-    if (mergeableNames.has(templateName)) {
-        return { key: `merge:${templateName}`, name: templateName };
-    }
-    return null;
-},
-
-getBatchMergeableTargetNames(templates = []) {
-    const grouped = new Map();
-    (templates || []).forEach(tpl => {
-        const parsed = window.YejiPlcxHbGuize?.parseTemplateName(tpl.name || '') || {};
-        if (!parsed.mergeable || !parsed.base) return;
-        grouped.set(parsed.base, (grouped.get(parsed.base) || 0) + 1);
-    });
-    return new Set([...grouped.entries()].filter(([, count]) => count > 1).map(([name]) => name));
 },
 
 getBatchTargetUpdater() {
@@ -557,7 +533,7 @@ buildBatchTargetCells(row, metric, targetRange) {
     const targetText = window.YejiPlcxMbGongju.formatTargetValue(target, value => this.formatBatchQueryValue(value, null), metric.name);
     const rate = row.error || row.loading || !enabled ? '' : window.YejiPlcxMbGongju.calcAchievement(actualValue, target, metric.name);
     return [
-        row.displayType === 'formula'
+        row.displayType === 'merged'
             ? { className: 'metric num', html: this.escapeHtml(targetText || '-') }
             : this.renderEditableBatchTargetCell(row, metric, targetRange, target, targetText),
         actualTrendCell,
@@ -584,7 +560,7 @@ renderBatchMetricTrendCell(row, metric, targetRange, targetValue, displayText, o
     if (displayText && typeof displayText === 'object') return displayText;
     const text = String(displayText ?? '').trim();
     if (!text || text === '-' || row?.error || row?.loading || options.enabled === false || !metric?.key) return displayText || '-';
-    const isFormula = row?.displayType === 'formula';
+    const isFormula = row?.displayType === 'merged';
     const formulaTree = isFormula ? (row.formulaTree || []) : [];
     const rawKeys = isFormula
         ? (window.YejiPlcxGsGuize?.flattenTreeKeys(formulaTree) || [])
@@ -815,25 +791,14 @@ buildBatchTargetExportModel(rows) {
         this._showToast('暂无模板，无法导出口径', 'warning');
         return;
     }
-    if (!window.YejiPlcxHbGuize?.parseTemplateName) {
-        throw new Error('模板合并规则模块未加载。');
-    }
-    const mergeGroups = new Map();
-    templates.forEach(tpl => {
-        const parsed = window.YejiPlcxHbGuize.parseTemplateName(tpl.name || '') || {};
-        const base = parsed.base || tpl.name || '';
-        if (!mergeGroups.has(base)) mergeGroups.set(base, []);
-        mergeGroups.get(base).push(tpl.name || '');
-    });
-
     const mergeRows = [
         ['一、表结构说明'],
         ['本工作簿为 BI 批量查询模板的「取数口径」说明，包含 1 个总表（本表）与每个模板各 1 个分表。'],
         [],
         ['总表（本表）结构：'],
         ['1. 「一、表结构说明」：本段，说明工作簿整体结构。'],
-        ['2. 「二、模板明细情况」：每行一个模板的概览表，列依次为：模板名、口径类型、合并组、更新时间。'],
-        ['3. 「三、模板合并规则」：合并的业务动机、数据处理方式与通用示例。'],
+        ['2. 「二、模板明细情况」：每行一个模板的概览表，列依次为：模板名、口径类型、更新时间。'],
+        ['3. 「三、公式计算规则」：计算行（合并行）的产生方式与计算口径。'],
         ['4. 「四、基本信息」：本表的导出日期与时间。'],
         [],
         ['分表结构（每个模板一张，以模板名命名）：'],
@@ -842,29 +807,21 @@ buildBatchTargetExportModel(rows) {
         ['3. 筛选项的数量与顺序由模板自身决定，模板增删筛选项后重新下载即同步；纯关键词模板 C 列起为空。'],
         [],
         ['二、模板明细情况'],
-        ['模板名', '口径类型', '合并组', '更新时间']
+        ['模板名', '口径类型', '更新时间']
     ];
     templates.forEach(tpl => {
-        const parsed = window.YejiPlcxHbGuize.parseTemplateName(tpl.name || '') || {};
-        const base = parsed.base || tpl.name || '';
-        const inGroup = (mergeGroups.get(base)?.length || 0) > 1;
-        mergeRows.push([tpl.name || '', this.getTemplateCaliberType(tpl), inGroup ? base : '—', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
+        mergeRows.push([tpl.name || '', this.getTemplateCaliberType(tpl), tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
     });
     mergeRows.push(
         [],
-        ['三、模板合并规则'],
-        ['为什么合并：同名基础模板本质是同一业务对象按范围拆分的多个查询口径（如同一业务员的重庆、云南各一张模板），汇总视图需要按业务对象整体展示，因此合并为一个项目。'],
-        ['数据如何处理：'],
-        ['1. 组内各模板分别查询，结果行按模板名归属归入对应基础名分组；'],
-        ['2. 合并行（父行）的指标值由组内全部明细行聚合：金额类字段直接求和；比率类字段用对应分子分母重新计算（如率 = 对应利润合计 ÷ 不含税金额合计，属加权而非简单平均），个别无对应分子分母的率字段取算术平均；'],
-        ['3. 组内原模板行保留为子行，可展开查看各模板的明细数据；'],
-        ['4. 空值与非数值不参与计算；分母为空或为 0 时结果留空。'],
-        [],
-        ['模板名以最后一个下划线「_」分隔：下划线前为基础名，后面为区分后缀（如「张三_重庆」的基础名为「张三」）。基础名相同的多个模板构成一个「合并组」。'],
-        ['通用示例（非现有模板）：'],
-        ['· 「张三」「张三_重庆」「张三_云南」→ 同属合并组「张三」，三者的查询结果在汇总中合并展示，可展开查看各模板明细；'],
-        ['· 「李四」仅单独存在 → 不构成合并组，独立展示；'],
-        ['· 「王五_北京」若不存在其他「王五」开头模板 → 不构成合并组，独立展示。'],
+        ['三、公式计算规则'],
+        ['模板均为原始模板，不做任何命名解析；需要汇总、差值、比率等计算时，在 BI 查询面板的「模板公式」中配置：结果名=模板名+模板名-模板名。'],
+        ['计算口径：'],
+        ['1. 值字段：严格按公式计算（先乘除后加减，全角自动归一，除数为 0 或操作数为空时结果留空）；'],
+        ['2. 率字段（有分子分母定义的五个率）：公式计算后自动加权计算——分子、分母分别按同一公式折叠后相除，而非对率值直接加减；'],
+        ['3. 公式只引用原始模板，不支持层层嵌套（计算行不能再参与计算）；'],
+        ['4. 计算结果称为「合并行」，置于面板顶部；其引用的模板称为「参与项」，可展开折叠查看；'],
+        ['5. 合并行的目标值由参与项目标按同一公式派生，不可直接编辑；上传目标仅对原始模板生效。'],
         [],
         ['四、基本信息'],
         ['导出日期', new Date().toLocaleDateString('zh-CN')],
