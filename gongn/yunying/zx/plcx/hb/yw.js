@@ -86,7 +86,7 @@ buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = thi
         }
     });
 
-    return result;
+    return this.buildBatchFormulaRows?.(result) || result;
 },
 
 decorateBatchDisplayRow(row, extra = {}) {
@@ -148,6 +148,10 @@ renderBatchDisplayName(row = {}) {
             <i class="fa-solid fa-caret-${expanded ? 'up' : 'down'}"></i>
         </button>`;
     }
+    if (row.displayType === 'formula') {
+        const tip = row.formulaError ? this.escapeHtml(row.formulaError) : '公式计算行';
+        return `<span class="yeji-batch-formula-name" title="${tip}">${this.escapeHtml(row.name || '')} <i class="fa-solid fa-square-root-variable" style="font-size:11px;opacity:.55;"></i></span>`;
+    }
     const cls = row.displayType === 'child' ? 'yeji-batch-child-name' : '';
     return `<span class="${cls}">${this.escapeHtml(row.name || '')}</span>`;
 },
@@ -163,6 +167,11 @@ bindBatchMergeRows() {
 
 getBatchTargetValueForDisplayRow(row, metricName, targetRange) {
     if (!row) return '';
+    // 公式行：目标按公式派生（对参与行目标做 +/-，率目标按百分点口径）
+    if (row.displayType === 'formula') {
+        if (!row.formulaTerms?.length || !window.YejiPlcxGsGuize?.evalFormulaTargets) return '';
+        return window.YejiPlcxGsGuize.evalFormulaTargets(row.formulaTerms, targetRange?.items || {}, metricName);
+    }
     return targetRange?.items?.[row.key]?.targets?.[metricName] ?? '';
 },
 

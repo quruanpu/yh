@@ -3,6 +3,7 @@ const YejiPlcxFwPlcxYewu = {
 async prepareBatchQueryInput(params = {}, options = {}) {
     await this.loadUltraMetadata();
     await this.ensureBatchTargetsLoaded?.();
+    await this.ensureBatchFormulasLoaded?.();
     const templates = await this.resolveBatchTemplates(params, options);
     if (!templates.length) throw new Error('没有匹配到可查询模板。');
 

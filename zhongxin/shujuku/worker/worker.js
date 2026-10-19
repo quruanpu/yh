@@ -5,7 +5,7 @@
 // =====================================================================
 
 const ALLOWED = new Set([
-  'login_accounts', 'device_logins', 'yeji_templates', 'yeji_targets',
+  'login_accounts', 'device_logins', 'yeji_templates', 'yeji_targets', 'yeji_formulas',
   'coupons', 'coupon_index', 'notebooks', 'gongju_items', 'model_configs'
 ]);
 

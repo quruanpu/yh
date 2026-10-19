@@ -53,6 +53,8 @@ const YejiModule = {
         batchQueryTargetsLoaded: false,
         batchQueryTargetUploading: false,
         batchTargetFile: null,
+        batchFormulaText: '',
+        batchFormulaLoaded: false,
         batchTrendSeq: 0,
         batchTrendContext: null,
         batchTrendRows: [],
@@ -84,6 +86,8 @@ const YejiModule = {
     ...window.YejiPlcxMbYewu,
     ...window.YejiPlcxHbYewu,
     ...window.YejiPlcxJhYewu,
+    ...window.YejiPlcxGsGuize,
+    ...window.YejiPlcxGsYewu,
     ...window.YejiPlcxFwYewu,
     ...window.YejiPlcxYewu,
     ...window.YejiPlcxQsSuanfaYewu,
@@ -236,6 +240,8 @@ const YejiModule = {
             'YejiJgYewu',
             'YejiPlcxYewu',
             'YejiPlcxFwYewu',
+            'YejiPlcxGsGuize',
+            'YejiPlcxGsYewu',
             'YejiAiApp',
             'YejiBiAiApp'
         ];
@@ -273,7 +279,8 @@ const YejiModule = {
                 'batchQueryDateValues', 'batchQueryTemplateSnapshot', 'batchQueryCache',
                 'batchQueryPendingRefresh', 'batchMergedOpen', 'batchQueryTargets',
                 'batchQueryActiveTargetKey', 'batchQueryTargetPickerOpen', 'batchQueryTargetsLoaded',
-                'batchQueryTargetUploading', 'batchTargetFile'
+                'batchQueryTargetUploading', 'batchTargetFile',
+                'batchFormulaText', 'batchFormulaLoaded'
             ]),
             trend: this.createStateDomain([
                 'batchTrendSeq', 'batchTrendContext', 'batchTrendRows',
@@ -346,6 +353,8 @@ const YejiModule = {
         this.state.batchQueryTargetsLoaded = false;
         this.state.batchQueryTargetUploading = false;
         this.state.batchTargetFile = null;
+        this.state.batchFormulaText = '';
+        this.state.batchFormulaLoaded = false;
         this.state.batchTrendSeq = 0;
         this.state.batchTrendContext = null;
         this.state.batchTrendRows = [];

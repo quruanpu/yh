@@ -333,7 +333,8 @@ buildBatchTargetTemplateRows(templates = [], metricFields = this.getBatchMetricF
         valuesByKey: {},
         formatsByKey: {}
     }));
-    const rows = this.buildBatchDisplayRows?.(sourceRows, metricFields, { includeChildren: true }) || sourceRows;
+    const rows = (this.buildBatchDisplayRows?.(sourceRows, metricFields, { includeChildren: true }) || sourceRows)
+        .filter(row => row.displayType !== 'formula');
     const metricNames = (metricFields || []).map(field => this.getMetricFieldDisplayName(field));
     return rows.map(row => {
         const targets = {};
@@ -506,14 +507,15 @@ async deleteBatchTargetRange(rangeKey) {
 buildBatchTargetTableModel(rows) {
     const targetRange = this.getActiveBatchTargetRange();
     if (!targetRange) return null;
-    const metricConfigs = this.getBatchTargetMetricConfigs(targetRange, rows);
+    const displayRows = rows || [];
+    const metricConfigs = this.getBatchTargetMetricConfigs(targetRange, displayRows);
     if (!metricConfigs.some(metric => metric.hasTarget)) return null;
     const headers = metricConfigs.flatMap(metric => metric.hasTarget
         ? [`${metric.name}目标`, metric.name, `${metric.name}达成率`]
         : [metric.name]);
     return {
         headers,
-        rows: (rows || []).map(row => ({
+        rows: displayRows.map(row => ({
             name: row.name,
             nameHtml: this.renderBatchDisplayName?.(row),
             cells: metricConfigs.flatMap(metric => this.buildBatchTargetCells(row, metric, targetRange))
@@ -555,7 +557,9 @@ buildBatchTargetCells(row, metric, targetRange) {
     const targetText = window.YejiPlcxMbGongju.formatTargetValue(target, value => this.formatBatchQueryValue(value, null), metric.name);
     const rate = row.error || row.loading || !enabled ? '' : window.YejiPlcxMbGongju.calcAchievement(actualValue, target, metric.name);
     return [
-        this.renderEditableBatchTargetCell(row, metric, targetRange, target, targetText),
+        row.displayType === 'formula'
+            ? { className: 'metric num', html: this.escapeHtml(targetText || '-') }
+            : this.renderEditableBatchTargetCell(row, metric, targetRange, target, targetText),
         actualTrendCell,
         this.renderBatchTrendEntryCell(row, metric, targetRange, target, window.YejiPlcxMbGongju.formatAchievement(rate))
     ];
@@ -579,6 +583,7 @@ renderEditableBatchTargetCell(row, metric, targetRange, rawValue, displayText) {
 renderBatchMetricTrendCell(row, metric, targetRange, targetValue, displayText, options = {}) {
     if (displayText && typeof displayText === 'object') return displayText;
     const text = String(displayText ?? '').trim();
+    if (row?.displayType === 'formula') return displayText || '-';
     if (!text || text === '-' || row?.error || row?.loading || options.enabled === false || !metric?.key) return displayText || '-';
     const rawKeys = (row.rawRows?.length ? row.rawRows : [row]).map(item => item.key).filter(Boolean);
     const emphasized = options.emphasized === true;

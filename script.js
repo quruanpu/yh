@@ -676,6 +676,8 @@ AppFramework.registerLazy({
         'gongn/yunying/zx/plcx/jh/gz.js',
         'gongn/yunying/zx/plcx/jh/yw.js',
         'gongn/yunying/zx/plcx/hb/yw.js',
+        'gongn/yunying/zx/plcx/gs/gz.js',
+        'gongn/yunying/zx/plcx/gs/yw.js',
         'gongn/yunying/zx/plcx/qs/gz.js',
         'gongn/yunying/zx/plcx/qs/zfx/gz.js',
         'gongn/yunying/zx/plcx/qs/lfx/gz.js',

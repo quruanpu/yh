@@ -52,7 +52,9 @@ async runBatchTemplateQuery(options = {}) {
         await this.loadUltraMetadata();
         const templatesPromise = this.loadTemplates({ force: true });
         const targetsPromise = this.ensureBatchTargetsLoaded?.();
+        const formulasPromise = this.ensureBatchFormulasLoaded?.();
         await targetsPromise;
+        await formulasPromise;
         await this.ensureDefaultBatchTargetForToday?.();
         const templates = await templatesPromise;
         if (!templates.length) {
@@ -233,7 +235,7 @@ renderBatchQueryBody(message = '') {
     const metricFields = this.getBatchDisplayMetricFields?.() || this.getBatchQueryMetricFields();
     const metricHeaders = metricFields.map(field => this.getMetricFieldDisplayName(field));
     const displayRows = this.buildBatchDisplayRows?.(this.state.batchQueryRows || [], metricFields) || (this.state.batchQueryRows || []);
-    const targetTable = this.buildBatchTargetTableModel?.(displayRows);
+    const targetTable = this.buildBatchTargetTableModel?.(displayRows.filter(row => row.displayType !== 'formula'));
     const ths = [
         '<th>项目名称</th>',
         ...(targetTable ? targetTable.headers : metricHeaders).map(name => `<th class="metric">${this.escapeHtml(name)}</th>`)
@@ -244,6 +246,7 @@ renderBatchQueryBody(message = '') {
             : (row.loading ? metricHeaders.map(() => this.renderBatchLoadingCell()) : metricFields.map(field => {
                 if (!this.isBatchRowMetricEnabled(row, field.key)) return '-';
                 const displayText = this.formatBatchQueryValue(row.valuesByKey?.[field.key], row.formatsByKey?.[field.key]);
+                if (row.displayType === 'formula') return displayText;
                 return this.renderBatchMetricTrendCell?.(row, field, null, '', displayText, { enabled: true }) || displayText;
             }));
         return { name: row.name, nameHtml: this.renderBatchDisplayName?.(row), cells: values };
@@ -306,6 +309,9 @@ renderBatchQueryStatusBar() {
                 <button type="button" id="yeji-batch-caliber" class="yeji-batch-icon-btn" title="下载全部模板口径">
                     <i class="fa-solid fa-file-excel"></i>
                 </button>
+                <button type="button" id="yeji-batch-formula" class="yeji-batch-icon-btn" title="模板公式">
+                    <i class="fa-solid fa-square-root-variable"></i>
+                </button>
                 <button type="button" id="yeji-batch-refresh" class="yeji-batch-icon-btn" title="刷新" ${this.state.batchQueryLoading ? 'disabled' : ''}>
                     <i class="fa-solid ${this.state.batchQueryLoading ? 'fa-spinner fa-spin' : 'fa-rotate-right'}"></i>
                 </button>
@@ -316,6 +322,9 @@ renderBatchQueryStatusBar() {
 
 bindBatchQueryStatusBar() {
     this.bindBatchTargetPicker?.();
+    document.getElementById('yeji-batch-formula')?.addEventListener('click', () => {
+        this.openFormulaDialog?.();
+    });
     document.getElementById('yeji-batch-target')?.addEventListener('click', () => {
         this.openBatchTargetModal?.();
     });
