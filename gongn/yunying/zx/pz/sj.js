@@ -78,15 +78,22 @@ metricFieldKeys: [
 "OIarCNLfRiLjFWUrCaXVZAfg",
 "YmZUVTlZsQnmqxtGRrPIyWdF",
 "NeQtrSldSbFoGeUThoaGzANr",
-"TLhdnxmnTcISGHJtGaPULWbN",
+"AhJaGrnLxfbyJygjKJktHJmN",
 "oSgYeaAMILyOjXVEeANjDiju",
 "XcfyBmbUftdlEaCMHYeVySqX",
 "VPdHsUUxAqqOMSUhYhZBpqoj",
 "qrqyQsbChrvmJwvShumuNqTc",
-"ufXgOfzeQaHfvypADiagxKAG"
+"ufXgOfzeQaHfvypADiagxKAG",
+"qUPCyqSIhrbkDfnQBOXFIjOR",
+"UXTKnMszNjUJqndWdvUwiUsH",
+"RIVIxMtocpTnCOTPgIRlUGsQ",
+"BKqjEGxFmeZyRXeCwgbAAyuy",
+"gLRyFmQKTrEGxHyOaSGYDPfs",
+"PFeNybLEOhoICbVkNQjWexnf",
+"utEvMRYKzntrCBSWzWNxExjg"
 ],
 metricFieldLabels: {
-TLhdnxmnTcISGHJtGaPULWbN: "客户数",
+AhJaGrnLxfbyJygjKJktHJmN: "客户数",
 oSgYeaAMILyOjXVEeANjDiju: "商品编码去重计数",
 XcfyBmbUftdlEaCMHYeVySqX: "spuid去重计数",
 VPdHsUUxAqqOMSUhYhZBpqoj: "出库日期去重计数",
@@ -164,11 +171,18 @@ metricFields: [
 {key:"VxljwkzPcfXfZBZXqJwwqHbB",fdId:"wf551b20e6bba4a03a214005",name:"不含税P4毛利率",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum([不含税p4毛利额])/sum([不含税金额])"},
 {key:"OIarCNLfRiLjFWUrCaXVZAfg",fdId:"nde764f4ca9fa498f8d0aafe",name:"不含税配送费率",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum([不含税配送费])/sum([不含税金额])"},
 {key:"KDPMilUbvhnnHNlxfDTUbpXt",fdId:"mb6f3f3f8785f4b2dab1acaa",name:"不含税人工费率",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum([不含税仓库人工费])/sum([不含税金额])"},
-{key:"TLhdnxmnTcISGHJtGaPULWbN",fdId:"i1929f755ea9a4ad2942eb94",name:"客户名称",fdType:"STRING",metaType:"METRIC",isAggregated:false,calculationType:"normal",baseFdType:"STRING",level:"dataset",annotation:"",aggrType:"CNT_DISTINCT",alias:"客户数"},
+{key:"AhJaGrnLxfbyJygjKJktHJmN",fdId:"e5f8c7f2d4dee47139e62902",name:"药店id",fdType:"STRING",metaType:"DIM",isAggregated:false,calculationType:"normal",baseFdType:"STRING",level:"dataset",annotation:"",aggrType:"CNT_DISTINCT",alias:"客户数"},
 {key:"oSgYeaAMILyOjXVEeANjDiju",fdId:"e2cf19230839641debd5516c",name:"ERP商品编码",fdType:"STRING",metaType:"METRIC",isAggregated:false,calculationType:"normal",baseFdType:"STRING",level:"dataset",annotation:"",aggrType:"CNT_DISTINCT",alias:"商品编码去重计数"},
 {key:"VPdHsUUxAqqOMSUhYhZBpqoj",fdId:"t4115ca5bb1574cb39287216",name:"出库日期",fdType:"DATE",metaType:"METRIC",isAggregated:false,calculationType:"normal",baseFdType:"DATE",level:"dataset",annotation:"",aggrType:"CNT_DISTINCT",alias:"出库日期去重计数"},
 {key:"qrqyQsbChrvmJwvShumuNqTc",fdId:"h8052c3c2934345ac89563ab",name:"支付日期",fdType:"DATE",metaType:"METRIC",isAggregated:false,calculationType:"normal",baseFdType:"DATE",level:"dataset",annotation:"",aggrType:"CNT_DISTINCT",alias:"支付日期去重计数"},
 {key:"XcfyBmbUftdlEaCMHYeVySqX",fdId:"v913152f850b44c0ca563192",name:"spuid",fdType:"STRING",metaType:"METRIC",isAggregated:false,calculationType:"normal",baseFdType:"STRING",level:"dataset",annotation:"",aggrType:"CNT_DISTINCT",alias:"spuid去重计数"},
-{key:"ufXgOfzeQaHfvypADiagxKAG",fdId:"jf41259a9fcc049e1af636a4",name:"条目单价",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum([不含税金额])/count(case when [单据类型] = '销售出库单' then 1 end)"}
+{key:"ufXgOfzeQaHfvypADiagxKAG",fdId:"jf41259a9fcc049e1af636a4",name:"条目单价",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum([不含税金额])/count(case when [单据类型] = '销售出库单' then 1 end)"},
+{key:"qUPCyqSIhrbkDfnQBOXFIjOR",fdId:"i4c8e16bb05e346c38328e76",name:"5W金额",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum(case when [是否5W] = 1 then [含税金额] end)"},
+{key:"UXTKnMszNjUJqndWdvUwiUsH",fdId:"t010f25e5f1c642658345c62",name:"L1金额",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum(case when [l标签] = 'L1' then [含税金额] end)"},
+{key:"RIVIxMtocpTnCOTPgIRlUGsQ",fdId:"ba980edc07260445aac58795",name:"L2金额",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum(case when [l标签] = 'L2' then [含税金额] end)"},
+{key:"BKqjEGxFmeZyRXeCwgbAAyuy",fdId:"mf548ce39a1a648f5a53b38b",name:"L3金额",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum(case when [l标签] = 'L3' then [含税金额] end)"},
+{key:"gLRyFmQKTrEGxHyOaSGYDPfs",fdId:"w3dd43c89b9074edbad2834b",name:"省内单三金额",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"sum(case when [省内外] = '省内' and [客户类型] in ('零售单体','第三终端') then [含税金额] end)"},
+{key:"PFeNybLEOhoICbVkNQjWexnf",fdId:"aaf1902d6e4cf48ebb94af38",name:"促销补贴金额",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",aggrType:"SUM"},
+{key:"utEvMRYKzntrCBSWzWNxExjg",fdId:"r98e27e57f70746b798a28a7",name:"出库条目数",fdType:"DOUBLE",metaType:"METRIC",isAggregated:true,calculationType:"aggregation",baseFdType:"DOUBLE",level:"dataset",annotation:"",formula:"count(case when [单据类型] = '销售出库单' then 1 end)"}
 ]
 };
