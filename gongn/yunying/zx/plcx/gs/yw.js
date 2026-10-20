@@ -73,8 +73,7 @@ getFormulaRateDeps(metricFields = []) {
 // 展示层漏斗钩子：公式计算行（合并行）置于顶部，其余行依次顺移。
 // 参与项不再独立呈现，仅作为合并行的子行出现（展开可见）；
 // 合并行出错（引用不存在/参与行查询失败）时其参与项保留独立行，保证数据可见。
-// options.includeChildren：模板下载等场景（同时展开参与项）；
-// options.includeParticipants：导出场景（展开参与项）。
+// options.includeChildren：强制展开参与项（导出/下载/AI 快照场景）。
 buildBatchFormulaRows(displayRows = [], options = {}) {
     const text = this.state.batchFormulaText || '';
     if (!text.trim() || !window.YejiPlcxGsGuize) return displayRows;
@@ -129,10 +128,7 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
             : tokenized.terms.map(term => {
                 const refRow = resolveRow(term.name);
                 if (!refRow) return null;
-                return this.decorateBatchDisplayRow(refRow, {
-                    type: 'child',
-                    parentKey: groupKey
-                });
+                return this.decorateBatchDisplayRow(refRow, { type: 'child' });
             }).filter(Boolean);
         const row = {
             key: groupKey,
@@ -155,7 +151,6 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
             childRows.forEach(child => participantKeys.add(child.key));
         }
         const expanded = options.includeChildren
-            || options.includeParticipants
             || this.isBatchGroupRowExpanded(groupKey);
         if (childRows.length && expanded) {
             formulaRows.push(...childRows);

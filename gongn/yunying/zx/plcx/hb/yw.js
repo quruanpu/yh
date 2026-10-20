@@ -57,7 +57,6 @@ decorateBatchDisplayRow(row, extra = {}) {
     return {
         ...row,
         displayType: extra.type || row.displayType || 'single',
-        parentKey: extra.parentKey || row.parentKey || '',
         rawRows: row.rawRows || [row]
     };
 },

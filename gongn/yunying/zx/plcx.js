@@ -363,7 +363,7 @@ async downloadBatchQueryExcel() {
             return;
         }
         const metricFields = this.getBatchDisplayMetricFields?.() || this.getBatchQueryMetricFields();
-        const exportRows = (this.buildBatchDisplayRows?.(rows, metricFields, { includeParticipants: true }) || rows).filter(row => !row.loading && !row.error);
+        const exportRows = (this.buildBatchDisplayRows?.(rows, metricFields, { includeChildren: true }) || rows).filter(row => !row.loading && !row.error);
         const headers = metricFields.map(field => this.getMetricFieldDisplayName(field));
         if (!window.YejiPlcxGongju?.downloadExcel) throw new Error('BI 汇总查询导出模块未加载。');
         const targetExport = this.buildBatchTargetExportModel?.(exportRows);
