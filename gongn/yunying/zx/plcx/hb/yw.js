@@ -48,7 +48,7 @@ uniqueBatchFields(fields = []) {
 },
 
 buildBatchDisplayRows(rows = this.state.batchQueryRows || [], metricFields = this.getBatchDisplayMetricFields(), options = {}) {
-    // 模板行全部为原始行；计算行（合并行）由公式钩子置于顶部
+    // 模板行全部为原始行；计算行（合并行）由公式钩子置于顶部，参与项收归子行
     const sourceRows = (rows || []).map(row => this.decorateBatchDisplayRow(row, { type: 'single' }));
     return this.buildBatchFormulaRows?.(sourceRows, options) || sourceRows;
 },

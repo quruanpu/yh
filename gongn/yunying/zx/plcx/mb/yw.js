@@ -334,7 +334,7 @@ buildBatchTargetTemplateRows(templates = [], metricFields = this.getBatchMetricF
         formatsByKey: {}
     }));
     const rows = (this.buildBatchDisplayRows?.(sourceRows, metricFields, { includeChildren: true }) || sourceRows)
-        .filter(row => row.displayType === 'single');
+        .filter(row => row.displayType !== 'merged');
     const metricNames = (metricFields || []).map(field => this.getMetricFieldDisplayName(field));
     return rows.map(row => {
         const targets = {};
@@ -484,7 +484,13 @@ buildBatchTargetTableModel(rows) {
     const targetRange = this.getActiveBatchTargetRange();
     if (!targetRange) return null;
     const displayRows = rows || [];
-    const metricConfigs = this.getBatchTargetMetricConfigs(targetRange, displayRows);
+    // 目标列判定用全量行（参与项含子行形态），折叠合并行时列集合不随展开状态变化
+    const completeRows = this.buildBatchDisplayRows?.(
+        this.state.batchQueryRows || [],
+        this.getBatchDisplayMetricFields?.(),
+        { includeChildren: true }
+    ) || displayRows;
+    const metricConfigs = this.getBatchTargetMetricConfigs(targetRange, completeRows);
     if (!metricConfigs.some(metric => metric.hasTarget)) return null;
     const headers = metricConfigs.flatMap(metric => metric.hasTarget
         ? [`${metric.name}目标`, metric.name, `${metric.name}达成率`]

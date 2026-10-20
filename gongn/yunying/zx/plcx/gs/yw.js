@@ -71,6 +71,8 @@ getFormulaRateDeps(metricFields = []) {
 },
 
 // 展示层漏斗钩子：公式计算行（合并行）置于顶部，其余行依次顺移。
+// 参与项不再独立呈现，仅作为合并行的子行出现（展开可见）；
+// 合并行出错（引用不存在/参与行查询失败）时其参与项保留独立行，保证数据可见。
 // options.includeChildren：模板下载等场景（同时展开参与项）；
 // options.includeParticipants：导出场景（展开参与项）。
 buildBatchFormulaRows(displayRows = [], options = {}) {
@@ -88,6 +90,7 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
     const metricFields = this.getBatchQueryMetricFields();
     const rateDeps = this.getFormulaRateDeps(metricFields);
     const formulaRows = [];
+    const participantKeys = new Set();
 
     specs.forEach(spec => {
         const registry = this.getFormulaRegistryNames();
@@ -147,6 +150,10 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
             formatsByKey: evaluation.formatsByKey
         };
         formulaRows.push(row);
+        // 成功计算的公式行：参与项收归子行，不再独立呈现
+        if (!error && childRows.length) {
+            childRows.forEach(child => participantKeys.add(child.key));
+        }
         const expanded = options.includeChildren
             || options.includeParticipants
             || this.isBatchGroupRowExpanded(groupKey);
@@ -155,7 +162,7 @@ buildBatchFormulaRows(displayRows = [], options = {}) {
         }
     });
 
-    return [...formulaRows, ...displayRows];
+    return [...formulaRows, ...displayRows.filter(row => !participantKeys.has(row.key))];
 },
 
 buildFormulaErrorRow(spec, message, metricFields = []) {
