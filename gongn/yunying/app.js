@@ -55,6 +55,7 @@ const YejiModule = {
         batchTargetFile: null,
         batchFormulaText: '',
         batchFormulaLoaded: false,
+        batchFormulaUpdatedAt: 0,
         batchTrendSeq: 0,
         batchTrendContext: null,
         batchTrendRows: [],
@@ -280,7 +281,7 @@ const YejiModule = {
                 'batchQueryPendingRefresh', 'batchGroupOpen', 'batchQueryTargets',
                 'batchQueryActiveTargetKey', 'batchQueryTargetPickerOpen', 'batchQueryTargetsLoaded',
                 'batchQueryTargetUploading', 'batchTargetFile',
-                'batchFormulaText', 'batchFormulaLoaded'
+                'batchFormulaText', 'batchFormulaLoaded', 'batchFormulaUpdatedAt'
             ]),
             trend: this.createStateDomain([
                 'batchTrendSeq', 'batchTrendContext', 'batchTrendRows',
@@ -355,6 +356,7 @@ const YejiModule = {
         this.state.batchTargetFile = null;
         this.state.batchFormulaText = '';
         this.state.batchFormulaLoaded = false;
+        this.state.batchFormulaUpdatedAt = 0;
         this.state.batchTrendSeq = 0;
         this.state.batchTrendContext = null;
         this.state.batchTrendRows = [];

@@ -28,12 +28,14 @@ async ensureBatchFormulasLoaded({ force = false } = {}) {
     const pid = this.getTemplateProviderId();
     if (!pid || !window.SjkModule) {
         this.state.batchFormulaText = '';
+        this.state.batchFormulaUpdatedAt = 0;
         this.state.batchFormulaLoaded = true;
         return '';
     }
     try {
         const doc = await this.fetchFormulas(pid);
         this.state.batchFormulaText = doc?.text || '';
+        this.state.batchFormulaUpdatedAt = doc?.updatedAt || 0;
     } catch (error) {
         console.error('[yeji] 公式加载失败', error);
     }
@@ -305,6 +307,7 @@ async saveFormulaText() {
         if (!pid || !window.SjkModule) throw new Error('公式数据库未就绪');
         await this.saveFormulaDoc(pid, text);
         this.state.batchFormulaText = text;
+        this.state.batchFormulaUpdatedAt = Date.now();
         this.state.batchFormulaLoaded = true;
         this.closeFormulaDialog();
         this._showToast(text ? '公式已保存' : '公式已清空', 'success');

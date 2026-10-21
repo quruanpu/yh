@@ -784,6 +784,45 @@ buildBatchTargetExportModel(rows) {
         return rows.map(row => row.map(cell => (cell === undefined ? '' : String(cell).length > 32000 ? String(cell).slice(0, 32000) + '…' : cell)));
     },
 
+    // 合并行口径明细：公式全文逐条解析，表达式与面板「模板公式」逐字一致（可直接复现）；
+    // 状态复用 validateFormulaText（单一校验事实源），参与项取自分词结果。
+    buildFormulaCaliberEntries() {
+        const text = this.state.batchFormulaText || '';
+        const guize = window.YejiPlcxGsGuize;
+        if (!text.trim() || !guize) return [];
+        const { specs } = guize.parseFormulaText(text);
+        if (!specs.length) return [];
+        const report = this.validateFormulaText(text);
+        const errorsByLine = new Map(report.errors.map(err => [err.line, err.message]));
+        const registry = this.getFormulaRegistryNames();
+        const formulaNames = new Set(specs.map(item => item.name));
+        return specs.map(spec => {
+            const tokenized = guize.tokenizeFormula(spec.expr, [...registry, ...formulaNames]);
+            const participants = tokenized.error ? [] : [...new Set(tokenized.terms.map(term => term.name))];
+            return {
+                name: spec.name,
+                expr: `${spec.name}=${spec.expr}`,
+                participants,
+                status: errorsByLine.get(spec.line) || '有效'
+            };
+        });
+    },
+
+    // 合并行分表：与模板分表同构（A/B 列键值对，C 列起无筛选项）
+    buildMergedCaliberSheetRows(entry) {
+        const updatedAt = this.state.batchFormulaUpdatedAt;
+        return [
+            ['项目', '内容'],
+            ['口径类型', '合并行（公式计算）'],
+            ['计算公式', entry.expr],
+            ['参与项', entry.participants.join('、') || '—'],
+            ['参与项明细', '见同名模板分表'],
+            ['状态', entry.status],
+            ['情况说明', '本行由面板按公式实时计算：值字段按公式逐列折叠；率字段按分子分母分别折叠后相除（加权口径，不对率值直接加减）；目标值由参与项目标按同一公式派生，不可直接编辑'],
+            ['公式更新时间', updatedAt ? new Date(updatedAt).toLocaleString('zh-CN') : '—']
+        ];
+    },
+
     async downloadAllTemplateCalibers() {
         try {
             // 确保筛选组件元数据就绪（组件 ID → 中文名映射），失败不阻断导出（组件名回退显示 ID）
@@ -792,60 +831,75 @@ buildBatchTargetExportModel(rows) {
         } catch (error) {
             console.warn('[yeji] 口径导出前元数据加载失败，组件名将回退显示 ID:', error);
         }
+        await this.ensureBatchFormulasLoaded?.();
         const templates = this.state.templates || [];
-    if (!templates.length) {
-        this._showToast('暂无模板，无法导出口径', 'warning');
-        return;
-    }
-    const mergeRows = [
-        ['一、表结构说明'],
-        ['本工作簿为 BI 批量查询模板的「取数口径」说明，包含 1 个总表（本表）与每个模板各 1 个分表。'],
-        [],
-        ['总表（本表）结构：'],
-        ['1. 「一、表结构说明」：本段，说明工作簿整体结构。'],
-        ['2. 「二、模板明细情况」：每行一个模板的概览表，列依次为：模板名、口径类型、更新时间。'],
-        ['3. 「三、公式计算规则」：计算行（合并行）的产生方式与计算口径。'],
-        ['4. 「四、基本信息」：本表的导出日期与时间。'],
-        [],
-        ['分表结构（每个模板一张，以模板名命名）：'],
-        ['1. A 列「项目」、B 列「内容」：模板基础信息，行依次为：口径类型、关键词、快捷搜索、情况说明、更新时间。'],
-        ['2. C 列起为筛选项明细：每个筛选项独占一列，列标题为筛选项名称，列下方每行一个筛选值；值较多的筛选项纵向向下铺开，各列相互独立、短列留空。'],
-        ['3. 筛选项的数量与顺序由模板自身决定，模板增删筛选项后重新下载即同步；纯关键词模板 C 列起为空。'],
-        [],
-        ['二、模板明细情况'],
-        ['模板名', '口径类型', '更新时间']
-    ];
-    templates.forEach(tpl => {
-        mergeRows.push([tpl.name || '', this.getTemplateCaliberType(tpl), tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
-    });
-    mergeRows.push(
-        [],
-        ['三、公式计算规则'],
-        ['模板均为原始模板，不做任何命名解析；需要汇总、差值、比率等计算时，在 BI 查询面板的「模板公式」中配置：结果名=模板名+模板名-模板名。'],
-        ['计算口径：'],
-        ['1. 值字段：严格按公式计算（先乘除后加减，全角自动归一，除数为 0 或操作数为空时结果留空）；'],
-        ['2. 率字段（有分子分母定义的五个率）：公式计算后自动加权计算——分子、分母分别按同一公式折叠后相除，而非对率值直接加减；'],
-        ['3. 公式只引用原始模板，不支持层层嵌套（计算行不能再参与计算）；'],
-        ['4. 计算结果称为「合并行」，置于面板顶部；其引用的模板称为「参与项」，可展开折叠查看；'],
-        ['5. 合并行的目标值由参与项目标按同一公式派生，不可直接编辑；上传目标仅对原始模板生效。'],
-        [],
-        ['四、基本信息'],
-        ['导出日期', new Date().toLocaleDateString('zh-CN')],
-        ['导出时间', new Date().toLocaleTimeString('zh-CN')]
-    );
-
-    const sheets = [{ name: '合并说明', rows: mergeRows }];
-    templates.forEach((tpl, index) => {
-        sheets.push({
-            name: tpl.name || ('模板' + (index + 1)),
-            rows: this.buildTemplateCaliberSheetRows(tpl)
+        if (!templates.length) {
+            this._showToast('暂无模板，无法导出口径', 'warning');
+            return;
+        }
+        const formulaEntries = this.buildFormulaCaliberEntries();
+        const mergeRows = [
+            ['一、表结构说明'],
+            ['本工作簿由 BI 批量查询面板导出，描述全部查询项目的取数口径，供人工查阅与 AI 助手直接读取。'],
+            ['项目分两类：模板 = 向 BI 发起查询的原始口径；合并行 = 面板按公式实时计算的派生行，数据不落在 BI 平台。'],
+            ['阅读方式：先读「二、项目明细」定位项目，再打开同名分表查口径；复现合并行时直接使用「计算公式」列原文。'],
+            [],
+            ['总表（本表）结构：'],
+            ['1. 「一、表结构说明」：本段，说明工作簿整体结构与阅读方式。'],
+            ['2. 「二、项目明细」：每行一个项目，列依次为：项目名、类型、计算公式、参与项、更新时间；合并行置顶，与面板展示同序。'],
+            ['3. 「三、公式计算规则」：合并行的通用计算口径（值字段折叠方式、率字段加权、目标派生）。'],
+            ['4. 「四、基本信息」：本表的导出日期与时间。'],
+            [],
+            ['分表结构（每个项目一张，以项目名命名）：'],
+            ['1. 模板分表：A/B 列为基础信息（口径类型、关键词、快捷搜索、情况说明、更新时间），C 列起为筛选项明细——每个筛选项独占一列，列标题为筛选项名称，列下方每行一个筛选值，各列相互独立、短列留空。'],
+            ['2. 合并行分表：计算公式、参与项、状态与计算说明，无筛选项。'],
+            [],
+            ['二、项目明细'],
+            ['项目名', '类型', '计算公式', '参与项', '更新时间']
+        ];
+        formulaEntries.forEach(entry => {
+            mergeRows.push([
+                entry.name,
+                '合并行（公式计算）',
+                entry.expr,
+                entry.participants.join('、') || '—',
+                this.state.batchFormulaUpdatedAt ? new Date(this.state.batchFormulaUpdatedAt).toLocaleString('zh-CN') : '—'
+            ]);
         });
-    });
+        templates.forEach(tpl => {
+            mergeRows.push([tpl.name || '', this.getTemplateCaliberType(tpl), '', '', tpl?.time ? new Date(tpl.time).toLocaleString('zh-CN') : '—']);
+        });
+        mergeRows.push(
+            [],
+            ['三、公式计算规则'],
+            ['模板均为原始模板，不做任何命名解析；需要汇总、差值、比率等计算时，在 BI 查询面板的「模板公式」中配置：结果名=模板名+模板名-模板名。'],
+            ['计算口径：'],
+            ['1. 值字段：严格按公式计算（先乘除后加减，全角自动归一，除数为 0 或操作数为空时结果留空）；'],
+            ['2. 率字段（有分子分母定义的五个率）：公式计算后自动加权计算——分子、分母分别按同一公式折叠后相除，而非对率值直接加减；'],
+            ['3. 公式只引用原始模板，不支持层层嵌套（计算行不能再参与计算）；'],
+            ['4. 计算结果称为「合并行」，置于面板顶部；其引用的模板称为「参与项」，可展开折叠查看；'],
+            ['5. 合并行的目标值由参与项目标按同一公式派生，不可直接编辑；上传目标仅对原始模板生效。'],
+            [],
+            ['四、基本信息'],
+            ['导出日期', new Date().toLocaleDateString('zh-CN')],
+            ['导出时间', new Date().toLocaleTimeString('zh-CN')]
+        );
 
-    await window.YejiPlcxGongju.downloadWorkbookSheets({
-        filename: window.YejiPlcxGongju.makeFilename('BI模板取数口径'),
-        sheets
-    });
+        const sheets = [{ name: '总表', rows: mergeRows }];
+        formulaEntries.forEach(entry => {
+            sheets.push({ name: entry.name, rows: this.buildMergedCaliberSheetRows(entry) });
+        });
+        templates.forEach((tpl, index) => {
+            sheets.push({
+                name: tpl.name || ('模板' + (index + 1)),
+                rows: this.buildTemplateCaliberSheetRows(tpl)
+            });
+        });
+
+        await window.YejiPlcxGongju.downloadWorkbookSheets({
+            filename: window.YejiPlcxGongju.makeFilename('BI模板取数口径'),
+            sheets
+        });
     }
     };
 
